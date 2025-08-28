@@ -1,0 +1,75 @@
+flat_assign_to_global.Rmd:
+  path: dev/flat_assign_to_global.Rmd
+  state: active
+  R: R/assign_to_global.R
+  tests: []
+  vignettes: []
+  inflate:
+    flat_file: dev/flat_assign_to_global.Rmd
+    vignette_name: .na
+    open_vignette: true
+    check: true
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
+flat_crypt_data.Rmd:
+  path: dev/flat_crypt_data.Rmd
+  state: active
+  R: R/crypt_data.R
+  tests: tests/testthat/test-crypt_data.R
+  vignettes: []
+  inflate:
+    flat_file: dev/flat_crypt_data.Rmd
+    vignette_name: .na
+    open_vignette: true
+    check: true
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
+flat_crypt_r.Rmd:
+  path: dev/flat_crypt_r.Rmd
+  state: active
+  R: R/crypt_r.R
+  tests: tests/testthat/test-crypt_r.R
+  vignettes: []
+  inflate:
+    flat_file: dev/flat_crypt_r.Rmd
+    vignette_name: .na
+    open_vignette: true
+    check: true
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
+flat_crypt_vector.Rmd:
+  path: dev/flat_crypt_vector.Rmd
+  state: active
+  R: R/crypt_vector.R
+  tests: tests/testthat/test-crypt_vector.R
+  vignettes: []
+  inflate:
+    flat_file: dev/flat_crypt_vector.Rmd
+    vignette_name: .na
+    open_vignette: true
+    check: true
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false
+flat_inspect.Rmd:
+  path: dev/flat_inspect.Rmd
+  state: active
+  R: R/inspect.R
+  tests: tests/testthat/test-inspect.R
+  vignettes: []
+  inflate:
+    flat_file: dev/flat_inspect.Rmd
+    vignette_name: .na
+    open_vignette: true
+    check: true
+    document: true
+    overwrite: ask
+    clean: ask
+    codecov: false

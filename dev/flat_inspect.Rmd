@@ -1,0 +1,117 @@
+---
+title: "flat_inspect.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r development-load}
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+```
+
+# inspect
+
+```{r development-inspect}
+# Prepare the code of your function here
+```
+
+```{r function-inspect}
+#' Inspect a data frame
+#'
+#' Given a data frame as an input, this function outputs an broad view
+#' of this data frame contents:
+#' dimensions, list of variables and
+#' systematic corresponding information (type,
+#' frequence and proportion of unique values, missing and 0-length values;
+#' and up to the 10 first unique values).
+#' @param data_frame The data.frame to explore.
+#' Need to exist in the Global Environment.
+#' @param nrow Logical. If TRUE, the number of observations of
+#' the dataset is rendered in addition.
+#' @return Variable list of the dataset and
+#' systematic informations for each variable.
+#' @importFrom magrittr %>%
+#' @export
+#'
+inspect <- function(data_frame, nrow = FALSE) {
+
+  requireNamespace("magrittr")
+
+  # Observations:
+  rows <- nrow(data_frame)
+  df <- data_frame %>%
+
+    # Date-time class correction to make it compatible with class(.x):
+    dplyr::mutate_if(
+      lubridate::is.POSIXct, \(x)
+      as.character(x) %>% structure(class = "Date-time")) %>%
+
+    # Compute inspection infos:
+    purrr::map_df(~ {
+      dplyr::tibble(
+        class = class(.x),
+        nb_distinct = dplyr::n_distinct(.x),
+        prop_distinct = nb_distinct / rows,
+        nb_na = sum(is.na(.x)),
+        prop_na = nb_na / rows,
+        nb_void = sum(.x == "", na.rm = TRUE),
+        prop_void = nb_void / rows,
+        nchars = paste(unique(sort(nchar(as.character(.x))))[
+          1:min(dplyr::n_distinct(nchar(as.character(.x))), 10)],
+          collapse = " / "),
+        modalities = paste(sort(unique(.x))[
+          1:min(dplyr::n_distinct(.x), 10)],
+          collapse = " / ")
+      )
+    }, .id = "variables")
+  if (nrow) {
+    print(nrow(data_frame))
+    df
+  } else
+    df
+}
+```
+
+```{r examples-inspect}
+requireNamespace("magrittr")
+inspect(CO2)
+```
+
+```{r tests-inspect}
+test_that("Valid outputs are consistent", {
+  
+  output <- structure(list(
+    variables = c("Plant", "Plant", "Type", "Treatment", "conc", "uptake"), 
+    class = c("ordered", "factor", "factor", "factor", "numeric", "numeric"), 
+    nb_distinct = c(12L, 12L, 2L, 2L, 7L, 76L), 
+    prop_distinct = c(0.142857142857143, 0.142857142857143, 0.0238095238095238, 
+                      0.0238095238095238, 0.0833333333333333, 0.904761904761905), 
+    nb_na = c(0L, 0L, 0L, 0L, 0L, 0L), 
+    prop_na = c(0, 0, 0, 0, 0, 0), 
+    nb_void = c(0L, 0L, 0L, 0L, 0L, 0L), 
+    prop_void = c(0, 0, 0, 0, 0, 0), 
+    nchars = c("3", "3", "6 / 11", "7 / 10", "2 / 3 / 4", "2 / 3 / 4"), 
+    modalities = c("Qn1 / Qn2 / Qn3 / Qc1 / Qc3 / Qc2 / Mn3 / Mn2 / Mn1 / Mc2", 
+                   "Qn1 / Qn2 / Qn3 / Qc1 / Qc3 / Qc2 / Mn3 / Mn2 / Mn1 / Mc2", 
+                   "Quebec / Mississippi", "nonchilled / chilled", "95 / 175 / 250 / 350 / 500 / 675 / 1000", 
+                   "7.7 / 9.3 / 10.5 / 10.6 / 11.3 / 11.4 / 12 / 12.3 / 12.5 / 13")), 
+    class = c("tbl_df", "tbl", "data.frame"), 
+    row.names = c(NA, -6L))
+  expect_equal(object = output, 
+                   expected = inspect(CO2))
+})
+```
+
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_inspect.Rmd", 
+               vignette_name = NA)
+```
+
