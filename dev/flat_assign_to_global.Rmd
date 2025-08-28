@@ -1,0 +1,43 @@
+---
+title: "flat_assign_to_global.Rmd empty"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r development, include=FALSE}
+library(testthat)
+```
+
+```{r development-load}
+# Load already included functions if relevant
+pkgload::load_all(export_all = FALSE)
+```
+
+# assign_to_global
+
+```{r function-assign_to_global}
+#' Assign to global environment
+#'
+#' @param name Character. Name to assign the object 
+#' @param object Object to assign to the name
+#' @param pos Integer 1L
+#'
+#' @return function. Assignment to global environment
+#' @export
+#' @source https://stackoverflow.com/questions/28180989/r-cmd-check-found-the-following-assignments-to-the-global-environment
+#'
+assign_to_global <- function(name, object, pos = 1L) {
+  (function (name, object, pos)
+    assign(name, object, envir = as.environment(pos)))(name, object, pos = pos)
+}
+```
+
+
+```{r development-inflate, eval=FALSE}
+# Run but keep eval=FALSE to avoid infinite loop
+# Execute in the console directly
+fusen::inflate(flat_file = "dev/flat_assign_to_global.Rmd", 
+               vignette_name = NA)
+```
+
