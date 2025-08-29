@@ -1,0 +1,132 @@
+---
+title: "Datasets encryption with R (open-source version)"
+author: "Daniel Rakotomalala"
+date: "August 2025"
+output: 
+  bookdown::pdf_document2:
+      fig.caption: yes
+      number_sections: yes
+      toc: yes
+linkcolor: blue
+urlcolor: blue
+editor_options: 
+  chunk_output_type: console
+vignette: >
+  %\VignetteIndexEntry{Datasets encryption with R}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE, comment = "#>", echo = FALSE, 
+  warning = FALSE, message = FALSE
+)
+```
+
+```{r setup}
+library(cryptR)
+```
+
+# Description
+
+The `cryptRopen::` package is made to encrypt variables into datasets. Variables to encrypt and input datasets can be in any number, depending on user's needs. 
+  
+# Instructions of use
+
+## An Excel (*.xlsx*) mask to fill {#mask}
+
+User must rely on a pre-structured Excel file to provide required informations related to datasets, variables to encrypt and output datasets, among others. The mask is essentially a data frame that must has at least the following variables (first row of the Excel file):
+
+```{r}
+c("folder_path", "file", 
+  "vars_to_encrypt", "vars_to_remove", 
+  "encrypted_file", "to_encrypt")
+```
+
+\quad Each row of this mask must correspond to an input dataset for which the user wants to encrypt **at least one variable**. Each column shall indicate the following information: 
+  
+  - `folder_path`: (Correct) folder path of the corresponding input dataset. Make particularly sure that (1) correct path level separators are used, (2) this is a folder path and not a file path, and (3) the file path exists and its access is granted.
+  - `file`: File name, with its extension, of the corresponding dataset. As the package depends on the `rio::` package, the file extension must be supported by this latter package (see https://cran.r-project.org/web/packages/rio/readme/README.html). 
+  - `vars_to_encrypt`: Variables user wants to encrypt, strictly separated by a comma (*,*). Make sure that all of the indicated variables are exactly as they are in the corresponding dataset. Particularly, R is case sensitive. 
+  - `vars_to_remove`: Variables user wants to remove from the output datasets. The same typing rules as in the `vars_to_encrypt` column apply. User typically wants to remove explicit pupils names information (first/last names). 
+  - `encrypted_file`: File name, with its extension, of the corresponding output dataset. Similarly to the `file` column, the file extension must be supported by the `rio::` package. 
+  - `to_encrypt`: Any dataset can be written down in the mask and user must fill this column with exactly **X** for the encryption code to effectively consider the corresponding row in the upcoming execution. 
+  
+\quad Figure \@ref(fig:mask) illustrates a correctly filled mask.
+  
+```{r, mask, fig.cap = "Illustration of a correctly filled mask", out.width = "90%"}
+knitr::include_graphics(
+  file.path("~", "00_idee_deppscribe", "cryptR",
+            "inst", "images", "mask_illustration.PNG"))
+```
+  
+\quad The `mask_crypt_r()` function within the package is provided to produce a compatible (yet to be filled) Excel mask. 
+  
+## An encryption key 
+
+It is any user-specified one-length character vector. When kept confidential, it ensures for e.g. that an encrypted sensible ID cannot be matched with any eventual external ID of the same nature encrypted with the same algorithm. In the execution illustration in Section \@ref(exec), the encryption key is "123456". 
+
+## Function execution {#exec}
+
+Suppose user has initially the folder structure shown in Figure \@ref(fig:initialfolder).  
+  
+  
+```{r, initialfolder, fig.cap = "Illustrative initial user folder structure", out.width = "90%"}
+knitr::include_graphics(
+  file.path("~", "00_idee_deppscribe", "cryptR", 
+            "/inst/images/initial_folder.PNG"))
+```
+  
+    
+\quad Consider user wants to encrypt variables in the parquet datasets placed within the */inputs* folder, to put correspondence tables between original and encrypted variables in the */intermediates* folder and encrypted datasets in the */outputs* folder. The *mask_crypt_r.xlsx* file obviously corresponds to the mask described in Section \@ref(mask). 
+
+With an illustrative encryption key that equals to "123456", user has to use the core `crypt_r()` function of the package and run the following code: 
+  
+```{r, echo = TRUE, eval = FALSE}
+crypt_r(
+  mask_folder_path = "W:/root_folder", 
+  mask_file = "mask_crypt_r.xlsx", 
+  output_path = "W:/root_folder/outputs", 
+  intermediate_path = "W:/root_folder/intermediates", 
+  encryption_key = "123456", 
+  algorithm = "md5", 
+  correspondence_table = TRUE
+)
+```
+
+Background jobs should have been launched after the code execution, as illustrated in Figure \@ref(fig:jobs). 
+
+```{r, jobs, fig.cap = "Illustration of background jobs launched after code execution", out.width = "90%"}
+knitr::include_graphics(
+  file.path("~", "00_idee_deppscribe", "cryptR", "inst", "images",
+            "jobs_illustration.PNG"))
+```
+
+# Outputs
+  
+After completion, the root folder should now be structured as below: 
+  
+```{r, resultingfolder, fig.cap = "Illustrative user folder structure after a successful encryption"}
+act <- NA
+knitr::include_graphics(file.path(
+  "~", "00_idee_deppscribe", "cryptR", "inst", "images",
+  "resulting_folder.PNG"
+))
+```
+  
+\quad Expected output parquet files are present in the */outputs* folder and are named according to the mask (Figure \@ref(fig:mask)). Notice in this folder the accompanying Excel files named *inspect_[...].xlsx*. As their names suggest, those files give a glimpse of the corresponding (output) datasets contents. Figure \@ref(fig:inspect) illustrates what is inside this type of file, taking the output *eva6_crypt.parquet* as an example. Inspection files typically provides the following information about the corresponding file: 
+
+- Dimensions (numbers of observations and variables).
+- Variables list.
+- For each variable: its type (`class`); frequency and proportion of unique values (`nb_distinct` and `prop_distinct` respectively), missing values (`nb_na` and `prop_na`), 0-length values (`nb_void` and `prop_void`)^[This typically occurs when loading a SAS dataset (*.sas7bdat*) in R: SAS missing values are read as `""` values in R.], and up to 10 first unique values found (`modalities`).
+  
+```{r, inspect, fig.cap = "Illustration of an inspection file (for eva6\\_crypted.parquet)", out.width = "90%"}
+knitr::include_graphics(
+  file.path("~", "00_idee_deppscribe", "cryptR",
+            "/inst/images/inspect_illustration.PNG"))
+```
+
+\quad The package is provided with an `inspect()` function for any similar need user has. 
+
+\quad As Figure \@ref(fig:inspect) shows, encrypted variables names have a *\_crypt* suffix, and the procedure made sure to compute the INE categories on the variable that interested the user: that is the purpose of the *type\_ine\_INE* variable. See Appendix \@ref(inetype) for more details about the meanings of its values (B, R or Z in the `modalities` column). 
