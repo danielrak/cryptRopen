@@ -2,6 +2,13 @@
 # crypt_r() in Phase 1.D.1. These tests exercise the helper SYNCHRONOUSLY
 # (bypassing job::job) so they also run under R CMD check — which gives
 # coverage independent of the AST sync-patch used by test-baseline.R.
+#
+# Phase 1.D.2 adds direct tests on .process_mask_row_in_memory() to lock
+# the contract of the in-memory engine before the streaming engine is
+# written in 1.D.4. The dispatcher .process_mask_row() currently just
+# delegates to it, so the blocks above (which go through the dispatcher)
+# and the blocks below (which call the engine directly) together prove
+# both the dispatcher and the engine.
 
 # ---- Fixtures ----------------------------------------------------------
 
@@ -220,4 +227,89 @@ test_that("missing input file is swallowed by try() (no crash, no output)", {
 
   expect_false(file.exists(file.path(dirs$out, "ghost_crypt.csv")))
   expect_false(file.exists(file.path(dirs$int, "tc_ghost_crypt.parquet")))
+})
+
+# ---- Direct call to the in_memory engine (Phase 1.D.2) -----------------
+
+test_that(".process_mask_row_in_memory() produces the same outputs directly", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+  }, add = TRUE)
+
+  csv <- file.path(dirs$inp, "persons.csv")
+  utils::write.csv(
+    data.frame(id = c("alice", "bob"),
+               age = c(30, 40),
+               stringsAsFactors = FALSE),
+    csv, row.names = FALSE)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "persons.csv",
+                encrypted_file = "persons_crypt.csv",
+                vars_to_encrypt = "id")
+
+  # Call the engine directly (no dispatcher).
+  cryptRopen:::.process_mask_row_in_memory(
+    sm = sm, input_path = csv,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE)
+
+  expect_true(file.exists(file.path(dirs$out, "persons_crypt.csv")))
+  expect_true(file.exists(file.path(dirs$int, "tc_persons_crypt.parquet")))
+  expect_true(exists("persons_crypt",    envir = globalenv()))
+  expect_true(exists("id_crypt",         envir = globalenv()))
+  expect_true(exists("tc_persons_crypt", envir = globalenv()))
+})
+
+test_that("dispatcher .process_mask_row() produces the same files as the in_memory engine", {
+  # Two isolated runs on identical inputs; compare byte-for-byte the
+  # encrypted CSV and the TC parquet. Proves the dispatcher forwards
+  # arguments without transformation.
+  d1 <- setup_dirs(); d2 <- setup_dirs()
+  pre <- ls(envir = globalenv())
+  on.exit({
+    unlink(d1$root, recursive = TRUE, force = TRUE)
+    unlink(d2$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+  }, add = TRUE)
+
+  src <- data.frame(id = c("alpha", "beta", "gamma"),
+                    v  = c(1, 2, 3),
+                    stringsAsFactors = FALSE)
+  utils::write.csv(src, file.path(d1$inp, "s.csv"), row.names = FALSE)
+  utils::write.csv(src, file.path(d2$inp, "s.csv"), row.names = FALSE)
+
+  sm1 <- make_sm(folder_path = d1$inp, file = "s.csv",
+                 encrypted_file = "s_crypt.csv", vars_to_encrypt = "id")
+  sm2 <- make_sm(folder_path = d2$inp, file = "s.csv",
+                 encrypted_file = "s_crypt.csv", vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row(
+    sm = sm1, input_path = file.path(d1$inp, "s.csv"),
+    output_path = d1$out, intermediate_path = d1$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE)
+
+  cryptRopen:::.process_mask_row_in_memory(
+    sm = sm2, input_path = file.path(d2$inp, "s.csv"),
+    output_path = d2$out, intermediate_path = d2$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE)
+
+  # Same encrypted dataset (read back, since CSV serialization is stable).
+  out1 <- utils::read.csv(file.path(d1$out, "s_crypt.csv"),
+                          stringsAsFactors = FALSE)
+  out2 <- utils::read.csv(file.path(d2$out, "s_crypt.csv"),
+                          stringsAsFactors = FALSE)
+  expect_equal(out1, out2)
+
+  # Same correspondence table (read back via arrow, metadata-insensitive).
+  tc1 <- as.data.frame(
+    arrow::read_parquet(file.path(d1$int, "tc_s_crypt.parquet")))
+  tc2 <- as.data.frame(
+    arrow::read_parquet(file.path(d2$int, "tc_s_crypt.parquet")))
+  expect_equal(tc1, tc2)
 })
