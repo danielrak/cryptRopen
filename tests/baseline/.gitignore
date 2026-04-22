@@ -1,0 +1,3 @@
+# Masks contain absolute paths to the generator's machine — regenerated on
+# the fly by both generate_baseline.R and test-baseline.R from cases.R.
+inputs/masks/
