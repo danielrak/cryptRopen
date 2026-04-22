@@ -93,7 +93,7 @@ crypt_r <- function (mask_folder_path, mask_file,
             # Import and clean:
             assign_to_global(
               sm[["encrypted_file"]] %>% stringr::str_remove("\\..*$"),
-              rio::import(x) %>%
+              rio::import(x, trust = TRUE) %>%
                 # 0-length values into NAs:
                 dplyr::mutate_if(is.character, \(x0) {
                   x0[nchar(stringr::str_trim(x0)) == 0] <- NA ;
