@@ -4,7 +4,7 @@
 #'
 #' @param vector Vector to process
 #' @param key Character 1L. Encryption key
-#' @param algo Character 1L. Algorithm. 
+#' @param algo Character 1L. Algorithm.
 #' See algo argument from digest::digest()
 #' @return Character. Encrypted vector
 #' @export
@@ -12,24 +12,34 @@
 #' @examples
 #' crypt_vector(vector = c("1234", "5678", "9101112", NA, ""), key = "123456", algo = "md5")
 crypt_vector <- function(vector, key, algo) {
-  
-  vector <- stringr::str_to_upper(vector)
-  vector <- stringr::str_trim(vector)
-  vector <- stringr::str_replace_all(vector, " ", "")
-  
-  vector_crypt <- sapply(
-    paste0(vector, key), 
-    \(x) digest::digest(x, algo = algo, serialize = FALSE))
-  vector_crypt <- stringr::str_to_upper(vector_crypt)
-  vector_crypt <- unname(vector_crypt)
-  
-  if (length(vector) != length(vector_crypt)) {
-    stop("Something is wrong in the core of the encryption process. Please investigate.")
-  }
-  
-  vector_crypt[nchar(vector) == 0 |
-                 is.na(vector)] <- NA
-  
-  vector_crypt
+
+  normalized <- .normalize_crypt_input(vector)
+  mask_na    <- is.na(normalized) | nchar(normalized) == 0L
+
+  out <- rep(NA_character_, length(normalized))
+  hashes <- vapply(
+    paste0(normalized[!mask_na], key),
+    function(x) digest::digest(x, algo = algo, serialize = FALSE),
+    character(1L),
+    USE.NAMES = FALSE
+  )
+  out[!mask_na] <- stringr::str_to_upper(hashes)
+
+  out
 }
-# vérifié que ça donne les mêmes résultats que dans le présent module
+
+#' Normalize a vector before encryption
+#'
+#' Applies the deterministic pre-hash normalization:
+#' upper-case, trim, remove internal spaces. Coerces to character
+#' if needed (via stringr). NAs stay NA.
+#'
+#' @param x Atomic vector.
+#' @return Character vector of same length as `x`.
+#' @keywords internal
+#' @noRd
+.normalize_crypt_input <- function(x) {
+  x <- stringr::str_to_upper(x)
+  x <- stringr::str_trim(x)
+  stringr::str_replace_all(x, " ", "")
+}
