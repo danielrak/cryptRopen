@@ -7,6 +7,10 @@
 #' For the considered loaded dataset, variables to encrypt can be
 #' in any number, following users's needs.
 #'
+#' Side-effect note: when `correspondence_table = TRUE`, the resulting
+#' table is stored in a package-private environment (no more pollution
+#' of `globalenv()`). Retrieve it with [get_correspondence_tables()].
+#'
 #' @param loaded_dataset The dataset for which user wants
 #' to encrypt at least one variable.
 #' It must be an expression and not a character vector.
@@ -18,17 +22,17 @@
 #' @param correspondence_table Logical 1L. TRUE if user wants a correspondence table
 #' between initial and encrypted values.
 #' @param correspondence_table_label Character 1L. Label of the correspondence table.
-#' @seealso cryptR::crypt_r(), digest::digest().
+#' @seealso cryptR::crypt_r(), digest::digest(), [get_correspondence_tables()].
 #' @importFrom magrittr  %>%
 #' @export
 #'
 #' @examples
 #' crypt_data(
-#'   loaded_dataset = mtcars[1:5, ], 
-#'   vars_to_encrypt = "mpg", 
-#'   vars_to_remove = "cyl", 
-#'   encryption_key = "1234567", 
-#'   algorithm = "md5", 
+#'   loaded_dataset = mtcars[1:5, ],
+#'   vars_to_encrypt = "mpg",
+#'   vars_to_remove = "cyl",
+#'   encryption_key = "1234567",
+#'   algorithm = "md5",
 #'   correspondence_table = FALSE
 #' )
 crypt_data <- function(loaded_dataset,
@@ -41,42 +45,45 @@ crypt_data <- function(loaded_dataset,
 ) {
   # First checks:
   vars <- names(loaded_dataset)
-  
+
   if (! all(vars_to_encrypt %in% vars)) {
     stop("All indicated vars_to_encrypt must be effectively a variable name.")
   }
-  
-  if (! is.null(vars_to_remove) &
+
+  if (! is.null(vars_to_remove) &&
       ! all(vars_to_remove %in% vars)) {
     stop("All indicated vars_to_remove must be effectively a variable name.")
   }
-  
-  if (correspondence_table &
+
+  if (correspondence_table &&
       is.null(correspondence_table_label)) {
     stop("If the correspondence_table arg is TRUE, correspondence_table_label must be indicated.")
   }
-  
-  # Clean:
+
+  # Clean: trim character columns, turn blank strings into NAs.
   loaded_dataset <- loaded_dataset %>%
-    dplyr::mutate_if(is.character, \(x0) {
-      x0[nchar(stringr::str_trim(x0)) == 0] <- NA ;
-      stringr::str_trim(x0)
-    })
-  
+    dplyr::mutate(
+      dplyr::across(dplyr::where(is.character), \(x0) {
+        x0 <- stringr::str_trim(x0)
+        x0[nchar(x0) == 0] <- NA
+        x0
+      })
+    )
+
   # Encrypt:
   vars_to_encrypt <- stringr::str_trim(vars_to_encrypt)
-  
+
   encrypted_data <- purrr::map(
-    vars_to_encrypt, \(x) 
-    crypt_vector(loaded_dataset[[x]], key = encryption_key, 
+    vars_to_encrypt, \(x)
+    crypt_vector(loaded_dataset[[x]], key = encryption_key,
                  algo = algorithm)
   )
   encrypted_data <- do.call(what = cbind, encrypted_data)
   encrypted_data <- as.data.frame(encrypted_data)
   colnames(encrypted_data) <- paste0(vars_to_encrypt, "_crypt")
-  
+
   if (any(duplicated(c(names(encrypted_data), names(loaded_dataset))))) {
-    
+
     dedupl_char_values <- function (x) {
       u <- unique(x[duplicated(x)])
       l <- lapply(u, function (d) which(x == d))
@@ -93,43 +100,44 @@ crypt_data <- function(loaded_dataset,
       })
       l <- do.call(what = rbind, l)
       l <- apply(l, 2, \(r) {
-        if (length(unique(r)) == 1) {unique(r)} 
+        if (length(unique(r)) == 1) {unique(r)}
         else {r[grep("dupl", r)]}
       })
       l
     }
-    
+
     namestot <- c(names(encrypted_data), names(loaded_dataset))
     namestot_dedupl <- dedupl_char_values(namestot)
     names(loaded_dataset) <- namestot_dedupl[
       (length(names(encrypted_data)) + 1):length(namestot_dedupl)]
   }
-  
+
   encrypted_data <- cbind(encrypted_data, loaded_dataset)
-  
-  # Correspondence table:
+
+  # Correspondence table: stored in the package-private environment
+  # (no more globalenv() pollution). Retrieve via get_correspondence_tables().
   if (correspondence_table) {
-    
-    assign_to_global(paste0("tc_crypt_", correspondence_table_label),
-           dplyr::select(encrypted_data,
-                         vars_to_encrypt,
-                         paste0(vars_to_encrypt, "_crypt")),
-           pos = globalenv())
+    .store_correspondence_table(
+      name = paste0("tc_crypt_", correspondence_table_label),
+      df = dplyr::select(
+        encrypted_data,
+        dplyr::all_of(c(vars_to_encrypt,
+                        paste0(vars_to_encrypt, "_crypt"))))
+    )
   }
-  
+
   # Output without original variables and additional variables to remove:
   if (! is.null(vars_to_remove)) {
     encrypted_data <- dplyr::select(
       encrypted_data,
-      - vars_to_encrypt,
-      - vars_to_remove
+      - dplyr::all_of(c(vars_to_encrypt, vars_to_remove))
     )
   } else {
     encrypted_data <- dplyr::select(
       encrypted_data,
-      - vars_to_encrypt
+      - dplyr::all_of(vars_to_encrypt)
     )
   }
-  
+
   encrypted_data
 }

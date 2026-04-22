@@ -119,7 +119,7 @@ test_that("crypt_vector matches baseline", {
 # crypt_data baseline
 # ---------------------------------------------------------------------------
 
-test_that("crypt_data matches baseline (result + tc_* in globalenv)", {
+test_that("crypt_data matches baseline (result + tc_* via get_correspondence_tables())", {
   root <- skip_if_no_baseline()
 
   for (case in crypt_data_cases) {
@@ -131,27 +131,21 @@ test_that("crypt_data matches baseline (result + tc_* in globalenv)", {
     }
     ref <- readRDS(ref_path)
 
-    # Clean globalenv of tc_* left by a previous case to ensure we only
-    # capture what this case produces.
-    pre <- ls(envir = globalenv())
-    on.exit({
-      post <- ls(envir = globalenv())
-      new_names <- setdiff(post, pre)
-      if (length(new_names) > 0) rm(list = new_names, envir = globalenv())
-    }, add = TRUE)
+    # Reset the package-private env so we only observe this case's output.
+    cryptRopen:::.clear_correspondence_tables()
+    # Also assert crypt_data no longer pollutes globalenv().
+    pre_globals <- ls(envir = globalenv())
 
     args <- case$args_factory()
     new_result <- do.call(crypt_data, args)
 
     expect_equal(new_result, ref$result, info = paste(case$name, "- result"))
 
-    # Compare correspondence tables captured from globalenv
-    new_names <- setdiff(ls(envir = globalenv()), pre)
-    new_tcs <- if (length(new_names) > 0) {
-      mget(new_names, envir = globalenv())
-    } else {
-      list()
-    }
+    expect_equal(setdiff(ls(envir = globalenv()), pre_globals),
+                 character(0),
+                 info = paste(case$name, "- no globalenv pollution"))
+
+    new_tcs <- get_correspondence_tables()
 
     expect_equal(sort(names(new_tcs)), sort(names(ref$tcs)),
                  info = paste(case$name, "- tc names"))
@@ -161,10 +155,9 @@ test_that("crypt_data matches baseline (result + tc_* in globalenv)", {
                      info = paste(case$name, "- tc:", nm))
       }
     }
-
-    # Clean up for next iteration
-    if (length(new_names) > 0) rm(list = new_names, envir = globalenv())
   }
+
+  cryptRopen:::.clear_correspondence_tables()
 })
 
 

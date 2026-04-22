@@ -39,16 +39,21 @@ in-session version of the encryption process.
 For the considered loaded dataset, variables to encrypt can be
 in any number, following users's needs.
 }
+\details{
+Side-effect note: when \code{correspondence_table = TRUE}, the resulting
+table is stored in a package-private environment (no more pollution
+of \code{globalenv()}). Retrieve it with \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+}
 \examples{
 crypt_data(
-  loaded_dataset = mtcars[1:5, ], 
-  vars_to_encrypt = "mpg", 
-  vars_to_remove = "cyl", 
-  encryption_key = "1234567", 
-  algorithm = "md5", 
+  loaded_dataset = mtcars[1:5, ],
+  vars_to_encrypt = "mpg",
+  vars_to_remove = "cyl",
+  encryption_key = "1234567",
+  algorithm = "md5",
   correspondence_table = FALSE
 )
 }
 \seealso{
-cryptR::crypt_r(), digest::digest().
+cryptR::crypt_r(), digest::digest(), \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
 }
