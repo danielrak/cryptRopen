@@ -57,189 +57,212 @@ crypt_r <- function (mask_folder_path, mask_file,
                       encrypted_file),
                encrypted_file))
 
-  # Split the maks with r rows into a list of r elements:
+  # Split the mask with r rows into a list of r elements, named by full
+  # input file path:
   split_mask <-
     split(mask, mask$row_number) %>%
     stats::setNames(paste0(mask$folder_path, "/", mask$file))
 
-  # For each element of the list mentioned above, a set of operations.
-  # (1) Import the dataset.
-  # (2) Encrypt indicated variables with inputted parameters.
-  # (3) Compute correspondence table between original and encrypted variables.
-  # if applicable.
-  # (5) Remove original variables from output.
-  # (6) Write output as stated by user.
-  split_mask %>%
-    (\(l)
-      purrr::map(names(l), \(x) {
+  # Dispatch each row to its own background job. The per-row processing
+  # logic lives in .process_mask_row() — extracted in Phase 1.D.1 so it
+  # can be tested in isolation and swapped for in_memory / streaming
+  # engines in Phases 1.D.2 / 1.D.4. The job::job() wrapper will itself
+  # be replaced by mirai in Phase 1.D.6.
+  purrr::map(names(split_mask), \(x) {
 
-        requireNamespace("magrittr")
+    # Sink args into the local frame so job::job() captures them.
+    sm                   <- split_mask[[x]]
+    input_path           <- x
+    output_path          <- output_path
+    intermediate_path    <- intermediate_path
+    encryption_key       <- encryption_key
+    algorithm            <- algorithm
+    correspondence_table <- correspondence_table
 
-        # "Sinking" necessary objects to let job({}) use them:
-        mask_folder_path <- mask_folder_path
-        mask_file <- mask_file
-        output_path <- output_path
-        intermediate_path <- intermediate_path
-        encryption_key <- encryption_key
-        algorithm <- algorithm
-        correspondence_table <- correspondence_table
+    job::job({
+      .process_mask_row(
+        sm                   = sm,
+        input_path           = input_path,
+        output_path          = output_path,
+        intermediate_path    = intermediate_path,
+        encryption_key       = encryption_key,
+        algorithm            = algorithm,
+        correspondence_table = correspondence_table
+      )
+      job::export("none")
+    },
+    title = paste0("Encryption of ",
+                   input_path %>% strsplit("/") %>%
+                     purrr::map(\(xx) xx[length(xx)]) %>%
+                     unlist()))
+  })
 
-        # inspect <- inspect
-        split_mask <- split_mask
-        sm <- split_mask[[x]]
+  invisible(NULL)
+}
 
-        job::job({
-          try({
-            # Import and clean:
-            assign_to_global(
-              sm[["encrypted_file"]] %>% stringr::str_remove("\\..*$"),
-              rio::import(x, trust = TRUE) %>%
-                # 0-length values into NAs:
-                dplyr::mutate_if(is.character, \(x0) {
-                  x0[nchar(stringr::str_trim(x0)) == 0] <- NA ;
-                  stringr::str_trim(x0)
-                }) %>%
-                # Encrypt:
-                (\(x3) {
+#' Process one row of the encryption mask.
+#'
+#' Extracted from the body of `crypt_r()` in Phase 1.D.1 so the per-row
+#' logic can be unit-tested in isolation (without the `job::job()`
+#' wrapper) and later swapped for the `in_memory` / `streaming` engines
+#' (Phases 1.D.2 / 1.D.4).
+#'
+#' Side effects are preserved from the historical implementation: the
+#' per-variable `<var>_crypt` vectors, the final
+#' `<encrypted_file_sans_ext>` dataset and (when
+#' `correspondence_table = TRUE`) the `tc_<encrypted_file_sans_ext>`
+#' are still assigned to `globalenv()` via `assign_to_global()`. These
+#' assignments will disappear in Phase 1.D.6 (values flowing through
+#' return-values and `.cryptRopen_env` instead).
+#'
+#' @param sm A one-row data.frame corresponding to one row of the
+#'   filtered mask (columns: folder_path, file, encrypted_file,
+#'   vars_to_encrypt, vars_to_remove, …).
+#' @param input_path Full path to the input dataset file.
+#' @param output_path,intermediate_path Directories where outputs are written.
+#' @param encryption_key,algorithm,correspondence_table Forwarded from
+#'   `crypt_r()`.
+#' @return Invisible `NULL`. All outputs are side effects (files on
+#'   disk and assignments in `globalenv()`).
+#' @noRd
+.process_mask_row <- function(sm, input_path, output_path, intermediate_path,
+                              encryption_key, algorithm, correspondence_table) {
 
-                  # Each variable to encrypt in a vector:
-                  vars_to_encrypt <- sm[["vars_to_encrypt"]] %>%
-                    stringr::str_split(",") %>% unlist %>%
-                    stringr::str_trim()
+  requireNamespace("magrittr")
 
-                  purrr::map(vars_to_encrypt, \(v) {
+  try({
+    # Import and clean:
+    assign_to_global(
+      sm[["encrypted_file"]] %>% stringr::str_remove("\\..*$"),
+      rio::import(input_path, trust = TRUE) %>%
+        # 0-length values into NAs:
+        dplyr::mutate_if(is.character, \(x0) {
+          x0[nchar(stringr::str_trim(x0)) == 0] <- NA ;
+          stringr::str_trim(x0)
+        }) %>%
+        # Encrypt:
+        (\(x3) {
 
-                    requireNamespace("magrittr")
+          # Each variable to encrypt in a vector:
+          vars_to_encrypt <- sm[["vars_to_encrypt"]] %>%
+            stringr::str_split(",") %>% unlist %>%
+            stringr::str_trim()
 
-                    # Necessary sinking:
-                    mask_folder_path <- mask_folder_path
-                    mask_file <- mask_file
-                    output_path <- output_path
-                    intermediate_path <- intermediate_path
-                    encryption_key <- encryption_key
-                    algorithm <- algorithm
+          purrr::map(vars_to_encrypt, \(v) {
 
-                    # inspect <- inspect
-                    split_mask <- split_mask
+            # Encryption algorithm using the digest:: package:
+            assign_to_global(paste0(v, "_crypt"),
+                   crypt_vector(vector = x3[[v]],
+                                key = encryption_key,
+                                algo = algorithm),
+                   pos = globalenv())
+          })
 
-                    # Encryption algorithm using the digest:: package:
-                    assign_to_global(paste0(v, "_crypt"),
-                           crypt_vector(vector = x3[[v]], 
-                                        key = encryption_key, 
-                                        algo = algorithm),
-                           pos = globalenv())
+          # Fuse initial dataset and encrypted variables:
+          assign_to_global(
+            sm[["encrypted_file"]] %>%
+              stringr::str_remove("\\..*$"),
+            dplyr::bind_cols(
+                purrr::map(vars_to_encrypt %>%
+                             paste0("_crypt"), get) %>%
+                  do.call(what = dplyr::bind_cols) %>%
+                  stats::setNames(vars_to_encrypt %>%
+                                    paste0("_crypt")),
+                x3) %>%
+              dplyr::as_tibble() %>%
+
+              # Correspondence table:
+              (\(d) {
+                if (! correspondence_table) {d} else {
+                  purrr::map(vars_to_encrypt, \(v2) {
+                    assign_to_global(
+                      sm[["encrypted_file"]] %>%
+                        stringr::str_remove("\\..*$") %>%
+                        (\(x4) paste0("tc_", x4)),
+                      dplyr::select(d,
+                                    vars_to_encrypt) %>%
+                        dplyr::bind_cols(
+                          purrr::map(
+                            vars_to_encrypt %>%
+                              paste0("_crypt"), get) %>%
+                            do.call(
+                              what = dplyr::bind_cols) %>%
+                            stats::setNames(
+                              vars_to_encrypt %>%
+                                paste0("_crypt"))) %>%
+                        dplyr::distinct(),
+                      pos = globalenv()
+                    )
                   })
 
-                  # Fuse initial dataset and encrypted variables:
-                  assign_to_global(
+                  # Export into intermediate folder:
+                  rio::export(
                     sm[["encrypted_file"]] %>%
-                      stringr::str_remove("\\..*$"),
-                    dplyr::bind_cols(
-                        purrr::map(vars_to_encrypt %>%
-                                     paste0("_crypt"), get) %>%
-                          do.call(what = dplyr::bind_cols) %>%
-                          stats::setNames(vars_to_encrypt %>%
-                                            paste0("_crypt")), 
-                        x3) %>%
-                      dplyr::as_tibble() %>%
+                      stringr::str_remove("\\..*$") %>%
+                      (\(x4)
+                        paste0("tc_", x4)) %>% get(),
 
-                      # Correspondence table:
-                      (\(d) {
-                        if (! correspondence_table) {d} else {
-                          purrr::map(vars_to_encrypt, \(v2) {
-                            assign_to_global(
+                    file.path(intermediate_path,
                               sm[["encrypted_file"]] %>%
-                                stringr::str_remove("\\..*$") %>%
-                                (\(x4) paste0("tc_", x4)),
-                              dplyr::select(d,
-                                            vars_to_encrypt) %>%
-                                dplyr::bind_cols(
-                                  purrr::map(
-                                    vars_to_encrypt %>%
-                                      paste0("_crypt"), get) %>%
-                                    do.call(
-                                      what = dplyr::bind_cols) %>%
-                                    stats::setNames(
-                                      vars_to_encrypt %>%
-                                        paste0("_crypt"))) %>%
-                                dplyr::distinct(),
-                              pos = globalenv()
-                            )
-                          })
-
-                          # Export into intermediate folder:
-                          rio::export(
-                            sm[["encrypted_file"]] %>%
-                              stringr::str_remove("\\..*$") %>%
-                              (\(x4)
-                                paste0("tc_", x4)) %>% get(),
-
-                            file.path(intermediate_path,
-                                      sm[["encrypted_file"]] %>%
-                                        stringr::str_remove(
-                                          "\\..*$") %>%
-                                        (\(x4)
-                                          paste0("tc_", x4)) %>%
-                                        paste0(".parquet"))
-                          )
-                          d
-                        }
-                      }) %>%
-
-                      # Output without original variables:
-                      dplyr::select(- vars_to_encrypt) %>%
-
-                      # Without any other variables user want to remove
-                      # from output, if applicable:
-                      (\(dfin) {
-                        vars_to_remove <- sm[["vars_to_remove"]] %>%
-                          stringr::str_split(",") %>% unlist %>%
-                          stringr::str_trim()
-
-                        if (all(is.na(vars_to_remove))) {
-                          dfin
-                        } else {
-                          dplyr::select(dfin, - vars_to_remove)
-                        }
-                      }),
-                    pos = globalenv())
+                                stringr::str_remove(
+                                  "\\..*$") %>%
+                                (\(x4)
+                                  paste0("tc_", x4)) %>%
+                                paste0(".parquet"))
+                  )
+                  d
                 }
-                )
-            )
-          })
-          invisible()
+              }) %>%
 
-          # Export final output:
-          try({
-            rio::export(
-              eval(parse(text = sm[["encrypted_file"]] %>%
-                           stringr::str_remove("\\..*$"))),
-              file.path(output_path,
-                        sm[["encrypted_file"]]))
-          })
+              # Output without original variables:
+              dplyr::select(- vars_to_encrypt) %>%
 
-          # Inspect final output:
-          try({
-            writexl::write_xlsx(
-              eval(parse(text =  sm[["encrypted_file"]] %>%
-                           stringr::str_remove("\\..*$"))) %>%
-                (\(g)
-                  inspect(g) %>%
-                    (\(i) rbind(c("Obs = ", nrow(g),
-                                  rep("", ncol(i) - 1)),
-                                c("Nvars = ", nrow(i),
-                                  rep("", ncol(i) - 1)),
-                                cbind(1:nrow(i), i)))),
-              file.path(output_path,
-                        paste0("inspect_", sm[["encrypted_file"]],
-                               ".xlsx"))
-            )
-          })
-          job::export("none")
-        },
-        title = paste0("Encryption of ",
-                       x %>% strsplit("/") %>%
-                         purrr::map(\(xx) xx[length(xx)]) %>%
-                         unlist()))
-      }))
+              # Without any other variables user want to remove
+              # from output, if applicable:
+              (\(dfin) {
+                vars_to_remove <- sm[["vars_to_remove"]] %>%
+                  stringr::str_split(",") %>% unlist %>%
+                  stringr::str_trim()
+
+                if (all(is.na(vars_to_remove))) {
+                  dfin
+                } else {
+                  dplyr::select(dfin, - vars_to_remove)
+                }
+              }),
+            pos = globalenv())
+        }
+        )
+    )
+  })
+  invisible()
+
+  # Export final output:
+  try({
+    rio::export(
+      eval(parse(text = sm[["encrypted_file"]] %>%
+                   stringr::str_remove("\\..*$"))),
+      file.path(output_path,
+                sm[["encrypted_file"]]))
+  })
+
+  # Inspect final output:
+  try({
+    writexl::write_xlsx(
+      eval(parse(text =  sm[["encrypted_file"]] %>%
+                   stringr::str_remove("\\..*$"))) %>%
+        (\(g)
+          inspect(g) %>%
+            (\(i) rbind(c("Obs = ", nrow(g),
+                          rep("", ncol(i) - 1)),
+                        c("Nvars = ", nrow(i),
+                          rep("", ncol(i) - 1)),
+                        cbind(1:nrow(i), i)))),
+      file.path(output_path,
+                paste0("inspect_", sm[["encrypted_file"]],
+                       ".xlsx"))
+    )
+  })
+
+  invisible(NULL)
 }
