@@ -1,0 +1,442 @@
+{
+  "package_version": "0.0.0.9000",
+  "generated_at": "2026-04-21T15:45:14Z",
+  "crypt_vector": [
+    {
+      "name": "ascii_simple",
+      "output": "crypt_vector/ascii_simple.rds",
+      "sha256": "7d62112b8d8335b222cb537c30fc1b2cfeb3a82433b128de3f55cb309e524af2"
+    },
+    {
+      "name": "with_na_and_empty",
+      "output": "crypt_vector/with_na_and_empty.rds",
+      "sha256": "c633a64c9a58b6d197f94e7132ba778db42424c8be4d0147eb16c1ad2e9b8044"
+    },
+    {
+      "name": "leading_trailing_spaces",
+      "output": "crypt_vector/leading_trailing_spaces.rds",
+      "sha256": "d23bd2ccc103ed6b1b7c5df004e2d66dc3cdb1bf6cabaa7a6fc37dda3ab1a0bc"
+    },
+    {
+      "name": "internal_spaces",
+      "output": "crypt_vector/internal_spaces.rds",
+      "sha256": "bba7a06e62168cec3544e3785a88061d9dd451be092f328185cbbe59ef44b7db"
+    },
+    {
+      "name": "mixed_case",
+      "output": "crypt_vector/mixed_case.rds",
+      "sha256": "217709b3c7a098fadf16a9dd720d81cf174ee556021d0f351d6364d9007aecbc"
+    },
+    {
+      "name": "unicode",
+      "output": "crypt_vector/unicode.rds",
+      "sha256": "d5c5b62f6c0c3e63a1b956d60aa04f65e34401b5fde430145798b94bd1a8e769"
+    },
+    {
+      "name": "numeric_vector",
+      "output": "crypt_vector/numeric_vector.rds",
+      "sha256": "7d62112b8d8335b222cb537c30fc1b2cfeb3a82433b128de3f55cb309e524af2"
+    },
+    {
+      "name": "date_vector",
+      "output": "crypt_vector/date_vector.rds",
+      "sha256": "4b1a41fea5dec9e9f876ddb3c81372642832feaff3a3f3a61b5a7913c1502af7"
+    },
+    {
+      "name": "length_one",
+      "output": "crypt_vector/length_one.rds",
+      "sha256": "ca94b131312db5c63c1c987ab50b9db5f0d11206304e700dc27f38ae4725c8ab"
+    },
+    {
+      "name": "algo_sha1",
+      "output": "crypt_vector/algo_sha1.rds",
+      "sha256": "4e6ef791315825cff2bcc64a8a8277447e98458bf1326d4d2c819191149c4e4c"
+    },
+    {
+      "name": "algo_sha256",
+      "output": "crypt_vector/algo_sha256.rds",
+      "sha256": "477063500a0361327e68f44e17eb944a04e9f748fdbca27eafda970450873e08"
+    },
+    {
+      "name": "special_key",
+      "output": "crypt_vector/special_key.rds",
+      "sha256": "024f569b2592bb70e29e91a87958114ea35406c246a0e25b496125cf28af9bda"
+    }
+  ],
+  "crypt_data": [
+    {
+      "name": "readme_example_no_tc",
+      "output": "crypt_data/readme_example_no_tc.rds",
+      "sha256": "2a43bfa0a2a0dd8aa07719bb4e43e05a875c6d48e49b09312812c324a69a0ad7",
+      "tc_names": []
+    },
+    {
+      "name": "with_tc",
+      "output": "crypt_data/with_tc.rds",
+      "sha256": "4650e5a24a234fc19e9b25dd9b4347261949cc2433a75b6467f9694b1e363f4f",
+      "tc_names": [
+        "tc_crypt_readme_mtcars"
+      ]
+    },
+    {
+      "name": "multi_vars",
+      "output": "crypt_data/multi_vars.rds",
+      "sha256": "333adf5c12654ac5b3a8aa0ecc8c1303552686d708926ce227c9ec75ebb37bd7",
+      "tc_names": []
+    },
+    {
+      "name": "vars_to_remove_null",
+      "output": "crypt_data/vars_to_remove_null.rds",
+      "sha256": "95a637f6040369653653ae5e5bc0622ee00192dbe010388b4a81495b592f11de",
+      "tc_names": []
+    },
+    {
+      "name": "dedup_name_collision",
+      "output": "crypt_data/dedup_name_collision.rds",
+      "sha256": "6696419ab3c28def2ef94641054c0fd98ae958ba3a323518a787fa813d9adc67",
+      "tc_names": []
+    },
+    {
+      "name": "trim_and_na_chars",
+      "output": "crypt_data/trim_and_na_chars.rds",
+      "sha256": "d7e370aba7eabece4b2219359138633fc4b4d3785a202bd1144471bc74b0053c",
+      "tc_names": []
+    }
+  ],
+  "crypt_r": [
+    {
+      "name": "simple_csv",
+      "mask": "mask_simple.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_persons_simple_crypt.csv.xlsx",
+          "sha256": "86dbc49c99df8d968fce1b06724c15589d1f08013b61f16174cfa53e1adc98e9"
+        },
+        {
+          "dir": "output",
+          "relpath": "persons_simple_crypt.csv",
+          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_persons_simple_crypt.parquet",
+          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+        }
+      ]
+    },
+    {
+      "name": "simple_csv_no_tc",
+      "mask": "mask_simple.xlsx",
+      "correspondence_table": false,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_persons_simple_crypt.csv.xlsx",
+          "sha256": "d0228e9361a4eaf593b2c3ae84a0bceb0a8726a0b9cca825e969925c9180c726"
+        },
+        {
+          "dir": "output",
+          "relpath": "persons_simple_crypt.csv",
+          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+        }
+      ]
+    },
+    {
+      "name": "multi_files",
+      "mask": "mask_multi.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_orders_crypt.parquet.xlsx",
+          "sha256": "48589722a297aea00e764c240ce36c4f7c556180bd6ad481b339a393b45bd6cb"
+        },
+        {
+          "dir": "output",
+          "relpath": "inspect_persons_simple_crypt.csv.xlsx",
+          "sha256": "d0228e9361a4eaf593b2c3ae84a0bceb0a8726a0b9cca825e969925c9180c726"
+        },
+        {
+          "dir": "output",
+          "relpath": "inspect_products_crypt.rds.xlsx",
+          "sha256": "b013c4963d54a43813f8527de39e0500578d65360f6c352fb2ec99ce8f4556c3"
+        },
+        {
+          "dir": "output",
+          "relpath": "orders_crypt.parquet",
+          "sha256": "c475377b8669e06577af4f9f239c63765d012e201fe79f781f16f59680dd5c47"
+        },
+        {
+          "dir": "output",
+          "relpath": "persons_simple_crypt.csv",
+          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+        },
+        {
+          "dir": "output",
+          "relpath": "products_crypt.rds",
+          "sha256": "576244cf289c55b57c63cb32b72ad43d6d09160fa749a627a486e6cf0a457211"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_orders_crypt.parquet",
+          "sha256": "0397b20553a215e34c8f8de1589c1155a8c99fd1207f27a525bf55d438a8ef87"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_persons_simple_crypt.parquet",
+          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_products_crypt.parquet",
+          "sha256": "d389b7e44acbb02433405890fb160ff97666aef42a2f07eaa082555df2e3963e"
+        }
+      ]
+    },
+    {
+      "name": "with_skipped_lines",
+      "mask": "mask_with_skipped.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_persons_simple_crypt.csv.xlsx",
+          "sha256": "a09ea5bb54f3e4bac43bd2c295b8ed2617a7e131043d89e440df783011f7240b"
+        },
+        {
+          "dir": "output",
+          "relpath": "inspect_persons_with_na_crypt.csv.xlsx",
+          "sha256": "f50ec52de8ff67cc2150b823a21d7b0b27827798a9c11239abb525286683485a"
+        },
+        {
+          "dir": "output",
+          "relpath": "persons_simple_crypt.csv",
+          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+        },
+        {
+          "dir": "output",
+          "relpath": "persons_with_na_crypt.csv",
+          "sha256": "2a1cb62faa8c219b2b2ee2e7a8554d0e469f02609a64672387af29b598af98bc"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_persons_simple_crypt.parquet",
+          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_persons_with_na_crypt.parquet",
+          "sha256": "90154bac8712df73aa7179a31211df3dd92f21aa6e0bdb4f9b6d0c5740c8053a"
+        }
+      ]
+    },
+    {
+      "name": "dupl_files",
+      "mask": "mask_dupl_files.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "DUPL1_out_crypt.csv",
+          "sha256": "2a1cb62faa8c219b2b2ee2e7a8554d0e469f02609a64672387af29b598af98bc"
+        },
+        {
+          "dir": "output",
+          "relpath": "inspect_DUPL1_out_crypt.csv.xlsx",
+          "sha256": "e7e7d72e3fdcf6c7464984a8d2d16f831f181dc24a582fa03915b4ead0169c06"
+        },
+        {
+          "dir": "output",
+          "relpath": "inspect_out_crypt.csv.xlsx",
+          "sha256": "c00748820d2d078d13f5895eebc1d87d14124a48c9c3ed5e2f33539ccd7b3513"
+        },
+        {
+          "dir": "output",
+          "relpath": "out_crypt.csv",
+          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_DUPL1_out_crypt.parquet",
+          "sha256": "90154bac8712df73aa7179a31211df3dd92f21aa6e0bdb4f9b6d0c5740c8053a"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_out_crypt.parquet",
+          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+        }
+      ]
+    },
+    {
+      "name": "multi_vars_per_file",
+      "mask": "mask_multi_vars.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_persons_simple_crypt.csv.xlsx",
+          "sha256": "f0865bd15a560b2448b7e07971392abb18afa603283954e14a2bb8ce8f22642d"
+        },
+        {
+          "dir": "output",
+          "relpath": "persons_simple_crypt.csv",
+          "sha256": "f86d0b3f7699a3a8758998342f638bac0fc63332d71e37df89ad819fca446fe6"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_persons_simple_crypt.parquet",
+          "sha256": "5b38976ead6a91eb3f384b11522e554848a009e1cd20662f33a30b97fbc76af2"
+        }
+      ]
+    },
+    {
+      "name": "with_remove",
+      "mask": "mask_with_remove.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_persons_simple_crypt.csv.xlsx",
+          "sha256": "d2ab47b3f40bde526eca674d7f89eea53f6e77143bc032344355df65998826db"
+        },
+        {
+          "dir": "output",
+          "relpath": "inspect_products_crypt.rds.xlsx",
+          "sha256": "4684c637ab01831b0b482ade59e0b75a4501cdea06b9ad43a4a0f2fa86b2921e"
+        },
+        {
+          "dir": "output",
+          "relpath": "persons_simple_crypt.csv",
+          "sha256": "47571591b08e2d86ee75dca85db74181abdc675dd77c2dbc423e9ca71bd0af97"
+        },
+        {
+          "dir": "output",
+          "relpath": "products_crypt.rds",
+          "sha256": "576244cf289c55b57c63cb32b72ad43d6d09160fa749a627a486e6cf0a457211"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_persons_simple_crypt.parquet",
+          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_products_crypt.parquet",
+          "sha256": "d389b7e44acbb02433405890fb160ff97666aef42a2f07eaa082555df2e3963e"
+        }
+      ]
+    },
+    {
+      "name": "xlsx_input",
+      "mask": "mask_xlsx_input.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "employees_crypt.xlsx",
+          "sha256": "ffc93e9fa77b9694c56b783b883a50ceb1bcf05c804ec5a0789d2b3ab7904b8c"
+        },
+        {
+          "dir": "output",
+          "relpath": "inspect_employees_crypt.xlsx.xlsx",
+          "sha256": "ce275c0e36988c422e736ceefce8853f281b679ea1c8926caee34666c9bed360"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_employees_crypt.parquet",
+          "sha256": "074db6849c0915ac51f1f94a70423e45670336e9751fcc6eb60e8ef797dbeb3d"
+        }
+      ]
+    },
+    {
+      "name": "parquet_input",
+      "mask": "mask_parquet_input.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_orders_crypt.parquet.xlsx",
+          "sha256": "fc641cd86f14bf795e68169a5d5f79dc2a25d02a246f35d632cfcd3dd199b541"
+        },
+        {
+          "dir": "output",
+          "relpath": "orders_crypt.parquet",
+          "sha256": "c475377b8669e06577af4f9f239c63765d012e201fe79f781f16f59680dd5c47"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_orders_crypt.parquet",
+          "sha256": "0397b20553a215e34c8f8de1589c1155a8c99fd1207f27a525bf55d438a8ef87"
+        }
+      ]
+    },
+    {
+      "name": "rds_input",
+      "mask": "mask_rds_input.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_products_crypt.rds.xlsx",
+          "sha256": "c6e55a7ba3b20022d0579f50a23610e5d98ea5e5d64409526ea143588fd0c2ae"
+        },
+        {
+          "dir": "output",
+          "relpath": "products_crypt.rds",
+          "sha256": "576244cf289c55b57c63cb32b72ad43d6d09160fa749a627a486e6cf0a457211"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_products_crypt.parquet",
+          "sha256": "d389b7e44acbb02433405890fb160ff97666aef42a2f07eaa082555df2e3963e"
+        }
+      ]
+    },
+    {
+      "name": "special_chars_cols",
+      "mask": "mask_special_chars.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_special_chars_crypt.xlsx.xlsx",
+          "sha256": "fb40a78bd9a5e224f8f7e9c52b001807e2fab81966e2eb84825cb5ad8bc144f9"
+        },
+        {
+          "dir": "output",
+          "relpath": "special_chars_crypt.xlsx",
+          "sha256": "306f750c671c56ec09320ffec9373911c2e8a69de0ca9c411bc0a189cb6e1146"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_special_chars_crypt.parquet",
+          "sha256": "477d5a217ac68161b06b90e7b340ae8f5298a7e00b228ff9420e952811b1ff52"
+        }
+      ]
+    }
+  ]
+}
