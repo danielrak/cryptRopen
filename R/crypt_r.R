@@ -100,12 +100,47 @@ crypt_r <- function (mask_folder_path, mask_file,
   invisible(NULL)
 }
 
-#' Process one row of the encryption mask.
+#' Process one row of the encryption mask (dispatcher).
 #'
-#' Extracted from the body of `crypt_r()` in Phase 1.D.1 so the per-row
-#' logic can be unit-tested in isolation (without the `job::job()`
-#' wrapper) and later swapped for the `in_memory` / `streaming` engines
-#' (Phases 1.D.2 / 1.D.4).
+#' Thin dispatcher introduced in Phase 1.D.2. Today it only routes to
+#' `.process_mask_row_in_memory()`, which encapsulates the historical
+#' behaviour (full-file load into RAM). Phase 1.D.4 will add
+#' `.process_mask_row_streaming()` and a user-facing `engine` parameter
+#' on `crypt_r()` to select between them (with `"auto"` picking the
+#' right engine from the input format).
+#'
+#' Keeping the dispatcher separate from the engine guarantees that the
+#' historical code path stays strictly untouched while the streaming
+#' engine is being written, protecting non-regression on existing
+#' baselines.
+#'
+#' @inheritParams .process_mask_row_in_memory
+#' @return Invisible `NULL`.
+#' @noRd
+.process_mask_row <- function(sm, input_path, output_path, intermediate_path,
+                              encryption_key, algorithm, correspondence_table) {
+  .process_mask_row_in_memory(
+    sm                   = sm,
+    input_path           = input_path,
+    output_path          = output_path,
+    intermediate_path    = intermediate_path,
+    encryption_key       = encryption_key,
+    algorithm            = algorithm,
+    correspondence_table = correspondence_table
+  )
+}
+
+#' Process one row of the encryption mask — in-memory engine.
+#'
+#' Encapsulates the **historical** per-row processing logic: full load
+#' of the input file into RAM via `rio::import()`, then character
+#' cleanup, encryption of the requested variables, optional
+#' correspondence table, and export of the final dataset + inspect
+#' report. Extracted from `.process_mask_row()` in Phase 1.D.2 so that
+#' the historical code path can stay strictly unchanged while the
+#' streaming engine is being written in Phase 1.D.4. The parallel
+#' streaming engine will live in a sibling helper
+#' `.process_mask_row_streaming()`.
 #'
 #' Side effects are preserved from the historical implementation: the
 #' per-variable `<var>_crypt` vectors, the final
@@ -125,8 +160,8 @@ crypt_r <- function (mask_folder_path, mask_file,
 #' @return Invisible `NULL`. All outputs are side effects (files on
 #'   disk and assignments in `globalenv()`).
 #' @noRd
-.process_mask_row <- function(sm, input_path, output_path, intermediate_path,
-                              encryption_key, algorithm, correspondence_table) {
+.process_mask_row_in_memory <- function(sm, input_path, output_path, intermediate_path,
+                                        encryption_key, algorithm, correspondence_table) {
 
   requireNamespace("magrittr")
 
