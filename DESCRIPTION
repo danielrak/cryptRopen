@@ -13,6 +13,7 @@ Imports:
     job,
     lubridate,
     magrittr,
+    mirai (>= 1.0.0),
     purrr,
     rio,
     stats,
@@ -24,7 +25,8 @@ Suggests:
     jsonlite,
     readxl,
     testthat,
-    tools
+    tools,
+    withr
 Config/fusen/version: 0.7.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
