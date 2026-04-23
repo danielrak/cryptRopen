@@ -10,15 +10,29 @@ cryptR_status(job)
 \item{job}{A \code{cryptR_job} object, as returned by \code{\link[=crypt_r]{crypt_r()}}.}
 }
 \value{
-A data.frame with columns \code{encrypted_file} (character),
-\code{state} (factor with levels \code{running} / \code{done} / \code{failed}) and
-\code{error_message} (character, \code{NA} unless \code{state == "failed"}).
+A data.frame with columns
+\code{encrypted_file} (character),
+\code{state} (factor: \code{running} / \code{done} / \code{failed}),
+\code{error_message} (character, \code{NA} unless \code{state == "failed"}),
+\code{start_time} / \code{end_time} (POSIXct, \code{NA} until the task resolves),
+\code{duration_sec} (numeric seconds, \code{NA} until the task resolves),
+\code{n_rows_processed} (integer, \code{NA} until the task resolves and the
+engine reports a row count).
 }
 \description{
 Returns a one-row-per-task snapshot of the job's progress. The result is
 taken \emph{at the time of the call}: a task resolved between two successive
 calls will flip from \code{running} to \code{done}/\code{failed}, but the function itself
 has no side effects (no log writing, no waiting).
+}
+\details{
+Since Phase 2.A the snapshot also carries per-row metrics
+(\code{start_time}, \code{end_time}, \code{duration_sec}, \code{n_rows_processed}) for
+resolved tasks — populated from the task payload shipped back by the
+engines (\code{.make_row_result()}). Metrics are \code{NA} for tasks still
+\code{running} or that errored before producing a payload; this lets you
+monitor a run in-flight without reading the \code{log_crypt_r_*.xlsx}
+file from disk.
 }
 \examples{
 \dontrun{
@@ -27,5 +41,5 @@ cryptR_status(job)
 }
 }
 \seealso{
-\code{\link[=cryptR_wait]{cryptR_wait()}}, \code{\link[=cryptR_collect]{cryptR_collect()}}.
+\code{\link[=cryptR_wait]{cryptR_wait()}}, \code{\link[=cryptR_collect]{cryptR_collect()}}, \code{\link[=summary.cryptR_job]{summary.cryptR_job()}}.
 }

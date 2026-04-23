@@ -85,11 +85,24 @@
 #' calls will flip from `running` to `done`/`failed`, but the function itself
 #' has no side effects (no log writing, no waiting).
 #'
+#' Since Phase 2.A the snapshot also carries per-row metrics
+#' (`start_time`, `end_time`, `duration_sec`, `n_rows_processed`) for
+#' resolved tasks — populated from the task payload shipped back by the
+#' engines (`.make_row_result()`). Metrics are `NA` for tasks still
+#' `running` or that errored before producing a payload; this lets you
+#' monitor a run in-flight without reading the `log_crypt_r_*.xlsx`
+#' file from disk.
+#'
 #' @param job A `cryptR_job` object, as returned by [crypt_r()].
-#' @return A data.frame with columns `encrypted_file` (character),
-#'   `state` (factor with levels `running` / `done` / `failed`) and
-#'   `error_message` (character, `NA` unless `state == "failed"`).
-#' @seealso [cryptR_wait()], [cryptR_collect()].
+#' @return A data.frame with columns
+#'   `encrypted_file` (character),
+#'   `state` (factor: `running` / `done` / `failed`),
+#'   `error_message` (character, `NA` unless `state == "failed"`),
+#'   `start_time` / `end_time` (POSIXct, `NA` until the task resolves),
+#'   `duration_sec` (numeric seconds, `NA` until the task resolves),
+#'   `n_rows_processed` (integer, `NA` until the task resolves and the
+#'   engine reports a row count).
+#' @seealso [cryptR_wait()], [cryptR_collect()], [summary.cryptR_job()].
 #' @export
 #' @examples
 #' \dontrun{
@@ -103,23 +116,38 @@ cryptR_status <- function(job) {
   n <- length(job$tasks)
   if (n == 0L) {
     return(data.frame(
-      encrypted_file = character(0),
-      state          = factor(character(0),
-                              levels = c("running", "done", "failed")),
-      error_message  = character(0),
+      encrypted_file   = character(0),
+      state            = factor(character(0),
+                                levels = c("running", "done", "failed")),
+      error_message    = character(0),
+      start_time       = as.POSIXct(character(0)),
+      end_time         = as.POSIXct(character(0)),
+      duration_sec     = numeric(0),
+      n_rows_processed = integer(0),
       stringsAsFactors = FALSE
     ))
   }
 
   states  <- vapply(job$tasks, .mirai_task_state,  character(1))
   errors  <- vapply(job$tasks, .mirai_task_error,  character(1))
+  metrics <- lapply(job$tasks, .task_metrics)
   names_t <- names(job$tasks)
   if (is.null(names_t)) names_t <- rep(NA_character_, n)
 
+  # c() on POSIXct preserves the class but harmonises time zones. Using
+  # do.call rather than `unlist` because `unlist` drops the POSIXct class.
+  start_time <- do.call(c, lapply(metrics, `[[`, "start_time"))
+  end_time   <- do.call(c, lapply(metrics, `[[`, "end_time"))
+
   data.frame(
-    encrypted_file = names_t,
-    state          = factor(states, levels = c("running", "done", "failed")),
-    error_message  = errors,
+    encrypted_file   = names_t,
+    state            = factor(states,
+                              levels = c("running", "done", "failed")),
+    error_message    = errors,
+    start_time       = start_time,
+    end_time         = end_time,
+    duration_sec     = vapply(metrics, `[[`, numeric(1), "duration_sec"),
+    n_rows_processed = vapply(metrics, `[[`, integer(1), "n_rows_processed"),
     stringsAsFactors = FALSE
   )
 }
@@ -249,17 +277,95 @@ print.cryptR_job <- function(x, ...) {
   status <- cryptR_status(x)
   counts <- table(factor(status$state,
                          levels = c("running", "done", "failed")))
+  n_workers <- .n_workers_active()
 
   cat("<cryptR_job>\n")
   cat("  tasks       : ", length(x$tasks), "\n", sep = "")
   cat("  running     : ", counts[["running"]], "\n", sep = "")
   cat("  done        : ", counts[["done"]],    "\n", sep = "")
   cat("  failed      : ", counts[["failed"]],  "\n", sep = "")
+  cat("  workers     : ",
+      if (is.na(n_workers)) "?" else n_workers, "\n", sep = "")
 
   elapsed <- difftime(Sys.time(), x$started_at, units = "secs")
   cat("  elapsed     : ",
       sprintf("%.2f s", as.numeric(elapsed)), "\n", sep = "")
   cat("  output_path : ", x$output_path, "\n", sep = "")
   cat("  log_written : ", isTRUE(x$log_written), "\n", sep = "")
+  invisible(x)
+}
+
+
+#' Dashboard summary of an asynchronous `crypt_r()` job
+#'
+#' Companion to `print()`, introduced in Phase 2.A. Returns a structured
+#' list (class `summary.cryptR_job`) carrying the aggregates a
+#' monitoring script typically needs: total task count, per-state
+#' counts, elapsed seconds, active workers, total rows processed (sum
+#' over resolved tasks — excludes NA), output path, and the full
+#' per-task status dataframe.
+#'
+#' The object has its own `print()` method that renders a compact
+#' dashboard.
+#'
+#' @param object A `cryptR_job` object.
+#' @param ... Ignored.
+#' @return An object of class `summary.cryptR_job` — a named list
+#'   with elements `n_tasks`, `counts`, `elapsed_sec`, `n_workers`,
+#'   `total_rows`, `output_path`, `log_written`, `status` (the full
+#'   [cryptR_status()] dataframe).
+#' @seealso [cryptR_status()], [cryptR_collect()].
+#' @export
+#' @examples
+#' \dontrun{
+#' job <- crypt_r(...)
+#' summary(job)
+#' }
+summary.cryptR_job <- function(object, ...) {
+  status <- cryptR_status(object)
+  states <- as.character(status$state)
+  counts <- c(
+    running = sum(states == "running"),
+    done    = sum(states == "done"),
+    failed  = sum(states == "failed")
+  )
+  elapsed <- as.numeric(
+    difftime(Sys.time(), object$started_at, units = "secs"))
+
+  total_rows <- if (any(!is.na(status$n_rows_processed)))
+                  as.integer(sum(status$n_rows_processed, na.rm = TRUE))
+                else NA_integer_
+
+  structure(
+    list(
+      n_tasks     = length(object$tasks),
+      counts      = counts,
+      elapsed_sec = elapsed,
+      n_workers   = .n_workers_active(),
+      total_rows  = total_rows,
+      output_path = object$output_path,
+      log_written = isTRUE(object$log_written),
+      status      = status
+    ),
+    class = "summary.cryptR_job"
+  )
+}
+
+
+#' @export
+print.summary.cryptR_job <- function(x, ...) {
+  cat("<cryptR_job summary>\n")
+  cat(sprintf("  tasks        : %d\n",   x$n_tasks))
+  cat(sprintf("    running    : %d\n",   x$counts[["running"]]))
+  cat(sprintf("    done       : %d\n",   x$counts[["done"]]))
+  cat(sprintf("    failed     : %d\n",   x$counts[["failed"]]))
+  cat(sprintf("  workers      : %s\n",
+              if (is.na(x$n_workers)) "?" else as.character(x$n_workers)))
+  cat(sprintf("  elapsed      : %.2f s\n", x$elapsed_sec))
+  cat(sprintf("  rows total   : %s\n",
+              if (is.na(x$total_rows)) "?" else
+                formatC(x$total_rows, format = "d", big.mark = " ")))
+  cat(sprintf("  output_path  : %s\n",   x$output_path))
+  cat(sprintf("  log_written  : %s\n",   x$log_written))
   invisible(x)
 }

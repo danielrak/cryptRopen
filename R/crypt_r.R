@@ -138,11 +138,11 @@ crypt_r <- function (mask_folder_path, mask_file,
   # If daemons are already running on the default profile, we reuse them
   # and leave teardown to the user. If none are running, we set up our
   # own and flag the job so cryptR_collect() tears them down at the end.
-  n_existing <- tryCatch({
-    st <- mirai::status()
-    d  <- st$daemons
-    if (is.null(d)) 0L else if (is.matrix(d)) nrow(d) else length(d)
-  }, error = function(e) 0L)
+  # `.n_workers_active()` returns NA if mirai::status() errors outright;
+  # in that case we fall back to "no daemons active" (0L) and spawn our
+  # own, matching the previous open-coded tryCatch behaviour.
+  n_existing <- .n_workers_active()
+  if (is.na(n_existing)) n_existing <- 0L
 
   daemons_owned_by_job <- FALSE
   if (n_existing == 0L) {

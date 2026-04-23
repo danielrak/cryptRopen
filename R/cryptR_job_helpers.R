@@ -48,3 +48,84 @@
   }
   msg
 }
+
+
+#' Extract per-row metrics from a resolved mirai task payload.
+#'
+#' Companion to `.mirai_task_state()` / `.mirai_task_error()`. Introduced
+#' in Phase 2.A so `cryptR_status()` can surface timing + row counts for
+#' resolved tasks without requiring the caller to call `cryptR_collect()`
+#' first. Returns four NA scalars when the task is still unresolved, is
+#' a mirai error value, is not a `mirai` handle at all, or carries a
+#' payload that does not match the `.make_row_result()` shape.
+#'
+#' The scalars mirror — in type — the corresponding fields of the
+#' recap xlsx log, so a status snapshot and the final log agree on
+#' column types for resolved rows.
+#'
+#' @param task A `mirai` handle or any object.
+#' @return A named list of length 4: `start_time` (POSIXct),
+#'   `end_time` (POSIXct), `duration_sec` (numeric),
+#'   `n_rows_processed` (integer). Each field is `NA` when the value is
+#'   unavailable.
+#' @noRd
+.task_metrics <- function(task) {
+  empty <- list(
+    start_time       = as.POSIXct(NA),
+    end_time         = as.POSIXct(NA),
+    duration_sec     = NA_real_,
+    n_rows_processed = NA_integer_
+  )
+  if (!inherits(task, "mirai")) return(empty)
+  if (isTRUE(mirai::unresolved(task))) return(empty)
+  if (isTRUE(mirai::is_error_value(task$data))) return(empty)
+
+  value <- task$data
+  if (!is.list(value) || is.null(value$metrics)) return(empty)
+  m <- value$metrics
+
+  list(
+    start_time       = if (inherits(m$start_time, "POSIXct")) m$start_time
+                       else as.POSIXct(NA),
+    end_time         = if (inherits(m$end_time, "POSIXct")) m$end_time
+                       else as.POSIXct(NA),
+    duration_sec     = if (is.numeric(m$duration_sec))
+                         as.numeric(m$duration_sec)
+                       else NA_real_,
+    n_rows_processed = if (is.numeric(m$n_rows_processed) ||
+                           is.integer(m$n_rows_processed))
+                         as.integer(m$n_rows_processed)
+                       else NA_integer_
+  )
+}
+
+
+#' Best-effort count of the active mirai daemons on the default profile.
+#'
+#' Returns an integer scalar: the number of daemon slots mirai reports
+#' on its default profile. Shared helper used by `crypt_r()` (to decide
+#' whether to spawn daemons itself or reuse existing ones), and by
+#' `print.cryptR_job()` / `summary.cryptR_job()` (to display worker
+#' count). Introduced in Phase 2.A to de-duplicate the `mirai::status()`
+#' call site that was open-coded in three places.
+#'
+#' Return semantics:
+#'   - `0L` when no daemons are active.
+#'   - Positive integer when the default profile has daemons registered.
+#'   - `NA_integer_` when `mirai::status()` errors outright (unexpected
+#'     mirai failure, not merely "no daemons").
+#'
+#' The return value is informational — it reflects the **configured**
+#' daemons, which may slightly over-count if a daemon has died.
+#'
+#' @return Integer(1), possibly `NA`.
+#' @noRd
+.n_workers_active <- function() {
+  tryCatch({
+    st <- mirai::status()
+    d  <- st$daemons
+    if (is.null(d)) 0L
+    else if (is.matrix(d)) as.integer(nrow(d))
+    else as.integer(length(d))
+  }, error = function(e) NA_integer_)
+}
