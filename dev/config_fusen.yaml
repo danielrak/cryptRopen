@@ -1,18 +1,3 @@
-flat_assign_to_global.Rmd:
-  path: dev/flat_assign_to_global.Rmd
-  state: active
-  R: R/assign_to_global.R
-  tests: []
-  vignettes: []
-  inflate:
-    flat_file: dev/flat_assign_to_global.Rmd
-    vignette_name: .na
-    open_vignette: true
-    check: true
-    document: true
-    overwrite: ask
-    clean: ask
-    codecov: false
 flat_crypt_data.Rmd:
   path: dev/flat_crypt_data.Rmd
   state: active
