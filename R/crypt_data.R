@@ -21,7 +21,6 @@
 #' between initial and encrypted values.
 #' @param correspondence_table_label Character 1L. Label of the correspondence table.
 #' @seealso cryptR::crypt_r(), digest::digest(), [get_correspondence_tables()].
-#' @importFrom magrittr  %>%
 #' @export
 #'
 #' @examples

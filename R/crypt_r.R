@@ -49,18 +49,7 @@
 #'   applicable, tear down the daemons) with [cryptR_collect()].
 #' @seealso [cryptR_status()], [cryptR_wait()], [cryptR_collect()],
 #'   [get_correspondence_tables()].
-#' @importFrom magrittr %>%
-#' @importFrom nanoparquet read_parquet
 #' @export
-#'
-# `nanoparquet` is a transitive runtime dependency: `rio::export()` and
-# `rio::import()` dispatch parquet I/O to it (the TC parquet in
-# `.process_mask_row_in_memory()`, the final dataset when output_format
-# is parquet, and any parquet input). Declared in DESCRIPTION Imports so
-# install pulls it in; `@importFrom` above satisfies R CMD check's
-# "Namespaces in Imports field not imported from" rule. We do not call
-# `nanoparquet::read_parquet()` directly — keeping `rio::export()` is
-# deliberate (baseline byte-identity, see in_memory engine).
 crypt_r <- function (mask_folder_path, mask_file,
                      output_path, intermediate_path,
                      encryption_key, algorithm = "md5",
