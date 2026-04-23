@@ -60,10 +60,10 @@ crypt_data <- function(loaded_dataset,
   # Clean: trim character columns, turn blank strings into NAs.
   loaded_dataset <- loaded_dataset %>%
     dplyr::mutate(
-      dplyr::across(dplyr::where(is.character), \(x0) {
-        x0 <- stringr::str_trim(x0)
-        x0[nchar(x0) == 0] <- NA
-        x0
+      dplyr::across(dplyr::where(is.character), \(col) {
+        col <- stringr::str_trim(col)
+        col[nchar(col) == 0] <- NA
+        col
       })
     )
 

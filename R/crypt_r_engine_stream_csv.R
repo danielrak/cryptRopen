@@ -29,19 +29,19 @@
 #' @return Invisible list (see `.make_row_result()`). Disk side
 #'   effects unchanged; typed return added in Phase 1.D.6.c.
 #' @noRd
-.process_mask_row_csv_streaming <- function(sm, input_path, output_path, intermediate_path,
+.process_mask_row_csv_streaming <- function(mask_row, input_path, output_path, intermediate_path,
                                             encryption_key, algorithm, correspondence_table,
                                             chunk_size = 1e6L) {
 
-  encrypted_file   <- sm[["encrypted_file"]]
+  encrypted_file   <- mask_row[["encrypted_file"]]
   encrypted_stem   <- stringr::str_remove(encrypted_file, "\\..*$")
   output_file_path <- file.path(output_path, encrypted_file)
 
-  vars_to_encrypt <- sm[["vars_to_encrypt"]] %>%
+  vars_to_encrypt <- mask_row[["vars_to_encrypt"]] %>%
     stringr::str_split(",") %>% unlist() %>%
     stringr::str_trim()
 
-  vars_to_remove <- sm[["vars_to_remove"]] %>%
+  vars_to_remove <- mask_row[["vars_to_remove"]] %>%
     stringr::str_split(",") %>% unlist() %>%
     stringr::str_trim()
 
@@ -54,16 +54,17 @@
 
   # --- Read / transform / write by chunks -------------------------------
   tryCatch({
-    ds      <- arrow::open_csv_dataset(input_path)
-    scanner <- arrow::Scanner$create(ds, batch_size = as.integer(chunk_size))
+    arrow_dataset <- arrow::open_csv_dataset(input_path)
+    scanner <- arrow::Scanner$create(arrow_dataset,
+                                     batch_size = as.integer(chunk_size))
     reader  <- scanner$ToRecordBatchReader()
 
     repeat {
       batch <- reader$read_next_batch()
       if (is.null(batch)) break
 
-      chunk <- dplyr::as_tibble(as.data.frame(batch))
-      tf    <- .transform_stream_chunk(
+      chunk       <- dplyr::as_tibble(as.data.frame(batch))
+      transformed <- .transform_stream_chunk(
         chunk                = chunk,
         vars_to_encrypt      = vars_to_encrypt,
         vars_to_remove       = vars_to_remove,
@@ -71,17 +72,17 @@
         algorithm            = algorithm,
         correspondence_table = correspondence_table)
 
-      if (correspondence_table && !is.null(tf$tc_chunk)) {
-        tc_accum <- if (is.null(tc_accum)) tf$tc_chunk
-                    else dplyr::distinct(dplyr::bind_rows(tc_accum, tf$tc_chunk))
+      if (correspondence_table && !is.null(transformed$tc_chunk)) {
+        tc_accum <- if (is.null(tc_accum)) transformed$tc_chunk
+                    else dplyr::distinct(dplyr::bind_rows(tc_accum, transformed$tc_chunk))
       }
 
-      n_rows_accum <- n_rows_accum + nrow(tf$out_chunk)
+      n_rows_accum <- n_rows_accum + nrow(transformed$out_chunk)
 
       # Append chunk to CSV output. First chunk writes the header and
       # creates the file; subsequent chunks append without header.
       utils::write.table(
-        as.data.frame(tf$out_chunk),
+        as.data.frame(transformed$out_chunk),
         file      = output_file_path,
         sep       = ",",
         dec       = ".",

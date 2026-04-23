@@ -188,7 +188,7 @@ crypt_r <- function(mask_folder_path, mask_file,
   input_paths <- paste0(mask$folder_path, "/", mask$file)
 
   tasks <- purrr::map(seq_len(n_rows), \(i) {
-    sm_i         <- mask[i, , drop = FALSE]
+    mask_row_i   <- mask[i, , drop = FALSE]
     input_path_i <- input_paths[[i]]
 
     # Resolve the internal dispatcher inside the daemon via
@@ -204,7 +204,7 @@ crypt_r <- function(mask_folder_path, mask_file,
       {
         .pmr <- utils::getFromNamespace(".process_mask_row", "cryptRopen")
         .pmr(
-          sm                   = sm_i,
+          mask_row             = mask_row_i,
           input_path           = input_path_i,
           output_path          = output_path,
           intermediate_path    = intermediate_path,
@@ -214,7 +214,7 @@ crypt_r <- function(mask_folder_path, mask_file,
           engine               = engine,
           chunk_size           = chunk_size)
       },
-      sm_i                 = sm_i,
+      mask_row_i           = mask_row_i,
       input_path_i         = input_path_i,
       output_path          = output_path,
       intermediate_path    = intermediate_path,
