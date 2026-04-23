@@ -438,3 +438,77 @@ test_that("column order: <var>_crypt columns come before the non-encrypted ones"
   # original input order).
   expect_equal(names(out_df), c("a_crypt", "b_crypt", "keep", "tail"))
 })
+
+# ---- Phase 1.D.4.a plumbing: engine + chunk_size -----------------------
+# At this phase the dispatcher is a no-op for engine/chunk_size: any
+# value must yield the same behaviour as the default (in_memory).
+# Behaviour is exercised end-to-end in 1.D.4.b/c/d.
+
+test_that(".process_mask_row() ignores engine/chunk_size at 1.D.4.a (same outputs)", {
+  d0 <- setup_dirs(); d1 <- setup_dirs(); d2 <- setup_dirs()
+  pre <- ls(envir = globalenv())
+  on.exit({
+    unlink(d0$root, recursive = TRUE, force = TRUE)
+    unlink(d1$root, recursive = TRUE, force = TRUE)
+    unlink(d2$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+  }, add = TRUE)
+
+  src <- data.frame(id = c("a", "b", "c", "a"),
+                    v  = 1:4,
+                    stringsAsFactors = FALSE)
+  for (d in list(d0, d1, d2)) {
+    utils::write.csv(src, file.path(d$inp, "s.csv"), row.names = FALSE)
+  }
+
+  sm <- make_sm(folder_path = d0$inp, file = "s.csv",
+                encrypted_file = "s_crypt.csv", vars_to_encrypt = "id")
+
+  call_dispatch <- function(d, ...) {
+    cryptRopen:::.process_mask_row(
+      sm = sm, input_path = file.path(d$inp, "s.csv"),
+      output_path = d$out, intermediate_path = d$int,
+      encryption_key = "k", algorithm = "md5",
+      correspondence_table = TRUE, ...)
+  }
+
+  call_dispatch(d0)                                         # default args
+  call_dispatch(d1, engine = "streaming", chunk_size = 2L)  # should be ignored
+  call_dispatch(d2, engine = "auto",      chunk_size = 100L)
+
+  read_out <- function(d) utils::read.csv(
+    file.path(d$out, "s_crypt.csv"), stringsAsFactors = FALSE)
+  read_tc  <- function(d) as.data.frame(
+    arrow::read_parquet(file.path(d$int, "tc_s_crypt.parquet")))
+
+  expect_equal(read_out(d0), read_out(d1))
+  expect_equal(read_out(d0), read_out(d2))
+  expect_equal(read_tc(d0),  read_tc(d1))
+  expect_equal(read_tc(d0),  read_tc(d2))
+})
+
+test_that("crypt_r() rejects an unknown engine via match.arg()", {
+  # match.arg() fires before any I/O, so invalid args suffice.
+  # Do not match the message string (it is locale-dependent — English
+  # "should be one of" vs French "doit être un de"). Asserting that
+  # an error is raised is enough; the backtrace points to match.arg.
+  expect_error(
+    crypt_r(mask_folder_path = tempdir(), mask_file = "nope.xlsx",
+            output_path = tempdir(), intermediate_path = tempdir(),
+            encryption_key = "k", engine = "unknown_engine"))
+})
+
+test_that("crypt_r() rejects an invalid chunk_size via stopifnot()", {
+  expect_error(
+    crypt_r(mask_folder_path = tempdir(), mask_file = "nope.xlsx",
+            output_path = tempdir(), intermediate_path = tempdir(),
+            encryption_key = "k", chunk_size = -5L))
+  expect_error(
+    crypt_r(mask_folder_path = tempdir(), mask_file = "nope.xlsx",
+            output_path = tempdir(), intermediate_path = tempdir(),
+            encryption_key = "k", chunk_size = NA_integer_))
+  expect_error(
+    crypt_r(mask_folder_path = tempdir(), mask_file = "nope.xlsx",
+            output_path = tempdir(), intermediate_path = tempdir(),
+            encryption_key = "k", chunk_size = c(1L, 2L)))
+})

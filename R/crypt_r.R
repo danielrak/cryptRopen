@@ -19,15 +19,34 @@
 #' From digest::digest()'s algo argument.
 #' @param correspondence_table Logical vector. If TRUE, the correspondence tables will computed
 #' and stored in the indicated intermediate_path.
+#' @param engine One of `"auto"`, `"in_memory"`, `"streaming"`.
+#'   Selects the per-row processing engine. `"auto"` (default) picks
+#'   `"streaming"` for `.parquet` / `.csv` inputs and `"in_memory"`
+#'   for every other format. `"in_memory"` reads the full input into
+#'   RAM (historical behaviour). `"streaming"` scans the input by
+#'   chunks via arrow and writes progressively. Introduced in Phase
+#'   1.D.4.a; the streaming engine itself lands in 1.D.4.b/c.
+#' @param chunk_size Integer. Number of rows per chunk when `engine`
+#'   resolves to `"streaming"`. Ignored by `"in_memory"`. Default
+#'   `1e6`.
 #' @importFrom magrittr %>%
 #' @export
 #'
 crypt_r <- function (mask_folder_path, mask_file,
                      output_path, intermediate_path,
                      encryption_key, algorithm = "md5",
-                     correspondence_table = TRUE) {
+                     correspondence_table = TRUE,
+                     engine = c("auto", "in_memory", "streaming"),
+                     chunk_size = 1e6L) {
 
   requireNamespace("magrittr")
+
+  engine <- match.arg(engine)
+  stopifnot(is.numeric(chunk_size),
+            length(chunk_size) == 1L,
+            !is.na(chunk_size),
+            chunk_size > 0)
+  chunk_size <- as.integer(chunk_size)
 
   # The Excel mask:
   mask <-
@@ -78,6 +97,8 @@ crypt_r <- function (mask_folder_path, mask_file,
     encryption_key       <- encryption_key
     algorithm            <- algorithm
     correspondence_table <- correspondence_table
+    engine               <- engine
+    chunk_size           <- chunk_size
 
     job::job({
       .process_mask_row(
@@ -87,7 +108,9 @@ crypt_r <- function (mask_folder_path, mask_file,
         intermediate_path    = intermediate_path,
         encryption_key       = encryption_key,
         algorithm            = algorithm,
-        correspondence_table = correspondence_table
+        correspondence_table = correspondence_table,
+        engine               = engine,
+        chunk_size           = chunk_size
       )
       job::export("none")
     },
@@ -102,12 +125,13 @@ crypt_r <- function (mask_folder_path, mask_file,
 
 #' Process one row of the encryption mask (dispatcher).
 #'
-#' Thin dispatcher introduced in Phase 1.D.2. Today it only routes to
-#' `.process_mask_row_in_memory()`, which encapsulates the historical
-#' behaviour (full-file load into RAM). Phase 1.D.4 will add
-#' `.process_mask_row_streaming()` and a user-facing `engine` parameter
-#' on `crypt_r()` to select between them (with `"auto"` picking the
-#' right engine from the input format).
+#' Thin dispatcher introduced in Phase 1.D.2. Routes to the in_memory
+#' engine today. Phase 1.D.4.a adds the `engine` + `chunk_size`
+#' parameters to the signature (plumbing only — the streaming engine
+#' lands in 1.D.4.b/c, and the `"auto"` routing rule in 1.D.4.d). For
+#' now the dispatcher ignores `engine` / `chunk_size` and always calls
+#' `.process_mask_row_in_memory()`, so passing `engine = "streaming"`
+#' or `engine = "auto"` is a no-op that keeps historical behaviour.
 #'
 #' Keeping the dispatcher separate from the engine guarantees that the
 #' historical code path stays strictly untouched while the streaming
@@ -115,10 +139,21 @@ crypt_r <- function (mask_folder_path, mask_file,
 #' baselines.
 #'
 #' @inheritParams .process_mask_row_in_memory
+#' @param engine One of `"auto"`, `"in_memory"`, `"streaming"`.
+#'   Accepted but currently ignored — always routes to in_memory until
+#'   Phase 1.D.4.b/c/d land.
+#' @param chunk_size Integer. Accepted but currently ignored (used by
+#'   the streaming engine only, introduced in 1.D.4.b).
 #' @return Invisible `NULL`.
 #' @noRd
 .process_mask_row <- function(sm, input_path, output_path, intermediate_path,
-                              encryption_key, algorithm, correspondence_table) {
+                              encryption_key, algorithm, correspondence_table,
+                              engine = "in_memory", chunk_size = 1e6L) {
+  # Engine dispatch is intentionally a no-op in Phase 1.D.4.a (plumbing
+  # only). The `engine` / `chunk_size` arguments are accepted so the
+  # crypt_r() signature is stable; they will gain behaviour in
+  # 1.D.4.b (parquet streaming), 1.D.4.c (csv streaming) and 1.D.4.d
+  # (auto routing).
   .process_mask_row_in_memory(
     sm                   = sm,
     input_path           = input_path,
