@@ -13,7 +13,6 @@
 #' @return A tibble with one row per column of `data_frame` (or several
 #'   rows when `class(column)` has length > 1, e.g. ordered factors),
 #'   holding systematic inspection metrics.
-#' @importFrom magrittr %>%
 #' @export
 #'
 #' @examples
