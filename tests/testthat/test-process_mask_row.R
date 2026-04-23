@@ -445,6 +445,11 @@ test_that("column order: <var>_crypt columns come before the non-encrypted ones"
 # Behaviour is exercised end-to-end in 1.D.4.b/c/d.
 
 test_that(".process_mask_row() ignores engine/chunk_size at 1.D.4.a (same outputs)", {
+  # Historical purpose (1.D.4.a): verify that engine / chunk_size are
+  # plumbed but unused. Since 1.D.4.b and 1.D.4.c, engine="streaming"
+  # is active for parquet/parquet and csv/csv, so this no-op test now
+  # exercises the still-passive branches: "in_memory" (explicit) and
+  # "auto" (which remains a synonym of in_memory until 1.D.4.d).
   d0 <- setup_dirs(); d1 <- setup_dirs(); d2 <- setup_dirs()
   pre <- ls(envir = globalenv())
   on.exit({
@@ -473,7 +478,7 @@ test_that(".process_mask_row() ignores engine/chunk_size at 1.D.4.a (same output
   }
 
   call_dispatch(d0)                                         # default args
-  call_dispatch(d1, engine = "streaming", chunk_size = 2L)  # should be ignored
+  call_dispatch(d1, engine = "in_memory", chunk_size = 2L)  # explicit no-op
   call_dispatch(d2, engine = "auto",      chunk_size = 100L)
 
   read_out <- function(d) utils::read.csv(
@@ -797,7 +802,11 @@ test_that("streaming: correspondence_table = FALSE writes no TC anywhere", {
   expect_true(file.exists(file.path(dirs$out, "n_crypt.parquet")))
 })
 
-test_that("dispatcher: engine='streaming' with non-parquet input falls back to in_memory", {
+test_that("dispatcher: engine='streaming' with non-streamable input falls back to in_memory", {
+  # Streaming is wired for parquet-in/out (1.D.4.b) and csv-in/out
+  # (1.D.4.c). Any other input format (here, .rds) must fall back to
+  # the in_memory engine — preserving historical behaviour, including
+  # globalenv side effects.
   dirs <- setup_dirs()
   pre  <- ls(envir = globalenv())
   on.exit({
@@ -806,23 +815,22 @@ test_that("dispatcher: engine='streaming' with non-parquet input falls back to i
     cryptRopen:::.clear_correspondence_tables()
   }, add = TRUE)
 
-  csv <- file.path(dirs$inp, "s.csv")
-  utils::write.csv(data.frame(id = c("a", "b"), stringsAsFactors = FALSE),
-                   csv, row.names = FALSE)
+  rds <- file.path(dirs$inp, "s.rds")
+  saveRDS(data.frame(id = c("a", "b"), stringsAsFactors = FALSE), rds)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "s.csv",
-                encrypted_file  = "s_crypt.csv",
+  sm <- make_sm(folder_path = dirs$inp, file = "s.rds",
+                encrypted_file  = "s_crypt.rds",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = csv,
+    sm = sm, input_path = rds,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
     engine = "streaming", chunk_size = 4L)
 
-  # Output exists in the historical format (csv — written via rio).
-  expect_true(file.exists(file.path(dirs$out, "s_crypt.csv")))
+  # Output exists in the historical format (rds — written via rio).
+  expect_true(file.exists(file.path(dirs$out, "s_crypt.rds")))
   # Historical side effect: the in_memory engine assigns to globalenv
   # (this fallback preserves that behaviour — sanity check).
   expect_true(exists("s_crypt", envir = globalenv(), inherits = FALSE))
@@ -888,4 +896,325 @@ test_that("dispatcher: engine='auto' still routes parquet-in/parquet-out to in_m
   expect_true(file.exists(file.path(dirs$out, "a_crypt.parquet")))
   # in_memory signature — globalenv side effect present.
   expect_true(exists("a_crypt", envir = globalenv(), inherits = FALSE))
+})
+
+# ---- Phase 1.D.4.c — CSV streaming engine ------------------------------
+# Same design contract as the parquet streaming engine: no globalenv
+# pollution (Option B), TC in .cryptRopen_env + on disk (as parquet),
+# fallback to in_memory on mixed endpoints. Byte-level equality of the
+# CSV output vs in_memory is NOT guaranteed (different writer), but
+# re-read semantic equality is.
+
+# Small helper — CSV fixture written via utils::write.csv, which is
+# what the in_memory engine produces via rio::export. This is the
+# "reference" CSV format users create.
+write_csv_fixture <- function(path, df) {
+  utils::write.csv(df, path, row.names = FALSE)
+}
+
+test_that("csv streaming (dispatcher): csv-in/csv-out happy path", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  src <- data.frame(id = c("alice", "bob", "carol", " alice ", ""),
+                    age = c(30L, 40L, 50L, 30L, 99L),
+                    stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "persons.csv")
+  write_csv_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "persons.csv",
+                encrypted_file  = "persons_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "testkey", algorithm = "md5",
+    correspondence_table = TRUE,
+    engine = "streaming", chunk_size = 2L)
+
+  expect_true(file.exists(file.path(dirs$out, "persons_crypt.csv")))
+  expect_true(file.exists(file.path(dirs$int, "tc_persons_crypt.parquet")))
+  expect_true(file.exists(file.path(dirs$out,
+                                    "inspect_persons_crypt.csv.xlsx")))
+
+  out_df <- as.data.frame(arrow::read_csv_arrow(
+    file.path(dirs$out, "persons_crypt.csv")))
+
+  # Column order: encrypted first, then non-encrypted in input order.
+  expect_equal(names(out_df), c("id_crypt", "age"))
+  expect_equal(nrow(out_df), 5L)
+  # Trimmed duplicate "alice" hashes like "alice".
+  expect_equal(out_df$id_crypt[1], out_df$id_crypt[4])
+  # Empty string becomes NA.
+  expect_true(is.na(out_df$id_crypt[5]))
+})
+
+test_that("csv streaming: no globalenv pollution (Option B)", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  src <- data.frame(id = c("a", "b", "c"), stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "p.csv")
+  write_csv_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "p.csv",
+                encrypted_file  = "p_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row_csv_streaming(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE, chunk_size = 1L)
+
+  expect_false(exists("id_crypt",   envir = globalenv(), inherits = FALSE))
+  expect_false(exists("p_crypt",    envir = globalenv(), inherits = FALSE))
+  expect_false(exists("tc_p_crypt", envir = globalenv(), inherits = FALSE))
+})
+
+test_that("csv streaming: TC available via get_correspondence_tables()", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  cryptRopen:::.clear_correspondence_tables()
+
+  src <- data.frame(id = c("a", "b", "a", "c"),
+                    stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "p.csv")
+  write_csv_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "p.csv",
+                encrypted_file  = "p_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row_csv_streaming(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE, chunk_size = 2L)
+
+  tcs <- get_correspondence_tables()
+  expect_true("tc_p_crypt" %in% names(tcs))
+  tc <- tcs[["tc_p_crypt"]]
+  expect_equal(sort(names(tc)), sort(c("id", "id_crypt")))
+  expect_equal(sort(unique(tc$id)), c("a", "b", "c"))
+  expect_equal(anyDuplicated(tc), 0L)
+
+  tc_disk <- as.data.frame(arrow::read_parquet(
+    file.path(dirs$int, "tc_p_crypt.parquet")))
+  expect_equal(rowset(tc), rowset(tc_disk))
+})
+
+test_that("csv streaming: outputs are invariant under chunk_size", {
+  make_run <- function(chunk_size) {
+    dirs <- setup_dirs()
+    src  <- data.frame(id  = sprintf("v%03d", 1:30),
+                       grp = rep(c("A", "B", "C"), length.out = 30),
+                       stringsAsFactors = FALSE)
+    inp <- file.path(dirs$inp, "big.csv")
+    write_csv_fixture(inp, src)
+    sm <- make_sm(folder_path = dirs$inp, file = "big.csv",
+                  encrypted_file  = "big_crypt.csv",
+                  vars_to_encrypt = "id")
+    cryptRopen:::.process_mask_row_csv_streaming(
+      sm = sm, input_path = inp,
+      output_path = dirs$out, intermediate_path = dirs$int,
+      encryption_key = "k", algorithm = "md5",
+      correspondence_table = TRUE, chunk_size = chunk_size)
+    list(
+      dirs = dirs,
+      out  = as.data.frame(arrow::read_csv_arrow(
+        file.path(dirs$out, "big_crypt.csv"))),
+      tc   = as.data.frame(arrow::read_parquet(
+        file.path(dirs$int, "tc_big_crypt.parquet")))
+    )
+  }
+
+  pre   <- ls(envir = globalenv())
+  r1    <- make_run(1L)
+  r10   <- make_run(10L)
+  rbig  <- make_run(1e6L)
+
+  on.exit({
+    unlink(r1$dirs$root,   recursive = TRUE, force = TRUE)
+    unlink(r10$dirs$root,  recursive = TRUE, force = TRUE)
+    unlink(rbig$dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  expect_equal(rowset(r1$out),   rowset(r10$out))
+  expect_equal(rowset(r10$out),  rowset(rbig$out))
+  expect_equal(rowset(r1$tc),    rowset(r10$tc))
+  expect_equal(rowset(r10$tc),   rowset(rbig$tc))
+})
+
+test_that("csv streaming: inspect_*.xlsx layout matches in_memory", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  src <- data.frame(id = c("a", "b", "c", "d"),
+                    v  = 1:4,
+                    stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "t.csv")
+  write_csv_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "t.csv",
+                encrypted_file  = "t_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row_csv_streaming(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE, chunk_size = 2L)
+
+  xlsx_path <- file.path(dirs$out, "inspect_t_crypt.csv.xlsx")
+  expect_true(file.exists(xlsx_path))
+
+  skip_if_not_installed("readxl")
+  sheet <- readxl::read_excel(xlsx_path, col_names = FALSE)
+  expect_equal(trimws(as.character(sheet[[1]][2])), "Obs =")
+  expect_equal(trimws(as.character(sheet[[1]][3])), "Nvars =")
+  expect_equal(as.integer(sheet[[2]][2]), 4L)
+})
+
+test_that("csv streaming: vars_to_remove drops columns from the output", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  src <- data.frame(id   = c("a", "b"),
+                    keep = c(1L, 2L),
+                    drop = c("x", "y"),
+                    stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "r.csv")
+  write_csv_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "r.csv",
+                encrypted_file  = "r_crypt.csv",
+                vars_to_encrypt = "id",
+                vars_to_remove  = "drop")
+
+  cryptRopen:::.process_mask_row_csv_streaming(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE, chunk_size = 10L)
+
+  out_df <- as.data.frame(arrow::read_csv_arrow(
+    file.path(dirs$out, "r_crypt.csv")))
+  expect_equal(names(out_df), c("id_crypt", "keep"))
+})
+
+test_that("csv streaming: correspondence_table = FALSE writes no TC anywhere", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  cryptRopen:::.clear_correspondence_tables()
+
+  src <- data.frame(id = c("a", "b"), stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "n.csv")
+  write_csv_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "n.csv",
+                encrypted_file  = "n_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row_csv_streaming(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = FALSE, chunk_size = 10L)
+
+  expect_false(file.exists(file.path(dirs$int, "tc_n_crypt.parquet")))
+  expect_false("tc_n_crypt" %in% names(get_correspondence_tables()))
+  expect_true(file.exists(file.path(dirs$out, "n_crypt.csv")))
+})
+
+test_that("dispatcher: engine='streaming' parquet-in + csv-out falls back to in_memory", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  src <- data.frame(id = c("a", "b"), stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "m.parquet")
+  write_parquet_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "m.parquet",
+                encrypted_file  = "m_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE,
+    engine = "streaming", chunk_size = 1L)
+
+  # Fell back to in_memory: historical globalenv side effect present.
+  expect_true(file.exists(file.path(dirs$out, "m_crypt.csv")))
+  expect_true(exists("m_crypt", envir = globalenv(), inherits = FALSE))
+})
+
+test_that("dispatcher: engine='streaming' csv-in + parquet-out falls back to in_memory", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  src <- data.frame(id = c("a", "b"), stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "mix.csv")
+  write_csv_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "mix.csv",
+                encrypted_file  = "mix_crypt.parquet",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE,
+    engine = "streaming", chunk_size = 1L)
+
+  expect_true(file.exists(file.path(dirs$out, "mix_crypt.parquet")))
+  expect_true(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
 })
