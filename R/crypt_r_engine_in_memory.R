@@ -33,7 +33,7 @@
 #' engines introduced in 1.D.4. File outputs are byte-identical to the
 #' historical implementation on matching inputs — baseline unchanged.
 #'
-#' @param sm A one-row data.frame corresponding to one row of the
+#' @param mask_row A one-row data.frame corresponding to one row of the
 #'   filtered mask (columns: folder_path, file, encrypted_file,
 #'   vars_to_encrypt, vars_to_remove, …).
 #' @param input_path Full path to the input dataset file.
@@ -49,18 +49,18 @@
 #'   payload is ignored by tests that call the engine for its side
 #'   effects only.
 #' @noRd
-.process_mask_row_in_memory <- function(sm, input_path, output_path, intermediate_path,
+.process_mask_row_in_memory <- function(mask_row, input_path, output_path, intermediate_path,
                                         encryption_key, algorithm, correspondence_table) {
 
-  encrypted_file      <- sm[["encrypted_file"]]
+  encrypted_file      <- mask_row[["encrypted_file"]]
   encrypted_stem      <- stringr::str_remove(encrypted_file, "\\..*$")
   encrypted_file_path <- file.path(output_path, encrypted_file)
 
-  vars_to_encrypt <- sm[["vars_to_encrypt"]] %>%
+  vars_to_encrypt <- mask_row[["vars_to_encrypt"]] %>%
     stringr::str_split(",") %>% unlist() %>%
     stringr::str_trim()
 
-  vars_to_remove <- sm[["vars_to_remove"]] %>%
+  vars_to_remove <- mask_row[["vars_to_remove"]] %>%
     stringr::str_split(",") %>% unlist() %>%
     stringr::str_trim()
 
@@ -86,9 +86,9 @@
   tryCatch({
     # Import + character cleanup (empty → NA, trim).
     raw_df <- rio::import(input_path, trust = TRUE) %>%
-      dplyr::mutate_if(is.character, \(x0) {
-        x0[nchar(stringr::str_trim(x0)) == 0] <- NA
-        stringr::str_trim(x0)
+      dplyr::mutate_if(is.character, \(col) {
+        col[nchar(stringr::str_trim(col)) == 0] <- NA
+        stringr::str_trim(col)
       })
 
     # Encrypt each requested variable. Names follow the historical
@@ -162,14 +162,15 @@
   # --- Inspect final output --------------------------------------------
   tryCatch({
     if (!is.null(assembled_df)) {
-      g <- assembled_df
-      i <- inspect(g)
+      i <- inspect(assembled_df)
       # NB. The `1:nrow(i)` spelling is load-bearing — see the matching
       # comment in `.write_stream_inspect()` for why seq_len()/seq.int()
-      # would break baseline on the first cell of the xlsx.
+      # would break baseline on the first cell of the xlsx. For the same
+      # reason the `i` binding is kept verbatim (renaming it flows into
+      # `1:nrow(<new_name>)` and breaks baseline).
       layout <- rbind(
-        c("Obs = ",   nrow(g), rep("", ncol(i) - 1)),
-        c("Nvars = ", nrow(i), rep("", ncol(i) - 1)),
+        c("Obs = ",   nrow(assembled_df), rep("", ncol(i) - 1)),
+        c("Nvars = ", nrow(i),            rep("", ncol(i) - 1)),
         cbind(1:nrow(i), i))
       writexl::write_xlsx(
         layout,

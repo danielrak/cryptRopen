@@ -63,12 +63,12 @@
 #'   unit tests, the AST-patched baseline `cases.R`) continue to work
 #'   unchanged.
 #' @noRd
-.process_mask_row <- function(sm, input_path, output_path, intermediate_path,
+.process_mask_row <- function(mask_row, input_path, output_path, intermediate_path,
                               encryption_key, algorithm, correspondence_table,
                               engine = "in_memory", chunk_size = 1e6L) {
 
   try_stream <- engine %in% c("auto", "streaming")
-  out_file   <- sm[["encrypted_file"]]
+  out_file   <- mask_row[["encrypted_file"]]
 
   use_parquet_stream <- try_stream &&
                         .is_parquet(input_path) &&
@@ -79,7 +79,7 @@
 
   if (use_parquet_stream) {
     .process_mask_row_streaming(
-      sm                   = sm,
+      mask_row             = mask_row,
       input_path           = input_path,
       output_path          = output_path,
       intermediate_path    = intermediate_path,
@@ -90,7 +90,7 @@
     )
   } else if (use_csv_stream) {
     .process_mask_row_csv_streaming(
-      sm                   = sm,
+      mask_row             = mask_row,
       input_path           = input_path,
       output_path          = output_path,
       intermediate_path    = intermediate_path,
@@ -105,7 +105,7 @@
     # (parquet→csv, csv→parquet). Historical engine preserves
     # non-regression behaviour in all these cases.
     .process_mask_row_in_memory(
-      sm                   = sm,
+      mask_row             = mask_row,
       input_path           = input_path,
       output_path          = output_path,
       intermediate_path    = intermediate_path,

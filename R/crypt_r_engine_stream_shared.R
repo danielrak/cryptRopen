@@ -33,9 +33,9 @@
   # 1. Character cleanup — trim + empty-string-to-NA.
   chunk <- dplyr::mutate(
     chunk,
-    dplyr::across(dplyr::where(is.character), \(x0) {
-      x0[nchar(stringr::str_trim(x0)) == 0] <- NA
-      stringr::str_trim(x0)
+    dplyr::across(dplyr::where(is.character), \(col) {
+      col[nchar(stringr::str_trim(col)) == 0] <- NA
+      stringr::str_trim(col)
     })
   )
 

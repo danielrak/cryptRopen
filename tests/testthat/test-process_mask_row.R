@@ -15,8 +15,8 @@
 # Build a one-row mask matching the shape consumed by .process_mask_row():
 # columns folder_path, file, encrypted_file, vars_to_encrypt, vars_to_remove.
 # (row_number / dupl_* are not read by the helper.)
-make_sm <- function(folder_path, file, encrypted_file,
-                    vars_to_encrypt, vars_to_remove = NA) {
+make_mask_row <- function(folder_path, file, encrypted_file,
+                          vars_to_encrypt, vars_to_remove = NA) {
   data.frame(
     folder_path     = folder_path,
     file            = file,
@@ -60,14 +60,14 @@ test_that(".process_mask_row() writes crypt csv + tc parquet + inspect xlsx", {
                stringsAsFactors = FALSE),
     csv, row.names = FALSE)
 
-  sm <- make_sm(
+  mask_row <- make_mask_row(
     folder_path     = dirs$inp,
     file            = "persons.csv",
     encrypted_file  = "persons_crypt.csv",
     vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm                   = sm,
+    mask_row             = mask_row,
     input_path           = csv,
     output_path          = dirs$out,
     intermediate_path    = dirs$int,
@@ -113,12 +113,12 @@ test_that("correspondence_table = FALSE: no parquet, no tc_* in globalenv", {
                               stringsAsFactors = FALSE),
                    csv, row.names = FALSE)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "p.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "p.csv",
                 encrypted_file = "p_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = csv,
+    mask_row = mask_row, input_path = csv,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = FALSE)
@@ -146,12 +146,12 @@ test_that("multiple vars_to_encrypt: all encrypted, single combined TC", {
                stringsAsFactors = FALSE),
     csv, row.names = FALSE)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "two.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "two.csv",
                 encrypted_file = "two_crypt.csv",
                 vars_to_encrypt = "a, b")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = csv,
+    mask_row = mask_row, input_path = csv,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE)
@@ -188,13 +188,13 @@ test_that("vars_to_remove drops the listed columns from the output", {
                stringsAsFactors = FALSE),
     csv, row.names = FALSE)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "r.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "r.csv",
                 encrypted_file = "r_crypt.csv",
                 vars_to_encrypt = "id",
                 vars_to_remove  = "to_drop")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = csv,
+    mask_row = mask_row, input_path = csv,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = FALSE)
@@ -217,13 +217,13 @@ test_that("missing input file is swallowed by try() (no crash, no output)", {
     clean_globals(pre)
   }, add = TRUE)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "ghost.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "ghost.csv",
                 encrypted_file = "ghost_crypt.csv",
                 vars_to_encrypt = "id")
 
   expect_no_error(
     cryptRopen:::.process_mask_row(
-      sm = sm,
+      mask_row = mask_row,
       input_path = file.path(dirs$inp, "ghost.csv"),
       output_path = dirs$out, intermediate_path = dirs$int,
       encryption_key = "k", algorithm = "md5",
@@ -251,13 +251,13 @@ test_that(".process_mask_row_in_memory() produces the same outputs directly", {
                stringsAsFactors = FALSE),
     csv, row.names = FALSE)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "persons.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "persons.csv",
                 encrypted_file = "persons_crypt.csv",
                 vars_to_encrypt = "id")
 
   # Call the engine directly (no dispatcher).
   cryptRopen:::.process_mask_row_in_memory(
-    sm = sm, input_path = csv,
+    mask_row = mask_row, input_path = csv,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE)
@@ -290,19 +290,19 @@ test_that("dispatcher .process_mask_row() produces the same files as the in_memo
   utils::write.csv(src, file.path(d1$inp, "s.csv"), row.names = FALSE)
   utils::write.csv(src, file.path(d2$inp, "s.csv"), row.names = FALSE)
 
-  sm1 <- make_sm(folder_path = d1$inp, file = "s.csv",
+  mask_row1 <- make_mask_row(folder_path = d1$inp, file = "s.csv",
                  encrypted_file = "s_crypt.csv", vars_to_encrypt = "id")
-  sm2 <- make_sm(folder_path = d2$inp, file = "s.csv",
+  mask_row2 <- make_mask_row(folder_path = d2$inp, file = "s.csv",
                  encrypted_file = "s_crypt.csv", vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm1, input_path = file.path(d1$inp, "s.csv"),
+    mask_row = mask_row1, input_path = file.path(d1$inp, "s.csv"),
     output_path = d1$out, intermediate_path = d1$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE)
 
   cryptRopen:::.process_mask_row_in_memory(
-    sm = sm2, input_path = file.path(d2$inp, "s.csv"),
+    mask_row = mask_row2, input_path = file.path(d2$inp, "s.csv"),
     output_path = d2$out, intermediate_path = d2$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE)
@@ -343,12 +343,12 @@ test_that("inspect_*.xlsx layout: 'Obs =' / 'Nvars =' rows then indexed inspect(
                stringsAsFactors = FALSE),
     csv, row.names = FALSE)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "persons.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "persons.csv",
                 encrypted_file = "persons_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_in_memory(
-    sm = sm, input_path = csv,
+    mask_row = mask_row, input_path = csv,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE)
@@ -391,12 +391,12 @@ test_that("TC parquet contains only distinct (original, crypt) pairs", {
                stringsAsFactors = FALSE),
     csv, row.names = FALSE)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "dup.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "dup.csv",
                 encrypted_file = "dup_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_in_memory(
-    sm = sm, input_path = csv,
+    mask_row = mask_row, input_path = csv,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE)
@@ -428,12 +428,12 @@ test_that("column order: <var>_crypt columns come before the non-encrypted ones"
                stringsAsFactors = FALSE),
     csv, row.names = FALSE)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "ord.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "ord.csv",
                 encrypted_file = "ord_crypt.csv",
                 vars_to_encrypt = "a, b")
 
   cryptRopen:::.process_mask_row_in_memory(
-    sm = sm, input_path = csv,
+    mask_row = mask_row, input_path = csv,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = FALSE)
@@ -474,12 +474,12 @@ test_that(".process_mask_row() ignores engine/chunk_size at 1.D.4.a (same output
     utils::write.csv(src, file.path(d$inp, "s.csv"), row.names = FALSE)
   }
 
-  sm <- make_sm(folder_path = d0$inp, file = "s.csv",
+  mask_row <- make_mask_row(folder_path = d0$inp, file = "s.csv",
                 encrypted_file = "s_crypt.csv", vars_to_encrypt = "id")
 
   call_dispatch <- function(d, ...) {
     cryptRopen:::.process_mask_row(
-      sm = sm, input_path = file.path(d$inp, "s.csv"),
+      mask_row = mask_row, input_path = file.path(d$inp, "s.csv"),
       output_path = d$out, intermediate_path = d$int,
       encryption_key = "k", algorithm = "md5",
       correspondence_table = TRUE, ...)
@@ -564,12 +564,12 @@ test_that("streaming (dispatcher): parquet-in/parquet-out happy path", {
   inp <- file.path(dirs$inp, "persons.parquet")
   write_parquet_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "persons.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "persons.parquet",
                 encrypted_file  = "persons_crypt.parquet",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "testkey", algorithm = "md5",
     correspondence_table = TRUE,
@@ -607,12 +607,12 @@ test_that("streaming: no globalenv pollution (Option B)", {
   inp <- file.path(dirs$inp, "p.parquet")
   write_parquet_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "p.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "p.parquet",
                 encrypted_file  = "p_crypt.parquet",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, chunk_size = 1L)
@@ -639,12 +639,12 @@ test_that("streaming: correspondence table is available via get_correspondence_t
   inp <- file.path(dirs$inp, "p.parquet")
   write_parquet_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "p.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "p.parquet",
                 encrypted_file  = "p_crypt.parquet",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, chunk_size = 2L)
@@ -671,11 +671,11 @@ test_that("streaming: outputs are invariant under chunk_size", {
                        stringsAsFactors = FALSE)
     inp <- file.path(dirs$inp, "big.parquet")
     write_parquet_fixture(inp, src)
-    sm <- make_sm(folder_path = dirs$inp, file = "big.parquet",
+    mask_row <- make_mask_row(folder_path = dirs$inp, file = "big.parquet",
                   encrypted_file  = "big_crypt.parquet",
                   vars_to_encrypt = "id")
     cryptRopen:::.process_mask_row_streaming(
-      sm = sm, input_path = inp,
+      mask_row = mask_row, input_path = inp,
       output_path = dirs$out, intermediate_path = dirs$int,
       encryption_key = "k", algorithm = "md5",
       correspondence_table = TRUE, chunk_size = chunk_size)
@@ -724,12 +724,12 @@ test_that("streaming: inspect_*.xlsx has the same layout as in_memory", {
   inp <- file.path(dirs$inp, "t.parquet")
   write_parquet_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "t.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "t.parquet",
                 encrypted_file  = "t_crypt.parquet",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, chunk_size = 2L)
@@ -764,13 +764,13 @@ test_that("streaming: vars_to_remove drops columns from the output", {
   inp <- file.path(dirs$inp, "r.parquet")
   write_parquet_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "r.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "r.parquet",
                 encrypted_file  = "r_crypt.parquet",
                 vars_to_encrypt = "id",
                 vars_to_remove  = "drop")
 
   cryptRopen:::.process_mask_row_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, chunk_size = 10L)
@@ -795,12 +795,12 @@ test_that("streaming: correspondence_table = FALSE writes no TC anywhere", {
   inp <- file.path(dirs$inp, "n.parquet")
   write_parquet_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "n.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "n.parquet",
                 encrypted_file  = "n_crypt.parquet",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = FALSE, chunk_size = 10L)
@@ -826,12 +826,12 @@ test_that("dispatcher: engine='streaming' with non-streamable input falls back t
   rds <- file.path(dirs$inp, "s.rds")
   saveRDS(data.frame(id = c("a", "b"), stringsAsFactors = FALSE), rds)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "s.rds",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "s.rds",
                 encrypted_file  = "s_crypt.rds",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = rds,
+    mask_row = mask_row, input_path = rds,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
@@ -857,12 +857,12 @@ test_that("dispatcher: engine='streaming' with non-parquet output falls back to 
   write_parquet_fixture(inp, src)
 
   # Output declared as CSV — streaming only handles parquet-out.
-  sm <- make_sm(folder_path = dirs$inp, file = "mix.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "mix.parquet",
                 encrypted_file  = "mix_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
@@ -907,12 +907,12 @@ test_that("csv streaming (dispatcher): csv-in/csv-out happy path", {
   inp <- file.path(dirs$inp, "persons.csv")
   write_csv_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "persons.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "persons.csv",
                 encrypted_file  = "persons_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "testkey", algorithm = "md5",
     correspondence_table = TRUE,
@@ -948,12 +948,12 @@ test_that("csv streaming: no globalenv pollution (Option B)", {
   inp <- file.path(dirs$inp, "p.csv")
   write_csv_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "p.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "p.csv",
                 encrypted_file  = "p_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_csv_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, chunk_size = 1L)
@@ -979,12 +979,12 @@ test_that("csv streaming: TC available via get_correspondence_tables()", {
   inp <- file.path(dirs$inp, "p.csv")
   write_csv_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "p.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "p.csv",
                 encrypted_file  = "p_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_csv_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, chunk_size = 2L)
@@ -1009,11 +1009,11 @@ test_that("csv streaming: outputs are invariant under chunk_size", {
                        stringsAsFactors = FALSE)
     inp <- file.path(dirs$inp, "big.csv")
     write_csv_fixture(inp, src)
-    sm <- make_sm(folder_path = dirs$inp, file = "big.csv",
+    mask_row <- make_mask_row(folder_path = dirs$inp, file = "big.csv",
                   encrypted_file  = "big_crypt.csv",
                   vars_to_encrypt = "id")
     cryptRopen:::.process_mask_row_csv_streaming(
-      sm = sm, input_path = inp,
+      mask_row = mask_row, input_path = inp,
       output_path = dirs$out, intermediate_path = dirs$int,
       encryption_key = "k", algorithm = "md5",
       correspondence_table = TRUE, chunk_size = chunk_size)
@@ -1060,12 +1060,12 @@ test_that("csv streaming: inspect_*.xlsx layout matches in_memory", {
   inp <- file.path(dirs$inp, "t.csv")
   write_csv_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "t.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "t.csv",
                 encrypted_file  = "t_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_csv_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, chunk_size = 2L)
@@ -1096,13 +1096,13 @@ test_that("csv streaming: vars_to_remove drops columns from the output", {
   inp <- file.path(dirs$inp, "r.csv")
   write_csv_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "r.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "r.csv",
                 encrypted_file  = "r_crypt.csv",
                 vars_to_encrypt = "id",
                 vars_to_remove  = "drop")
 
   cryptRopen:::.process_mask_row_csv_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, chunk_size = 10L)
@@ -1127,12 +1127,12 @@ test_that("csv streaming: correspondence_table = FALSE writes no TC anywhere", {
   inp <- file.path(dirs$inp, "n.csv")
   write_csv_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "n.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "n.csv",
                 encrypted_file  = "n_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row_csv_streaming(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = FALSE, chunk_size = 10L)
@@ -1155,12 +1155,12 @@ test_that("dispatcher: engine='streaming' parquet-in + csv-out falls back to in_
   inp <- file.path(dirs$inp, "m.parquet")
   write_parquet_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "m.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "m.parquet",
                 encrypted_file  = "m_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
@@ -1184,12 +1184,12 @@ test_that("dispatcher: engine='streaming' csv-in + parquet-out falls back to in_
   inp <- file.path(dirs$inp, "mix.csv")
   write_csv_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "mix.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "mix.csv",
                 encrypted_file  = "mix_crypt.parquet",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
@@ -1225,12 +1225,12 @@ test_that("auto routing (1.D.4.d): engine='auto' routes parquet/parquet to the s
   inp <- file.path(dirs$inp, "a.parquet")
   write_parquet_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "a.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "a.parquet",
                 encrypted_file  = "a_crypt.parquet",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
@@ -1251,11 +1251,11 @@ test_that("auto routing (1.D.4.d): engine='auto' routes parquet/parquet to the s
   on.exit(unlink(dirs2$root, recursive = TRUE, force = TRUE), add = TRUE)
   inp2 <- file.path(dirs2$inp, "a.parquet")
   write_parquet_fixture(inp2, src)
-  sm2 <- make_sm(folder_path = dirs2$inp, file = "a.parquet",
+  mask_row2 <- make_mask_row(folder_path = dirs2$inp, file = "a.parquet",
                  encrypted_file  = "a_crypt.parquet",
                  vars_to_encrypt = "id")
   cryptRopen:::.process_mask_row(
-    sm = sm2, input_path = inp2,
+    mask_row = mask_row2, input_path = inp2,
     output_path = dirs2$out, intermediate_path = dirs2$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
@@ -1283,12 +1283,12 @@ test_that("auto routing (1.D.4.d): engine='auto' routes csv/csv to the csv strea
   inp <- file.path(dirs$inp, "a.csv")
   write_csv_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "a.csv",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "a.csv",
                 encrypted_file  = "a_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
@@ -1309,11 +1309,11 @@ test_that("auto routing (1.D.4.d): engine='auto' routes csv/csv to the csv strea
   on.exit(unlink(dirs2$root, recursive = TRUE, force = TRUE), add = TRUE)
   inp2 <- file.path(dirs2$inp, "a.csv")
   write_csv_fixture(inp2, src)
-  sm2 <- make_sm(folder_path = dirs2$inp, file = "a.csv",
+  mask_row2 <- make_mask_row(folder_path = dirs2$inp, file = "a.csv",
                  encrypted_file  = "a_crypt.csv",
                  vars_to_encrypt = "id")
   cryptRopen:::.process_mask_row(
-    sm = sm2, input_path = inp2,
+    mask_row = mask_row2, input_path = inp2,
     output_path = dirs2$out, intermediate_path = dirs2$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
@@ -1341,12 +1341,12 @@ test_that("auto routing (1.D.4.d): engine='auto' with non-streamable input falls
   rds <- file.path(dirs$inp, "s.rds")
   saveRDS(data.frame(id = c("a", "b"), stringsAsFactors = FALSE), rds)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "s.rds",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "s.rds",
                 encrypted_file  = "s_crypt.rds",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = rds,
+    mask_row = mask_row, input_path = rds,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
@@ -1371,12 +1371,12 @@ test_that("auto routing (1.D.4.d): engine='auto' with mixed endpoints falls back
   inp <- file.path(dirs$inp, "mix.parquet")
   write_parquet_fixture(inp, src)
 
-  sm <- make_sm(folder_path = dirs$inp, file = "mix.parquet",
+  mask_row <- make_mask_row(folder_path = dirs$inp, file = "mix.parquet",
                 encrypted_file  = "mix_crypt.csv",
                 vars_to_encrypt = "id")
 
   cryptRopen:::.process_mask_row(
-    sm = sm, input_path = inp,
+    mask_row = mask_row, input_path = inp,
     output_path = dirs$out, intermediate_path = dirs$int,
     encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE,
