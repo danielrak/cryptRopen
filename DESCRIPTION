@@ -17,14 +17,14 @@ Imports:
     rio,
     stats,
     stringr,
+    utils,
     writexl
 Suggests:
     devtools,
     jsonlite,
     readxl,
     testthat,
-    tools,
-    utils
+    tools
 Config/fusen/version: 0.7.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
