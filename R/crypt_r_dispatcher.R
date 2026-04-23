@@ -8,7 +8,9 @@
 #' @return Logical(1).
 #' @noRd
 .is_parquet <- function(path) {
-  if (length(path) != 1L || is.na(path)) return(FALSE)
+  if (length(path) != 1L || is.na(path)) {
+    return(FALSE)
+  }
   grepl("\\.parquet$", path, ignore.case = TRUE)
 }
 
@@ -21,7 +23,9 @@
 #' @return Logical(1).
 #' @noRd
 .is_csv <- function(path) {
-  if (length(path) != 1L || is.na(path)) return(FALSE)
+  if (length(path) != 1L || is.na(path)) {
+    return(FALSE)
+  }
   grepl("\\.csv$", path, ignore.case = TRUE)
 }
 
@@ -66,16 +70,15 @@
 .process_mask_row <- function(mask_row, input_path, output_path, intermediate_path,
                               encryption_key, algorithm, correspondence_table,
                               engine = "in_memory", chunk_size = 1e6L) {
-
   try_stream <- engine %in% c("auto", "streaming")
-  out_file   <- mask_row[["encrypted_file"]]
+  out_file <- mask_row[["encrypted_file"]]
 
   use_parquet_stream <- try_stream &&
-                        .is_parquet(input_path) &&
-                        .is_parquet(out_file)
-  use_csv_stream     <- try_stream &&
-                        .is_csv(input_path) &&
-                        .is_csv(out_file)
+    .is_parquet(input_path) &&
+    .is_parquet(out_file)
+  use_csv_stream <- try_stream &&
+    .is_csv(input_path) &&
+    .is_csv(out_file)
 
   if (use_parquet_stream) {
     .process_mask_row_streaming(

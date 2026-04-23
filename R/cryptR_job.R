@@ -42,8 +42,8 @@
                             mask_rows,
                             output_path,
                             intermediate_path,
-                            started_at          = Sys.time(),
-                            watcher             = NULL,
+                            started_at = Sys.time(),
+                            watcher = NULL,
                             daemons_owned_by_job = FALSE) {
   stopifnot(
     is.list(tasks),
@@ -116,20 +116,21 @@ cryptR_status <- function(job) {
   n <- length(job$tasks)
   if (n == 0L) {
     return(data.frame(
-      encrypted_file   = character(0),
-      state            = factor(character(0),
-                                levels = c("running", "done", "failed")),
-      error_message    = character(0),
-      start_time       = as.POSIXct(character(0)),
-      end_time         = as.POSIXct(character(0)),
-      duration_sec     = numeric(0),
+      encrypted_file = character(0),
+      state = factor(character(0),
+        levels = c("running", "done", "failed")
+      ),
+      error_message = character(0),
+      start_time = as.POSIXct(character(0)),
+      end_time = as.POSIXct(character(0)),
+      duration_sec = numeric(0),
       n_rows_processed = integer(0),
       stringsAsFactors = FALSE
     ))
   }
 
-  states  <- vapply(job$tasks, .mirai_task_state,  character(1))
-  errors  <- vapply(job$tasks, .mirai_task_error,  character(1))
+  states <- vapply(job$tasks, .mirai_task_state, character(1))
+  errors <- vapply(job$tasks, .mirai_task_error, character(1))
   metrics <- lapply(job$tasks, .task_metrics)
   names_t <- names(job$tasks)
   if (is.null(names_t)) names_t <- rep(NA_character_, n)
@@ -137,16 +138,17 @@ cryptR_status <- function(job) {
   # c() on POSIXct preserves the class but harmonises time zones. Using
   # do.call rather than `unlist` because `unlist` drops the POSIXct class.
   start_time <- do.call(c, lapply(metrics, `[[`, "start_time"))
-  end_time   <- do.call(c, lapply(metrics, `[[`, "end_time"))
+  end_time <- do.call(c, lapply(metrics, `[[`, "end_time"))
 
   data.frame(
-    encrypted_file   = names_t,
-    state            = factor(states,
-                              levels = c("running", "done", "failed")),
-    error_message    = errors,
-    start_time       = start_time,
-    end_time         = end_time,
-    duration_sec     = vapply(metrics, `[[`, numeric(1), "duration_sec"),
+    encrypted_file = names_t,
+    state = factor(states,
+      levels = c("running", "done", "failed")
+    ),
+    error_message = errors,
+    start_time = start_time,
+    end_time = end_time,
+    duration_sec = vapply(metrics, `[[`, numeric(1), "duration_sec"),
     n_rows_processed = vapply(metrics, `[[`, integer(1), "n_rows_processed"),
     stringsAsFactors = FALSE
   )
@@ -196,7 +198,8 @@ cryptR_wait <- function(job, timeout = Inf, poll_interval = 0.1) {
         list(
           message = sprintf(
             "cryptR_wait() timed out after %g seconds (%d task(s) still running).",
-            timeout, sum(still_running)),
+            timeout, sum(still_running)
+          ),
           call = sys.call(-1L)
         )
       ))
@@ -276,20 +279,25 @@ cryptR_collect <- function(job, timeout = Inf, poll_interval = 0.1) {
 print.cryptR_job <- function(x, ...) {
   status <- cryptR_status(x)
   counts <- table(factor(status$state,
-                         levels = c("running", "done", "failed")))
+    levels = c("running", "done", "failed")
+  ))
   n_workers <- .n_workers_active()
 
   cat("<cryptR_job>\n")
   cat("  tasks       : ", length(x$tasks), "\n", sep = "")
   cat("  running     : ", counts[["running"]], "\n", sep = "")
-  cat("  done        : ", counts[["done"]],    "\n", sep = "")
-  cat("  failed      : ", counts[["failed"]],  "\n", sep = "")
+  cat("  done        : ", counts[["done"]], "\n", sep = "")
+  cat("  failed      : ", counts[["failed"]], "\n", sep = "")
   cat("  workers     : ",
-      if (is.na(n_workers)) "?" else n_workers, "\n", sep = "")
+    if (is.na(n_workers)) "?" else n_workers, "\n",
+    sep = ""
+  )
 
   elapsed <- difftime(Sys.time(), x$started_at, units = "secs")
   cat("  elapsed     : ",
-      sprintf("%.2f s", as.numeric(elapsed)), "\n", sep = "")
+    sprintf("%.2f s", as.numeric(elapsed)), "\n",
+    sep = ""
+  )
   cat("  output_path : ", x$output_path, "\n", sep = "")
   cat("  log_written : ", isTRUE(x$log_written), "\n", sep = "")
   invisible(x)
@@ -330,11 +338,14 @@ summary.cryptR_job <- function(object, ...) {
     failed  = sum(states == "failed")
   )
   elapsed <- as.numeric(
-    difftime(Sys.time(), object$started_at, units = "secs"))
+    difftime(Sys.time(), object$started_at, units = "secs")
+  )
 
-  total_rows <- if (any(!is.na(status$n_rows_processed)))
-                  as.integer(sum(status$n_rows_processed, na.rm = TRUE))
-                else NA_integer_
+  total_rows <- if (any(!is.na(status$n_rows_processed))) {
+    as.integer(sum(status$n_rows_processed, na.rm = TRUE))
+  } else {
+    NA_integer_
+  }
 
   structure(
     list(
@@ -355,17 +366,24 @@ summary.cryptR_job <- function(object, ...) {
 #' @export
 print.summary.cryptR_job <- function(x, ...) {
   cat("<cryptR_job summary>\n")
-  cat(sprintf("  tasks        : %d\n",   x$n_tasks))
-  cat(sprintf("    running    : %d\n",   x$counts[["running"]]))
-  cat(sprintf("    done       : %d\n",   x$counts[["done"]]))
-  cat(sprintf("    failed     : %d\n",   x$counts[["failed"]]))
-  cat(sprintf("  workers      : %s\n",
-              if (is.na(x$n_workers)) "?" else as.character(x$n_workers)))
+  cat(sprintf("  tasks        : %d\n", x$n_tasks))
+  cat(sprintf("    running    : %d\n", x$counts[["running"]]))
+  cat(sprintf("    done       : %d\n", x$counts[["done"]]))
+  cat(sprintf("    failed     : %d\n", x$counts[["failed"]]))
+  cat(sprintf(
+    "  workers      : %s\n",
+    if (is.na(x$n_workers)) "?" else as.character(x$n_workers)
+  ))
   cat(sprintf("  elapsed      : %.2f s\n", x$elapsed_sec))
-  cat(sprintf("  rows total   : %s\n",
-              if (is.na(x$total_rows)) "?" else
-                formatC(x$total_rows, format = "d", big.mark = " ")))
-  cat(sprintf("  output_path  : %s\n",   x$output_path))
-  cat(sprintf("  log_written  : %s\n",   x$log_written))
+  cat(sprintf(
+    "  rows total   : %s\n",
+    if (is.na(x$total_rows)) {
+      "?"
+    } else {
+      formatC(x$total_rows, format = "d", big.mark = " ")
+    }
+  ))
+  cat(sprintf("  output_path  : %s\n", x$output_path))
+  cat(sprintf("  log_written  : %s\n", x$log_written))
   invisible(x)
 }

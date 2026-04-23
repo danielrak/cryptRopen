@@ -5,27 +5,35 @@
 # ---- Legacy snapshot anchor ---------------------------------------------
 
 test_that("Valid outputs are consistent (CO2 snapshot)", {
-
-  output <- structure(list(
-    variables = c("Plant", "Plant", "Type", "Treatment", "conc", "uptake"),
-    class = c("ordered", "factor", "factor", "factor", "numeric", "numeric"),
-    nb_distinct = c(12L, 12L, 2L, 2L, 7L, 76L),
-    prop_distinct = c(0.142857142857143, 0.142857142857143, 0.0238095238095238,
-                      0.0238095238095238, 0.0833333333333333, 0.904761904761905),
-    nb_na = c(0L, 0L, 0L, 0L, 0L, 0L),
-    prop_na = c(0, 0, 0, 0, 0, 0),
-    nb_void = c(0L, 0L, 0L, 0L, 0L, 0L),
-    prop_void = c(0, 0, 0, 0, 0, 0),
-    nchars = c("3", "3", "6 / 11", "7 / 10", "2 / 3 / 4", "2 / 3 / 4"),
-    modalities = c("Qn1 / Qn2 / Qn3 / Qc1 / Qc3 / Qc2 / Mn3 / Mn2 / Mn1 / Mc2",
-                   "Qn1 / Qn2 / Qn3 / Qc1 / Qc3 / Qc2 / Mn3 / Mn2 / Mn1 / Mc2",
-                   "Quebec / Mississippi", "nonchilled / chilled",
-                   "95 / 175 / 250 / 350 / 500 / 675 / 1000",
-                   "7.7 / 9.3 / 10.5 / 10.6 / 11.3 / 11.4 / 12 / 12.3 / 12.5 / 13")),
+  output <- structure(
+    list(
+      variables = c("Plant", "Plant", "Type", "Treatment", "conc", "uptake"),
+      class = c("ordered", "factor", "factor", "factor", "numeric", "numeric"),
+      nb_distinct = c(12L, 12L, 2L, 2L, 7L, 76L),
+      prop_distinct = c(
+        0.142857142857143, 0.142857142857143, 0.0238095238095238,
+        0.0238095238095238, 0.0833333333333333, 0.904761904761905
+      ),
+      nb_na = c(0L, 0L, 0L, 0L, 0L, 0L),
+      prop_na = c(0, 0, 0, 0, 0, 0),
+      nb_void = c(0L, 0L, 0L, 0L, 0L, 0L),
+      prop_void = c(0, 0, 0, 0, 0, 0),
+      nchars = c("3", "3", "6 / 11", "7 / 10", "2 / 3 / 4", "2 / 3 / 4"),
+      modalities = c(
+        "Qn1 / Qn2 / Qn3 / Qc1 / Qc3 / Qc2 / Mn3 / Mn2 / Mn1 / Mc2",
+        "Qn1 / Qn2 / Qn3 / Qc1 / Qc3 / Qc2 / Mn3 / Mn2 / Mn1 / Mc2",
+        "Quebec / Mississippi", "nonchilled / chilled",
+        "95 / 175 / 250 / 350 / 500 / 675 / 1000",
+        "7.7 / 9.3 / 10.5 / 10.6 / 11.3 / 11.4 / 12 / 12.3 / 12.5 / 13"
+      )
+    ),
     class = c("tbl_df", "tbl", "data.frame"),
-    row.names = c(NA, -6L))
-  expect_equal(object = output,
-               expected = inspect(CO2))
+    row.names = c(NA, -6L)
+  )
+  expect_equal(
+    object = output,
+    expected = inspect(CO2)
+  )
 })
 
 # ---- Output structure ---------------------------------------------------
@@ -37,15 +45,19 @@ test_that("inspect() returns a tibble with the expected columns in order", {
   expect_s3_class(out, "tbl_df")
   expect_identical(
     names(out),
-    c("variables", "class", "nb_distinct", "prop_distinct",
-      "nb_na", "prop_na", "nb_void", "prop_void", "nchars", "modalities"))
+    c(
+      "variables", "class", "nb_distinct", "prop_distinct",
+      "nb_na", "prop_na", "nb_void", "prop_void", "nchars", "modalities"
+    )
+  )
 })
 
 test_that("inspect() produces one row per (column, class) pair", {
   df <- data.frame(
     x = 1:3,
     y = factor(c("a", "b", "c"), ordered = TRUE),
-    stringsAsFactors = FALSE)
+    stringsAsFactors = FALSE
+  )
   out <- inspect(df)
 
   # y is ordered factor: class = c("ordered", "factor"), produces 2 rows
@@ -60,7 +72,8 @@ test_that("nb_distinct counts distinct values (NA counts as one)", {
   df <- data.frame(
     a = c(1, 2, 2, 3),
     b = c(NA, "x", "y", "y"),
-    stringsAsFactors = FALSE)
+    stringsAsFactors = FALSE
+  )
   out <- inspect(df)
   expect_equal(out$nb_distinct, c(3L, 3L)) # b: NA, "x", "y"
 })
@@ -75,7 +88,8 @@ test_that("nb_na and prop_na track NAs per column", {
   df <- data.frame(
     a = c(NA, NA, 1, 2),
     b = c("x", NA, "y", "z"),
-    stringsAsFactors = FALSE)
+    stringsAsFactors = FALSE
+  )
   out <- inspect(df)
   expect_equal(out$nb_na, c(2L, 1L))
   expect_equal(out$prop_na, c(0.5, 0.25))
@@ -84,7 +98,8 @@ test_that("nb_na and prop_na track NAs per column", {
 test_that("nb_void counts empty strings (NAs do not contribute)", {
   df <- data.frame(
     a = c("", "x", "", NA, "y"),
-    stringsAsFactors = FALSE)
+    stringsAsFactors = FALSE
+  )
   out <- inspect(df)
   expect_equal(out$nb_void, 2L)
   expect_equal(out$prop_void, 2 / 5)
@@ -99,7 +114,8 @@ test_that("nb_void on numeric columns returns 0 (coercion safe)", {
 test_that("nchars lists up to 10 distinct nchar values, sorted ascending", {
   df <- data.frame(
     a = c("a", "bb", "ccc", "dddd"),
-    stringsAsFactors = FALSE)
+    stringsAsFactors = FALSE
+  )
   out <- inspect(df)
   expect_equal(out$nchars, "1 / 2 / 3 / 4")
 })
@@ -107,7 +123,8 @@ test_that("nchars lists up to 10 distinct nchar values, sorted ascending", {
 test_that("modalities lists up to 10 distinct values, sorted", {
   df <- data.frame(
     a = c("z", "a", "m", "a"),
-    stringsAsFactors = FALSE)
+    stringsAsFactors = FALSE
+  )
   out <- inspect(df)
   expect_equal(out$modalities, "a / m / z")
 })
@@ -117,14 +134,16 @@ test_that("modalities caps at 10 distinct values", {
   out <- inspect(df)
   expect_equal(
     out$modalities,
-    paste(sort(as.character(1:15))[1:10], collapse = " / "))
+    paste(sort(as.character(1:15))[1:10], collapse = " / ")
+  )
 })
 
 # ---- POSIXct handling ---------------------------------------------------
 
 test_that("POSIXct columns get class 'Date-time' (single-valued)", {
   df <- data.frame(
-    ts = as.POSIXct(c("2024-01-01", "2024-01-02"), tz = "UTC"))
+    ts = as.POSIXct(c("2024-01-01", "2024-01-02"), tz = "UTC")
+  )
   out <- inspect(df)
   expect_equal(nrow(out), 1L)
   expect_equal(out$class, "Date-time")
@@ -175,7 +194,9 @@ test_that("nrow = TRUE prints the row count but returns the same tibble", {
   df <- data.frame(a = 1:7)
   out_default <- inspect(df)
   out_printed <- NULL
-  printed <- capture.output({ out_printed <- inspect(df, nrow = TRUE) })
+  printed <- capture.output({
+    out_printed <- inspect(df, nrow = TRUE)
+  })
   expect_equal(out_printed, out_default)
   expect_true(any(grepl("7", printed)))
 })
@@ -188,7 +209,9 @@ test_that(".inspect_column() returns one row per class of x", {
   expect_equal(out$class, "integer")
 
   out2 <- cryptRopen:::.inspect_column(
-    factor(c("a", "b"), ordered = TRUE), rows = 2)
+    factor(c("a", "b"), ordered = TRUE),
+    rows = 2
+  )
   expect_equal(nrow(out2), 2L)
   expect_equal(out2$class, c("ordered", "factor"))
 })

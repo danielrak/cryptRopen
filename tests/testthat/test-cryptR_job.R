@@ -54,10 +54,12 @@ make_job <- function(tasks) {
 
 test_that(".new_cryptR_job() accepts an empty task list", {
   job <- cryptRopen:::.new_cryptR_job(
-    tasks             = list(),
-    mask_rows         = data.frame(encrypted_file = character(0),
-                                   stringsAsFactors = FALSE),
-    output_path       = "/tmp/out",
+    tasks = list(),
+    mask_rows = data.frame(
+      encrypted_file = character(0),
+      stringsAsFactors = FALSE
+    ),
+    output_path = "/tmp/out",
     intermediate_path = "/tmp/int"
   )
   expect_s3_class(job, "cryptR_job")
@@ -83,14 +85,16 @@ test_that("cryptR_status() classifies running / done / failed", {
 
   t_run <- m_running(3)
 
-  job <- make_job(list(done_task = t_done,
-                       fail_task = t_fail,
-                       run_task  = t_run))
+  job <- make_job(list(
+    done_task = t_done,
+    fail_task = t_fail,
+    run_task = t_run
+  ))
 
   st <- cryptR_status(job)
   expect_equal(as.character(st$state[st$encrypted_file == "done_task"]), "done")
   expect_equal(as.character(st$state[st$encrypted_file == "fail_task"]), "failed")
-  expect_equal(as.character(st$state[st$encrypted_file == "run_task"]),  "running")
+  expect_equal(as.character(st$state[st$encrypted_file == "run_task"]), "running")
 
   expect_true(is.na(st$error_message[st$encrypted_file == "done_task"]))
   expect_true(is.na(st$error_message[st$encrypted_file == "run_task"]))
@@ -177,11 +181,11 @@ test_that("print.cryptR_job() emits structural keywords", {
   out <- capture.output(print(job))
 
   # Structural keywords — language-neutral, no regex on R base messages.
-  expect_true(any(grepl("cryptR_job",  out)))
-  expect_true(any(grepl("tasks",       out)))
-  expect_true(any(grepl("done",        out)))
-  expect_true(any(grepl("failed",      out)))
-  expect_true(any(grepl("elapsed",     out)))
+  expect_true(any(grepl("cryptR_job", out)))
+  expect_true(any(grepl("tasks", out)))
+  expect_true(any(grepl("done", out)))
+  expect_true(any(grepl("failed", out)))
+  expect_true(any(grepl("elapsed", out)))
   expect_true(any(grepl("output_path", out)))
 })
 
@@ -189,8 +193,8 @@ test_that("print.cryptR_job() emits structural keywords", {
 test_that("a failed task surfaces via status, never as an exception from wait", {
   skip_if_not_installed("mirai")
 
-  t_ok   <- m_done(1L)
-  t_bad  <- m_fail("explicit failure")
+  t_ok <- m_done(1L)
+  t_bad <- m_fail("explicit failure")
   job <- make_job(list(ok = t_ok, bad = t_bad))
 
   # Should NOT raise — wait only blocks on resolution, it does not rethrow.
@@ -212,21 +216,25 @@ test_that("cryptR_status() has the 7-column metric-enriched schema", {
   # Empty-mask job: the schema must match the non-empty case column-wise
   # so downstream code that rbinds two snapshots doesn't break.
   empty_job <- cryptRopen:::.new_cryptR_job(
-    tasks             = list(),
-    mask_rows         = data.frame(encrypted_file = character(0),
-                                   stringsAsFactors = FALSE),
-    output_path       = "/tmp/out",
+    tasks = list(),
+    mask_rows = data.frame(
+      encrypted_file = character(0),
+      stringsAsFactors = FALSE
+    ),
+    output_path = "/tmp/out",
     intermediate_path = "/tmp/int"
   )
   st_empty <- cryptR_status(empty_job)
   expect_named(
     st_empty,
-    c("encrypted_file", "state", "error_message",
-      "start_time", "end_time", "duration_sec", "n_rows_processed")
+    c(
+      "encrypted_file", "state", "error_message",
+      "start_time", "end_time", "duration_sec", "n_rows_processed"
+    )
   )
   expect_s3_class(st_empty$start_time, "POSIXct")
-  expect_s3_class(st_empty$end_time,   "POSIXct")
-  expect_type(st_empty$duration_sec,     "double")
+  expect_s3_class(st_empty$end_time, "POSIXct")
+  expect_type(st_empty$duration_sec, "double")
   expect_type(st_empty$n_rows_processed, "integer")
 })
 
@@ -234,15 +242,17 @@ test_that("cryptR_status() has the 7-column metric-enriched schema", {
 test_that("cryptR_status() returns NA metrics for running/failed/ad-hoc tasks", {
   skip_if_not_installed("mirai")
 
-  t_done <- m_done(99L)          # ad-hoc — no .make_row_result payload
+  t_done <- m_done(99L) # ad-hoc — no .make_row_result payload
   t_fail <- m_fail("boom")
-  t_run  <- m_running(3)
+  t_run <- m_running(3)
   mirai::call_mirai(t_done)
   mirai::call_mirai(t_fail)
 
-  job <- make_job(list(done_task = t_done,
-                       fail_task = t_fail,
-                       run_task  = t_run))
+  job <- make_job(list(
+    done_task = t_done,
+    fail_task = t_fail,
+    run_task = t_run
+  ))
   st <- cryptR_status(job)
 
   # All rows: metrics expected NA because none of these tasks carry a
@@ -263,12 +273,12 @@ test_that("cryptR_status() populates metrics from .make_row_result payload", {
   # ship it by value so we don't need .make_row_result visible inside
   # the daemon (no cryptRopen installation required for this test).
   t_start <- as.POSIXct("2026-04-23 10:00:00", tz = "UTC")
-  t_end   <- as.POSIXct("2026-04-23 10:00:05", tz = "UTC")
+  t_end <- as.POSIXct("2026-04-23 10:00:05", tz = "UTC")
   fake_payload <- list(
-    success        = TRUE,
-    error_message  = NA_character_,
-    tc_name        = NA_character_,
-    tc_df          = NULL,
+    success = TRUE,
+    error_message = NA_character_,
+    tc_name = NA_character_,
+    tc_df = NULL,
     metrics = list(
       start_time             = t_start,
       end_time               = t_end,
@@ -282,15 +292,17 @@ test_that("cryptR_status() populates metrics from .make_row_result payload", {
   mirai::call_mirai(t_with_payload)
 
   job <- make_job(list(engine_task = t_with_payload))
-  st  <- cryptR_status(job)
+  st <- cryptR_status(job)
 
   expect_equal(as.character(st$state), "done")
-  expect_equal(st$duration_sec,     5)
+  expect_equal(st$duration_sec, 5)
   expect_equal(st$n_rows_processed, 1234L)
   expect_s3_class(st$start_time, "POSIXct")
-  expect_s3_class(st$end_time,   "POSIXct")
-  expect_equal(format(st$start_time, "%Y-%m-%d %H:%M:%S", tz = "UTC"),
-               "2026-04-23 10:00:00")
+  expect_s3_class(st$end_time, "POSIXct")
+  expect_equal(
+    format(st$start_time, "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+    "2026-04-23 10:00:00"
+  )
 })
 
 
@@ -303,13 +315,15 @@ test_that("summary.cryptR_job() returns a populated dashboard object", {
   mirai::call_mirai(t2)
 
   job <- make_job(list(a = t1, b = t2))
-  s   <- summary(job)
+  s <- summary(job)
 
   expect_s3_class(s, "summary.cryptR_job")
-  expect_named(s, c("n_tasks", "counts", "elapsed_sec", "n_workers",
-                    "total_rows", "output_path", "log_written", "status"))
+  expect_named(s, c(
+    "n_tasks", "counts", "elapsed_sec", "n_workers",
+    "total_rows", "output_path", "log_written", "status"
+  ))
   expect_equal(s$n_tasks, 2L)
-  expect_equal(s$counts[["done"]],   1L)
+  expect_equal(s$counts[["done"]], 1L)
   expect_equal(s$counts[["failed"]], 1L)
   expect_equal(s$counts[["running"]], 0L)
   expect_gte(s$elapsed_sec, 0)
@@ -318,8 +332,10 @@ test_that("summary.cryptR_job() returns a populated dashboard object", {
   # Status embedded: same column set as direct cryptR_status() call.
   expect_named(
     s$status,
-    c("encrypted_file", "state", "error_message",
-      "start_time", "end_time", "duration_sec", "n_rows_processed")
+    c(
+      "encrypted_file", "state", "error_message",
+      "start_time", "end_time", "duration_sec", "n_rows_processed"
+    )
   )
 })
 
@@ -334,10 +350,10 @@ test_that("print.summary.cryptR_job() emits the expected labels", {
   out <- capture.output(print(summary(job)))
   # Structural keywords — no regex on R base messages.
   expect_true(any(grepl("cryptR_job summary", out)))
-  expect_true(any(grepl("tasks",       out)))
-  expect_true(any(grepl("workers",     out)))
-  expect_true(any(grepl("elapsed",     out)))
-  expect_true(any(grepl("rows total",  out)))
+  expect_true(any(grepl("tasks", out)))
+  expect_true(any(grepl("workers", out)))
+  expect_true(any(grepl("elapsed", out)))
+  expect_true(any(grepl("rows total", out)))
   expect_true(any(grepl("output_path", out)))
 })
 

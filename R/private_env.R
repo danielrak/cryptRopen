@@ -25,7 +25,9 @@
 #' @return Invisible `NULL`.
 #' @noRd
 .clear_correspondence_tables <- function() {
-  rm(list = ls(envir = .cryptRopen_env, all.names = TRUE),
-     envir = .cryptRopen_env)
+  rm(
+    list = ls(envir = .cryptRopen_env, all.names = TRUE),
+    envir = .cryptRopen_env
+  )
   invisible(NULL)
 }

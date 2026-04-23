@@ -57,17 +57,20 @@ crypt_r <- function(mask_folder_path, mask_file,
                     engine = c("auto", "in_memory", "streaming"),
                     chunk_size = 1e6L,
                     n_workers = NULL) {
-
   engine <- match.arg(engine)
-  stopifnot(is.numeric(chunk_size),
-            length(chunk_size) == 1L,
-            !is.na(chunk_size),
-            chunk_size > 0)
+  stopifnot(
+    is.numeric(chunk_size),
+    length(chunk_size) == 1L,
+    !is.na(chunk_size),
+    chunk_size > 0
+  )
   chunk_size <- as.integer(chunk_size)
 
   if (!is.null(n_workers)) {
-    stopifnot(is.numeric(n_workers), length(n_workers) == 1L,
-              !is.na(n_workers), n_workers >= 1)
+    stopifnot(
+      is.numeric(n_workers), length(n_workers) == 1L,
+      !is.na(n_workers), n_workers >= 1
+    )
     n_workers <- as.integer(n_workers)
   }
 
@@ -84,42 +87,49 @@ crypt_r <- function(mask_folder_path, mask_file,
   # "file not found" errors.
   .assert_writable_dir <- function(path, label) {
     if (!is.character(path) || length(path) != 1L || is.na(path) ||
-        !nzchar(path)) {
-      stop(sprintf(
-        "`%s` must be a non-empty character(1) path. Got: %s",
-        label,
-        if (is.character(path)) paste(utils::capture.output(dput(path)),
-                                      collapse = " ") else class(path)[1]),
-        call. = FALSE)
+      !nzchar(path)) {
+      stop(
+        sprintf(
+          "`%s` must be a non-empty character(1) path. Got: %s",
+          label,
+          if (is.character(path)) {
+            paste(utils::capture.output(dput(path)),
+              collapse = " "
+            )
+          } else {
+            class(path)[1]
+          }
+        ),
+        call. = FALSE
+      )
     }
     if (!dir.exists(path)) {
-      stop(sprintf(
-        "`%s` directory does not exist: %s\nCreate it before calling crypt_r().",
-        label, path),
-        call. = FALSE)
+      stop(
+        sprintf(
+          "`%s` directory does not exist: %s\nCreate it before calling crypt_r().",
+          label, path
+        ),
+        call. = FALSE
+      )
     }
     invisible(NULL)
   }
-  .assert_writable_dir(output_path,       "output_path")
+  .assert_writable_dir(output_path, "output_path")
   .assert_writable_dir(intermediate_path, "intermediate_path")
 
   # The Excel mask:
   mask <-
     rio::import(file.path(mask_folder_path, mask_file)) %>%
-
     # Without eventual blank lines in the mask (for visualization ease):
-    dplyr::filter_all(dplyr::any_vars(! is.na(.))) %>%
-
+    dplyr::filter_all(dplyr::any_vars(!is.na(.))) %>%
     # Inserting a row_number (useful for technical reasons):
     dplyr::mutate(row_number = dplyr::row_number()) %>%
-
     # Keep only lines on datasets the user want to encrypt:
     dplyr::filter(to_encrypt == "X")
 
   # Check eventual duplicated file names, if there is, add indication
   # to keep file names unique:
   mask <-
-
     dplyr::mutate(
       mask,
       dupl_encrypted_file = duplicated(encrypted_file),
@@ -127,9 +137,13 @@ crypt_r <- function(mask_folder_path, mask_file,
         (\(n) paste0("DUPL", n)),
       encrypted_file =
         ifelse(dupl_encrypted_file,
-               paste0(ndupl_encrypted_file, "_",
-                      encrypted_file),
-               encrypted_file))
+          paste0(
+            ndupl_encrypted_file, "_",
+            encrypted_file
+          ),
+          encrypted_file
+        )
+    )
 
   n_rows <- nrow(mask)
 
@@ -143,7 +157,8 @@ crypt_r <- function(mask_folder_path, mask_file,
       mask_rows            = mask,
       output_path          = output_path,
       intermediate_path    = intermediate_path,
-      daemons_owned_by_job = FALSE)
+      daemons_owned_by_job = FALSE
+    )
     return(.start_watcher(job))
   }
 
@@ -152,7 +167,8 @@ crypt_r <- function(mask_folder_path, mask_file,
   # shared machines, never exceed the number of tasks.
   if (is.null(n_workers)) {
     cores <- tryCatch(parallel::detectCores(logical = TRUE),
-                      error = function(e) 2L)
+      error = function(e) 2L
+    )
     if (is.null(cores) || is.na(cores) || cores < 2L) cores <- 2L
     n_workers <- max(1L, min(as.integer(cores) - 1L, n_rows, 8L))
   } else {
@@ -181,14 +197,15 @@ crypt_r <- function(mask_folder_path, mask_file,
   # still surface the lookup error as a failed task via cryptR_status().
   try(mirai::everywhere({
     suppressPackageStartupMessages(requireNamespace("cryptRopen",
-                                                    quietly = TRUE))
+      quietly = TRUE
+    ))
   }), silent = TRUE)
 
   # --- Dispatch one mirai task per filtered mask row -------------------
   input_paths <- paste0(mask$folder_path, "/", mask$file)
 
   tasks <- purrr::map(seq_len(n_rows), \(i) {
-    mask_row_i   <- mask[i, , drop = FALSE]
+    mask_row_i <- mask[i, , drop = FALSE]
     input_path_i <- input_paths[[i]]
 
     # Resolve the internal dispatcher inside the daemon via
@@ -212,17 +229,19 @@ crypt_r <- function(mask_folder_path, mask_file,
           algorithm            = algorithm,
           correspondence_table = correspondence_table,
           engine               = engine,
-          chunk_size           = chunk_size)
+          chunk_size           = chunk_size
+        )
       },
-      mask_row_i           = mask_row_i,
-      input_path_i         = input_path_i,
-      output_path          = output_path,
-      intermediate_path    = intermediate_path,
-      encryption_key       = encryption_key,
-      algorithm            = algorithm,
+      mask_row_i = mask_row_i,
+      input_path_i = input_path_i,
+      output_path = output_path,
+      intermediate_path = intermediate_path,
+      encryption_key = encryption_key,
+      algorithm = algorithm,
       correspondence_table = correspondence_table,
-      engine               = engine,
-      chunk_size           = chunk_size)
+      engine = engine,
+      chunk_size = chunk_size
+    )
   })
 
   names(tasks) <- as.character(mask$encrypted_file)
@@ -232,7 +251,8 @@ crypt_r <- function(mask_folder_path, mask_file,
     mask_rows            = mask,
     output_path          = output_path,
     intermediate_path    = intermediate_path,
-    daemons_owned_by_job = daemons_owned_by_job)
+    daemons_owned_by_job = daemons_owned_by_job
+  )
 
   # Phase 1.D.6.c: register the auto-watcher so the recap xlsx log is
   # written as soon as the last mirai task resolves, without the user

@@ -23,10 +23,9 @@
 # because the capture itself inspects globalenv() to detect crypt_data's
 # and crypt_r's intentional side effects.
 .generate_baseline <- function() {
-
-  if (!exists("crypt_vector",  envir = asNamespace("cryptRopen")) ||
-      !exists("crypt_data",    envir = asNamespace("cryptRopen")) ||
-      !exists("crypt_r",       envir = asNamespace("cryptRopen"))) {
+  if (!exists("crypt_vector", envir = asNamespace("cryptRopen")) ||
+    !exists("crypt_data", envir = asNamespace("cryptRopen")) ||
+    !exists("crypt_r", envir = asNamespace("cryptRopen"))) {
     stop("cryptRopen functions not found. Run devtools::load_all('.') first.")
   }
 
@@ -38,13 +37,13 @@
 
   # Paths
   baseline_dir <- "tests/baseline"
-  inputs_dir   <- file.path(baseline_dir, "inputs")
+  inputs_dir <- file.path(baseline_dir, "inputs")
   datasets_dir <- file.path(inputs_dir, "datasets")
-  masks_dir    <- file.path(inputs_dir, "masks")
-  outputs_dir  <- file.path(baseline_dir, "outputs")
-  cv_out_dir   <- file.path(outputs_dir, "crypt_vector")
-  cd_out_dir   <- file.path(outputs_dir, "crypt_data")
-  cr_out_dir   <- file.path(outputs_dir, "crypt_r")
+  masks_dir <- file.path(inputs_dir, "masks")
+  outputs_dir <- file.path(baseline_dir, "outputs")
+  cv_out_dir <- file.path(outputs_dir, "crypt_vector")
+  cd_out_dir <- file.path(outputs_dir, "crypt_data")
+  cr_out_dir <- file.path(outputs_dir, "crypt_r")
 
   for (d in c(datasets_dir, masks_dir, cv_out_dir, cd_out_dir, cr_out_dir)) {
     dir.create(d, recursive = TRUE, showWarnings = FALSE)
@@ -71,8 +70,10 @@
   write_all_datasets(datasets_dir)
 
   message("Generating input masks ...")
-  abs_datasets_dir <- normalizePath(datasets_dir, winslash = "/",
-                                    mustWork = TRUE)
+  abs_datasets_dir <- normalizePath(datasets_dir,
+    winslash = "/",
+    mustWork = TRUE
+  )
   write_all_masks(masks_dir, abs_datasets_dir)
 
   # -----------------------------------------------------------------------
@@ -105,7 +106,7 @@
     pre <- ls(envir = globalenv())
 
     args <- case$args_factory()
-    res  <- do.call(cryptRopen::crypt_data, args)
+    res <- do.call(cryptRopen::crypt_data, args)
 
     tcs <- cryptRopen::get_correspondence_tables()
 
@@ -140,12 +141,12 @@
 
   capture_one_crypt_r <- function(case) {
     message("  case: ", case$name)
-    case_dir          <- file.path(cr_out_dir, case$name)
-    case_output       <- file.path(case_dir, "output")
+    case_dir <- file.path(cr_out_dir, case$name)
+    case_output <- file.path(case_dir, "output")
     case_intermediate <- file.path(case_dir, "intermediate")
 
     unlink(case_dir, recursive = TRUE, force = TRUE)
-    dir.create(case_output,       recursive = TRUE, showWarnings = FALSE)
+    dir.create(case_output, recursive = TRUE, showWarnings = FALSE)
     dir.create(case_intermediate, recursive = TRUE, showWarnings = FALSE)
 
     pre <- ls(envir = globalenv())
@@ -165,20 +166,24 @@
       rm(list = new_names, envir = globalenv())
     }
 
-    out_files <- list.files(case_output,       recursive = TRUE, full.names = FALSE)
+    out_files <- list.files(case_output, recursive = TRUE, full.names = FALSE)
     int_files <- list.files(case_intermediate, recursive = TRUE, full.names = FALSE)
 
     files_record <- c(
-      lapply(out_files, function(f) list(
-        dir     = "output",
-        relpath = f,
-        sha256  = sha256_file(file.path(case_output, f))
-      )),
-      lapply(int_files, function(f) list(
-        dir     = "intermediate",
-        relpath = f,
-        sha256  = sha256_file(file.path(case_intermediate, f))
-      ))
+      lapply(out_files, function(f) {
+        list(
+          dir     = "output",
+          relpath = f,
+          sha256  = sha256_file(file.path(case_output, f))
+        )
+      }),
+      lapply(int_files, function(f) {
+        list(
+          dir     = "intermediate",
+          relpath = f,
+          sha256  = sha256_file(file.path(case_intermediate, f))
+        )
+      })
     )
 
     list(
@@ -205,8 +210,9 @@
 
   manifest_path <- file.path(baseline_dir, "manifest.json")
   jsonlite::write_json(manifest, manifest_path,
-                       auto_unbox = TRUE, pretty = TRUE, null = "null",
-                       na = "null")
+    auto_unbox = TRUE, pretty = TRUE, null = "null",
+    na = "null"
+  )
 
   message("Baseline written:")
   message("  ", length(cv_manifest), " crypt_vector cases")

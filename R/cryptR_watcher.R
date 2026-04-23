@@ -60,8 +60,10 @@
 #' @noRd
 .start_watcher <- function(job, poll_interval = 0.5) {
   stopifnot(inherits(job, "cryptR_job"))
-  stopifnot(is.numeric(poll_interval), length(poll_interval) == 1L,
-            !is.na(poll_interval), poll_interval > 0)
+  stopifnot(
+    is.numeric(poll_interval), length(poll_interval) == 1L,
+    !is.na(poll_interval), poll_interval > 0
+  )
 
   # `later` is declared in DESCRIPTION Imports but we still guard
   # against a missing install (e.g. stripped environments) so the
@@ -104,7 +106,8 @@
     # `.finalize_job_side_effects()` and `.log_already_written()`),
     # so a subsequent manual collect will not double-write the log.
     tryCatch(.finalize_job_side_effects(captured),
-             error = function(e) NULL)
+      error = function(e) NULL
+    )
 
     # Teardown daemons we own, best-effort. A manual collect after this
     # will re-attempt the teardown via `mirai::daemons(0)` wrapped in

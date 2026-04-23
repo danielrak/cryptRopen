@@ -51,17 +51,18 @@
 #' @noRd
 .process_mask_row_in_memory <- function(mask_row, input_path, output_path, intermediate_path,
                                         encryption_key, algorithm, correspondence_table) {
-
-  encrypted_file      <- mask_row[["encrypted_file"]]
-  encrypted_stem      <- stringr::str_remove(encrypted_file, "\\..*$")
+  encrypted_file <- mask_row[["encrypted_file"]]
+  encrypted_stem <- stringr::str_remove(encrypted_file, "\\..*$")
   encrypted_file_path <- file.path(output_path, encrypted_file)
 
   vars_to_encrypt <- mask_row[["vars_to_encrypt"]] %>%
-    stringr::str_split(",") %>% unlist() %>%
+    stringr::str_split(",") %>%
+    unlist() %>%
     stringr::str_trim()
 
   vars_to_remove <- mask_row[["vars_to_remove"]] %>%
-    stringr::str_split(",") %>% unlist() %>%
+    stringr::str_split(",") %>%
+    unlist() %>%
     stringr::str_trim()
 
   # Holds the final in-memory dataset (post-assemble, post-drop) so the
@@ -69,130 +70,153 @@
   # output file back. Stays NULL if the import / transform block errors —
   # the downstream blocks then short-circuit cleanly.
   assembled_df <- NULL
-  tc_name      <- NA_character_
-  tc_df        <- NULL
+  tc_name <- NA_character_
+  tc_df <- NULL
 
   # Error capture mirrors the historical 3 × try() structure: each
   # block is independent so a failed inspect never masks a successful
   # export. Pre-1.D.6.c we used `try()` and discarded messages silently;
   # now we accumulate them so the recap log in `cryptR_collect()` can
   # report what went wrong per row.
-  start_time         <- Sys.time()
-  errs               <- character(0)
+  start_time <- Sys.time()
+  errs <- character(0)
   transform_exported <- FALSE
-  export_ok          <- FALSE
+  export_ok <- FALSE
 
   # --- Import, clean, encrypt, assemble --------------------------------
-  tryCatch({
-    # Import + character cleanup (empty → NA, trim).
-    raw_df <- rio::import(input_path, trust = TRUE) %>%
-      dplyr::mutate_if(is.character, \(col) {
-        col[nchar(stringr::str_trim(col)) == 0] <- NA
-        stringr::str_trim(col)
+  tryCatch(
+    {
+      # Import + character cleanup (empty → NA, trim).
+      raw_df <- rio::import(input_path, trust = TRUE) %>%
+        dplyr::mutate_if(is.character, \(col) {
+          col[nchar(stringr::str_trim(col)) == 0] <- NA
+          stringr::str_trim(col)
+        })
+
+      # Encrypt each requested variable. Names follow the historical
+      # `<var>_crypt` convention — they no longer leak to globalenv().
+      crypted_list <- purrr::map(vars_to_encrypt, \(v) {
+        crypt_vector(
+          vector = raw_df[[v]],
+          key = encryption_key,
+          algo = algorithm
+        )
       })
+      names(crypted_list) <- paste0(vars_to_encrypt, "_crypt")
 
-    # Encrypt each requested variable. Names follow the historical
-    # `<var>_crypt` convention — they no longer leak to globalenv().
-    crypted_list <- purrr::map(vars_to_encrypt, \(v) {
-      crypt_vector(vector = raw_df[[v]],
-                   key    = encryption_key,
-                   algo   = algorithm)
-    })
-    names(crypted_list) <- paste0(vars_to_encrypt, "_crypt")
+      # Assemble: `<var>_crypt` columns first (in `vars_to_encrypt` order),
+      # then original columns (in input order). Matches historical ordering.
+      crypted_df <- do.call(dplyr::bind_cols, crypted_list) %>%
+        stats::setNames(names(crypted_list))
 
-    # Assemble: `<var>_crypt` columns first (in `vars_to_encrypt` order),
-    # then original columns (in input order). Matches historical ordering.
-    crypted_df <- do.call(dplyr::bind_cols, crypted_list) %>%
-      stats::setNames(names(crypted_list))
+      full_df <- dplyr::bind_cols(crypted_df, raw_df) %>%
+        dplyr::as_tibble()
 
-    full_df <- dplyr::bind_cols(crypted_df, raw_df) %>%
-      dplyr::as_tibble()
+      # Correspondence table — stored in the package-private env AND on disk.
+      # `rio::export()` is deliberately kept (not `arrow::write_parquet()`)
+      # so the TC parquet stays byte-identical to the pre-refactor baseline.
+      # In a mirai daemon the `.cryptRopen_env` populated here is not
+      # visible to the parent process; `cryptR_collect()` re-injects
+      # `tc_df` (ships back in the return list) into the parent's env.
+      if (correspondence_table) {
+        tc_name_local <- paste0("tc_", encrypted_stem)
+        tc_df_local <- dplyr::select(full_df, dplyr::all_of(vars_to_encrypt)) %>%
+          dplyr::bind_cols(crypted_df) %>%
+          dplyr::distinct()
+        .store_correspondence_table(name = tc_name_local, df = tc_df_local)
+        rio::export(
+          tc_df_local,
+          file.path(intermediate_path, paste0(tc_name_local, ".parquet"))
+        )
+        # Only publish to the enclosing function frame once the disk write
+        # succeeded, so a half-written TC does not leak into the return
+        # value. NB. plain `<-` is load-bearing here: the `tryCatch` body
+        # evaluates via `eval(expr, parent.frame())` — i.e. in *this*
+        # function's frame — so `<-` modifies the local binding. `<<-`
+        # would walk past this frame up the lexical scope and silently
+        # create bindings in globalenv(), leaving `tc_name` and `tc_df`
+        # here at their initial NA / NULL. Same rule applies below for
+        # `assembled_df` and the `*_ok` flags in every block of every
+        # engine; error handlers (true closures) keep `<<-`.
+        tc_name <- tc_name_local
+        tc_df <- tc_df_local
+      }
 
-    # Correspondence table — stored in the package-private env AND on disk.
-    # `rio::export()` is deliberately kept (not `arrow::write_parquet()`)
-    # so the TC parquet stays byte-identical to the pre-refactor baseline.
-    # In a mirai daemon the `.cryptRopen_env` populated here is not
-    # visible to the parent process; `cryptR_collect()` re-injects
-    # `tc_df` (ships back in the return list) into the parent's env.
-    if (correspondence_table) {
-      tc_name_local <- paste0("tc_", encrypted_stem)
-      tc_df_local   <- dplyr::select(full_df, dplyr::all_of(vars_to_encrypt)) %>%
-        dplyr::bind_cols(crypted_df) %>%
-        dplyr::distinct()
-      .store_correspondence_table(name = tc_name_local, df = tc_df_local)
-      rio::export(
-        tc_df_local,
-        file.path(intermediate_path, paste0(tc_name_local, ".parquet")))
-      # Only publish to the enclosing function frame once the disk write
-      # succeeded, so a half-written TC does not leak into the return
-      # value. NB. plain `<-` is load-bearing here: the `tryCatch` body
-      # evaluates via `eval(expr, parent.frame())` — i.e. in *this*
-      # function's frame — so `<-` modifies the local binding. `<<-`
-      # would walk past this frame up the lexical scope and silently
-      # create bindings in globalenv(), leaving `tc_name` and `tc_df`
-      # here at their initial NA / NULL. Same rule applies below for
-      # `assembled_df` and the `*_ok` flags in every block of every
-      # engine; error handlers (true closures) keep `<<-`.
-      tc_name <- tc_name_local
-      tc_df   <- tc_df_local
+      # Drop the original unencrypted columns, then user-specified removes.
+      full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_encrypt))
+      if (!all(is.na(vars_to_remove))) {
+        full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_remove))
+      }
+
+      assembled_df <- full_df
+      transform_exported <- TRUE
+    },
+    error = function(e) {
+      errs <<- c(errs, paste0("transform: ", conditionMessage(e)))
     }
-
-    # Drop the original unencrypted columns, then user-specified removes.
-    full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_encrypt))
-    if (!all(is.na(vars_to_remove))) {
-      full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_remove))
-    }
-
-    assembled_df       <- full_df
-    transform_exported <- TRUE
-  }, error = function(e) {
-    errs <<- c(errs, paste0("transform: ", conditionMessage(e)))
-  })
+  )
 
   # --- Export final output ---------------------------------------------
-  tryCatch({
-    if (!is.null(assembled_df)) {
-      rio::export(assembled_df, encrypted_file_path)
-      export_ok <- TRUE
+  tryCatch(
+    {
+      if (!is.null(assembled_df)) {
+        rio::export(assembled_df, encrypted_file_path)
+        export_ok <- TRUE
+      }
+    },
+    error = function(e) {
+      errs <<- c(errs, paste0("export: ", conditionMessage(e)))
     }
-  }, error = function(e) {
-    errs <<- c(errs, paste0("export: ", conditionMessage(e)))
-  })
+  )
 
   # --- Inspect final output --------------------------------------------
-  tryCatch({
-    if (!is.null(assembled_df)) {
-      i <- inspect(assembled_df)
-      # NB. The `1:nrow(i)` spelling is load-bearing — see the matching
-      # comment in `.write_stream_inspect()` for why seq_len()/seq.int()
-      # would break baseline on the first cell of the xlsx. For the same
-      # reason the `i` binding is kept verbatim (renaming it flows into
-      # `1:nrow(<new_name>)` and breaks baseline).
-      layout <- rbind(
-        c("Obs = ",   nrow(assembled_df), rep("", ncol(i) - 1)),
-        c("Nvars = ", nrow(i),            rep("", ncol(i) - 1)),
-        cbind(1:nrow(i), i))
-      writexl::write_xlsx(
-        layout,
-        file.path(output_path,
-                  paste0("inspect_", encrypted_file, ".xlsx")))
+  tryCatch(
+    {
+      if (!is.null(assembled_df)) {
+        i <- inspect(assembled_df)
+        # NB. The `1:nrow(i)` spelling is load-bearing — see the matching
+        # comment in `.write_stream_inspect()` for why seq_len()/seq.int()
+        # would break baseline on the first cell of the xlsx. For the same
+        # reason the `i` binding is kept verbatim (renaming it flows into
+        # `1:nrow(<new_name>)` and breaks baseline).
+        layout <- rbind(
+          c("Obs = ", nrow(assembled_df), rep("", ncol(i) - 1)),
+          c("Nvars = ", nrow(i), rep("", ncol(i) - 1)),
+          cbind(1:nrow(i), i)
+        )
+        writexl::write_xlsx(
+          layout,
+          file.path(
+            output_path,
+            paste0("inspect_", encrypted_file, ".xlsx")
+          )
+        )
+      }
+    },
+    error = function(e) {
+      errs <<- c(errs, paste0("inspect: ", conditionMessage(e)))
     }
-  }, error = function(e) {
-    errs <<- c(errs, paste0("inspect: ", conditionMessage(e)))
-  })
+  )
 
   end_time <- Sys.time()
-  success  <- transform_exported && export_ok
+  success <- transform_exported && export_ok
 
   invisible(.make_row_result(
-    success          = success,
-    error_message    = if (length(errs) == 0L) NA_character_
-                       else paste(errs, collapse = " | "),
-    tc_name          = tc_name,
-    tc_df            = tc_df,
-    start_time       = start_time,
-    end_time         = end_time,
-    n_rows_processed = if (!is.null(assembled_df)) nrow(assembled_df)
-                       else NA_integer_,
-    output_file_path = encrypted_file_path))
+    success = success,
+    error_message = if (length(errs) == 0L) {
+      NA_character_
+    } else {
+      paste(errs, collapse = " | ")
+    },
+    tc_name = tc_name,
+    tc_df = tc_df,
+    start_time = start_time,
+    end_time = end_time,
+    n_rows_processed = if (!is.null(assembled_df)) {
+      nrow(assembled_df)
+    } else {
+      NA_integer_
+    },
+    output_file_path = encrypted_file_path
+  ))
 }

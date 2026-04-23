@@ -10,9 +10,8 @@
 #' @examples
 #' crypt_vector(vector = c("1234", "5678", "9101112", NA, ""), key = "123456", algo = "md5")
 crypt_vector <- function(vector, key, algo) {
-
   normalized <- .normalize_crypt_input(vector)
-  mask_na    <- is.na(normalized) | nchar(normalized) == 0L
+  mask_na <- is.na(normalized) | nchar(normalized) == 0L
 
   out <- rep(NA_character_, length(normalized))
   hashes <- vapply(
