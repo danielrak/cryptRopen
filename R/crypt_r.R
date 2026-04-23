@@ -50,16 +50,13 @@
 #' @seealso [cryptR_status()], [cryptR_wait()], [cryptR_collect()],
 #'   [get_correspondence_tables()].
 #' @export
-crypt_r <- function (mask_folder_path, mask_file,
-                     output_path, intermediate_path,
-                     encryption_key, algorithm = "md5",
-                     correspondence_table = TRUE,
-                     engine = c("auto", "in_memory", "streaming"),
-                     chunk_size = 1e6L,
-                     n_workers = NULL) {
-
-  requireNamespace("magrittr")
-  requireNamespace("mirai")
+crypt_r <- function(mask_folder_path, mask_file,
+                    output_path, intermediate_path,
+                    encryption_key, algorithm = "md5",
+                    correspondence_table = TRUE,
+                    engine = c("auto", "in_memory", "streaming"),
+                    chunk_size = 1e6L,
+                    n_workers = NULL) {
 
   engine <- match.arg(engine)
   stopifnot(is.numeric(chunk_size),
@@ -508,8 +505,6 @@ crypt_r <- function (mask_folder_path, mask_file,
 .process_mask_row_in_memory <- function(sm, input_path, output_path, intermediate_path,
                                         encryption_key, algorithm, correspondence_table) {
 
-  requireNamespace("magrittr")
-
   encrypted_file      <- sm[["encrypted_file"]]
   encrypted_stem      <- stringr::str_remove(encrypted_file, "\\..*$")
   encrypted_file_path <- file.path(output_path, encrypted_file)
@@ -855,9 +850,6 @@ crypt_r <- function (mask_folder_path, mask_file,
                                         encryption_key, algorithm, correspondence_table,
                                         chunk_size = 1e6L) {
 
-  requireNamespace("magrittr")
-  requireNamespace("arrow")
-
   encrypted_file   <- sm[["encrypted_file"]]
   encrypted_stem   <- stringr::str_remove(encrypted_file, "\\..*$")
   output_file_path <- file.path(output_path, encrypted_file)
@@ -1004,9 +996,6 @@ crypt_r <- function (mask_folder_path, mask_file,
 .process_mask_row_csv_streaming <- function(sm, input_path, output_path, intermediate_path,
                                             encryption_key, algorithm, correspondence_table,
                                             chunk_size = 1e6L) {
-
-  requireNamespace("magrittr")
-  requireNamespace("arrow")
 
   encrypted_file   <- sm[["encrypted_file"]]
   encrypted_stem   <- stringr::str_remove(encrypted_file, "\\..*$")
