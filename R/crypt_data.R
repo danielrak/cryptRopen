@@ -81,9 +81,9 @@ crypt_data <- function(loaded_dataset,
 
   if (any(duplicated(c(names(encrypted_data), names(loaded_dataset))))) {
 
-    dedupl_char_values <- function (x) {
+    dedupl_char_values <- function(x) {
       u <- unique(x[duplicated(x)])
-      l <- lapply(u, function (d) which(x == d))
+      l <- lapply(u, function(d) which(x == d))
       l <- stats::setNames(l, u)
       l <- lapply(l, \(v) {
         v1 <- v[2:length(v)]
