@@ -5,7 +5,16 @@
 \title{Retrieve correspondence tables produced by the last calls of
 \code{crypt_data()} or \code{crypt_r()}.}
 \usage{
-get_correspondence_tables()
+get_correspondence_tables(names = NULL)
+}
+\arguments{
+\item{names}{Optional character vector — names of the tables to
+return. When \code{NULL} (default), every table currently stored is
+returned. When a vector is passed, the result is a subset
+preserving the requested order; names absent from the store are
+returned as missing entries (the output is still named so the
+caller can detect the miss via \code{is.null(result[[name]])}). Added
+in Phase 2.B.}
 }
 \value{
 A named list of data frames / tibbles. Names follow the
@@ -28,4 +37,5 @@ crypt_data(
   correspondence_table_label = "demo"
 )
 get_correspondence_tables()
+get_correspondence_tables(names = "tc_crypt_demo")
 }
