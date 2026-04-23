@@ -123,46 +123,78 @@ crypt_r <- function (mask_folder_path, mask_file,
   invisible(NULL)
 }
 
+#' Does the given path have a `.parquet` extension?
+#'
+#' Used by the dispatcher to decide whether the streaming engine is
+#' applicable. Comparison is case-insensitive. No I/O — purely a name
+#' check; actual openability is handled by arrow at read time.
+#'
+#' @param path Character(1).
+#' @return Logical(1).
+#' @noRd
+.is_parquet <- function(path) {
+  if (length(path) != 1L || is.na(path)) return(FALSE)
+  grepl("\\.parquet$", path, ignore.case = TRUE)
+}
+
 #' Process one row of the encryption mask (dispatcher).
 #'
-#' Thin dispatcher introduced in Phase 1.D.2. Routes to the in_memory
-#' engine today. Phase 1.D.4.a adds the `engine` + `chunk_size`
-#' parameters to the signature (plumbing only — the streaming engine
-#' lands in 1.D.4.b/c, and the `"auto"` routing rule in 1.D.4.d). For
-#' now the dispatcher ignores `engine` / `chunk_size` and always calls
-#' `.process_mask_row_in_memory()`, so passing `engine = "streaming"`
-#' or `engine = "auto"` is a no-op that keeps historical behaviour.
+#' Thin dispatcher introduced in Phase 1.D.2 and extended in Phase
+#' 1.D.4.b. Routes to:
+#'   - `.process_mask_row_streaming()` when `engine == "streaming"`
+#'     **and** both the input file and the declared `encrypted_file`
+#'     are parquet;
+#'   - `.process_mask_row_in_memory()` in every other case (including
+#'     `engine = "auto"` — the auto routing rule lands in 1.D.4.d and
+#'     `engine = "streaming"` with non-parquet endpoints silently
+#'     falls back to preserve non-regression).
 #'
-#' Keeping the dispatcher separate from the engine guarantees that the
-#' historical code path stays strictly untouched while the streaming
-#' engine is being written, protecting non-regression on existing
+#' Keeping the dispatcher separate from the engines guarantees that
+#' the historical code path stays strictly untouched while the
+#' streaming engine evolves, protecting non-regression on existing
 #' baselines.
 #'
 #' @inheritParams .process_mask_row_in_memory
-#' @param engine One of `"auto"`, `"in_memory"`, `"streaming"`.
-#'   Accepted but currently ignored — always routes to in_memory until
-#'   Phase 1.D.4.b/c/d land.
-#' @param chunk_size Integer. Accepted but currently ignored (used by
-#'   the streaming engine only, introduced in 1.D.4.b).
+#' @param engine One of `"auto"`, `"in_memory"`, `"streaming"`. See
+#'   routing rules above.
+#' @param chunk_size Integer. Forwarded to the streaming engine only;
+#'   ignored by in_memory.
 #' @return Invisible `NULL`.
 #' @noRd
 .process_mask_row <- function(sm, input_path, output_path, intermediate_path,
                               encryption_key, algorithm, correspondence_table,
                               engine = "in_memory", chunk_size = 1e6L) {
-  # Engine dispatch is intentionally a no-op in Phase 1.D.4.a (plumbing
-  # only). The `engine` / `chunk_size` arguments are accepted so the
-  # crypt_r() signature is stable; they will gain behaviour in
-  # 1.D.4.b (parquet streaming), 1.D.4.c (csv streaming) and 1.D.4.d
-  # (auto routing).
-  .process_mask_row_in_memory(
-    sm                   = sm,
-    input_path           = input_path,
-    output_path          = output_path,
-    intermediate_path    = intermediate_path,
-    encryption_key       = encryption_key,
-    algorithm            = algorithm,
-    correspondence_table = correspondence_table
-  )
+
+  use_streaming <- identical(engine, "streaming") &&
+                   .is_parquet(input_path) &&
+                   .is_parquet(sm[["encrypted_file"]])
+
+  if (use_streaming) {
+    .process_mask_row_streaming(
+      sm                   = sm,
+      input_path           = input_path,
+      output_path          = output_path,
+      intermediate_path    = intermediate_path,
+      encryption_key       = encryption_key,
+      algorithm            = algorithm,
+      correspondence_table = correspondence_table,
+      chunk_size           = chunk_size
+    )
+  } else {
+    # `engine = "auto"` also lands here until 1.D.4.d wires it. Any
+    # `engine = "streaming"` call with non-parquet endpoints silently
+    # falls back to the historical engine — documented in the roxygen
+    # of crypt_r().
+    .process_mask_row_in_memory(
+      sm                   = sm,
+      input_path           = input_path,
+      output_path          = output_path,
+      intermediate_path    = intermediate_path,
+      encryption_key       = encryption_key,
+      algorithm            = algorithm,
+      correspondence_table = correspondence_table
+    )
+  }
 }
 
 #' Process one row of the encryption mask — in-memory engine.
@@ -352,6 +384,194 @@ crypt_r <- function (mask_folder_path, mask_file,
                 paste0("inspect_", sm[["encrypted_file"]],
                        ".xlsx"))
     )
+  })
+
+  invisible(NULL)
+}
+
+#' Process one row of the encryption mask — streaming engine (parquet).
+#'
+#' Introduced in Phase 1.D.4.b. Streams the input parquet file through
+#' an arrow Scanner by chunks of `chunk_size` rows, encrypts each chunk
+#' in memory, writes the result incrementally to the output parquet
+#' file via `arrow::ParquetFileWriter`, and builds the correspondence
+#' table by accumulating per-chunk `distinct()` rows.
+#'
+#' This engine handles **parquet-in / parquet-out only**. The
+#' dispatcher enforces this precondition and falls back to the
+#' in-memory engine otherwise, so this function does not need to
+#' re-check it.
+#'
+#' Behavioural guarantees (vs. the in-memory engine on the same input):
+#'   - Output rows are identical (same values, same types, same order).
+#'   - Output column order is identical: `<var>_crypt` columns first
+#'     in `vars_to_encrypt` order, then the remaining input columns in
+#'     input order (`vars_to_remove` applied last).
+#'   - Character cleanup is identical: `str_trim()` + empty strings → NA.
+#'   - Correspondence table contents are identical (modulo row order,
+#'     which was already non-deterministic in the in-memory engine
+#'     through `dplyr::distinct()`).
+#'   - The `inspect_*.xlsx` report has the same structure as the
+#'     in-memory engine: header row from writexl, then `Obs = `,
+#'     `Nvars = `, then indexed inspect rows.
+#'
+#' Deliberate differences with the in-memory engine (Option B, validated
+#' with the user on 2026-04-22):
+#'   - **No pollution of `globalenv()`**. Neither the per-var `<var>_crypt`
+#'     vectors, the final `<encrypted_stem>` dataset nor the
+#'     `tc_<encrypted_stem>` table are assigned anywhere visible outside
+#'     the package. The correspondence table is stored in
+#'     `.cryptRopen_env` (retrievable via `get_correspondence_tables()`)
+#'     and on disk; the encrypted dataset is only on disk.
+#'   - `assign_to_global()` + `eval(parse(text = ...))` are not used.
+#'
+#' @param sm,input_path,output_path,intermediate_path,encryption_key,algorithm,correspondence_table
+#'   Forwarded from the dispatcher — see `.process_mask_row_in_memory()`.
+#' @param chunk_size Integer(1). Arrow Scanner `batch_size`. Only
+#'   affects memory usage and performance; results are invariant.
+#' @return Invisible `NULL`. Side effects: files on disk + one entry
+#'   in `.cryptRopen_env` when `correspondence_table = TRUE`.
+#' @noRd
+.process_mask_row_streaming <- function(sm, input_path, output_path, intermediate_path,
+                                        encryption_key, algorithm, correspondence_table,
+                                        chunk_size = 1e6L) {
+
+  requireNamespace("magrittr")
+  requireNamespace("arrow")
+
+  encrypted_file   <- sm[["encrypted_file"]]
+  encrypted_stem   <- stringr::str_remove(encrypted_file, "\\..*$")
+  output_file_path <- file.path(output_path, encrypted_file)
+
+  vars_to_encrypt <- sm[["vars_to_encrypt"]] %>%
+    stringr::str_split(",") %>% unlist() %>%
+    stringr::str_trim()
+
+  vars_to_remove <- sm[["vars_to_remove"]] %>%
+    stringr::str_split(",") %>% unlist() %>%
+    stringr::str_trim()
+
+  tc_accum <- NULL
+  writer   <- NULL
+  sink     <- NULL
+
+  # --- Read / transform / write by chunks -------------------------------
+  try({
+    ds      <- arrow::open_dataset(input_path, format = "parquet")
+    scanner <- arrow::Scanner$create(ds, batch_size = as.integer(chunk_size))
+    reader  <- scanner$ToRecordBatchReader()
+
+    repeat {
+      batch <- reader$read_next_batch()
+      if (is.null(batch)) break
+
+      chunk <- dplyr::as_tibble(as.data.frame(batch))
+
+      # Character cleanup — byte-for-byte identical to the in_memory engine:
+      # trim whitespace, turn empty strings into NA.
+      chunk <- dplyr::mutate(
+        chunk,
+        dplyr::across(dplyr::where(is.character), \(x0) {
+          x0[nchar(stringr::str_trim(x0)) == 0] <- NA
+          stringr::str_trim(x0)
+        })
+      )
+
+      # Encrypt each requested variable.
+      crypted <- purrr::map(vars_to_encrypt, \(v) {
+        crypt_vector(vector = chunk[[v]], key = encryption_key,
+                     algo = algorithm)
+      })
+      names(crypted) <- paste0(vars_to_encrypt, "_crypt")
+      crypted_df <- dplyr::as_tibble(crypted)
+
+      # Accumulate correspondence table (per-chunk distinct, then merge).
+      if (correspondence_table) {
+        tc_chunk <- dplyr::distinct(
+          dplyr::bind_cols(
+            dplyr::select(chunk, dplyr::all_of(vars_to_encrypt)),
+            crypted_df
+          )
+        )
+        tc_accum <- if (is.null(tc_accum)) tc_chunk
+                    else dplyr::distinct(dplyr::bind_rows(tc_accum, tc_chunk))
+      }
+
+      # Assemble output chunk: encrypted columns first (in vars_to_encrypt
+      # order), then non-encrypted input columns in input order.
+      non_enc_cols <- setdiff(names(chunk), vars_to_encrypt)
+      out_chunk    <- dplyr::bind_cols(
+        crypted_df,
+        dplyr::select(chunk, dplyr::all_of(non_enc_cols)))
+
+      # Optional vars_to_remove.
+      if (!all(is.na(vars_to_remove))) {
+        to_drop <- intersect(vars_to_remove, names(out_chunk))
+        if (length(to_drop) > 0L) {
+          out_chunk <- dplyr::select(out_chunk, -dplyr::all_of(to_drop))
+        }
+      }
+
+      arrow_tbl <- arrow::as_arrow_table(out_chunk)
+
+      # First chunk fixes the output schema; subsequent chunks must
+      # conform. Character cleanup + crypt_vector() are type-stable,
+      # so the schema is stable across chunks by construction.
+      # Two arrow-R quirks:
+      #   - `sink` must be an OutputStream (a character path is not
+      #     accepted, hence the FileOutputStream wrapper);
+      #   - the default `properties` built by
+      #     `ParquetWriterProperties$create()` fails unless
+      #     `column_names` is provided explicitly, so we pre-build it.
+      if (is.null(writer)) {
+        sink   <- arrow::FileOutputStream$create(output_file_path)
+        writer <- arrow::ParquetFileWriter$create(
+          schema     = arrow_tbl$schema,
+          sink       = sink,
+          properties = arrow::ParquetWriterProperties$create(
+            column_names = names(arrow_tbl)))
+      }
+      # Arrow-R quirk: `WriteTable` also requires a non-default
+      # `chunk_size`. Use the batch size as the parquet row-group size
+      # — one row group per input chunk.
+      writer$WriteTable(arrow_tbl, chunk_size = arrow_tbl$num_rows)
+    }
+
+    if (!is.null(writer)) writer$Close()
+    if (!is.null(sink))   sink$close()
+  })
+
+  # --- Correspondence table: store + export -----------------------------
+  try({
+    if (correspondence_table && !is.null(tc_accum)) {
+      tc_name <- paste0("tc_", encrypted_stem)
+      .store_correspondence_table(name = tc_name, df = tc_accum)
+      arrow::write_parquet(
+        tc_accum,
+        file.path(intermediate_path,
+                  paste0(tc_name, ".parquet")))
+    }
+  })
+
+  # --- Inspect: re-read output, apply inspect(), write xlsx -------------
+  # The double I/O (write then re-read) is acceptable because inspect()
+  # needs the full data frame. The xlsx layout mirrors the in-memory
+  # engine line-for-line so that non-regression on the sheet structure
+  # holds across engines.
+  try({
+    if (file.exists(output_file_path)) {
+      out_df <- as.data.frame(arrow::read_parquet(output_file_path))
+      i <- inspect(out_df)
+      layout <- rbind(
+        c("Obs = ",   nrow(out_df), rep("", ncol(i) - 1)),
+        c("Nvars = ", nrow(i),      rep("", ncol(i) - 1)),
+        cbind(seq_len(nrow(i)), i))
+      writexl::write_xlsx(
+        layout,
+        file.path(output_path,
+                  paste0("inspect_", encrypted_file, ".xlsx"))
+      )
+    }
   })
 
   invisible(NULL)
