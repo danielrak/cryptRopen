@@ -200,3 +200,155 @@ test_that("a failed task surfaces via status, never as an exception from wait", 
   expect_equal(as.character(st$state[st$encrypted_file == "bad"]), "failed")
   expect_match(st$error_message[st$encrypted_file == "bad"], "explicit failure")
 })
+
+
+# ---------------------------------------------------------------------------
+# Phase 2.A — enriched status (metrics columns), summary method, print with
+# workers count. These tests exercise the new API surface on ad-hoc mirai
+# tasks; the engines' metrics contract is covered separately via
+# test-cryptR_log.R + test-crypt_r_async.R.
+
+test_that("cryptR_status() has the 7-column metric-enriched schema", {
+  # Empty-mask job: the schema must match the non-empty case column-wise
+  # so downstream code that rbinds two snapshots doesn't break.
+  empty_job <- cryptRopen:::.new_cryptR_job(
+    tasks             = list(),
+    mask_rows         = data.frame(encrypted_file = character(0),
+                                   stringsAsFactors = FALSE),
+    output_path       = "/tmp/out",
+    intermediate_path = "/tmp/int"
+  )
+  st_empty <- cryptR_status(empty_job)
+  expect_named(
+    st_empty,
+    c("encrypted_file", "state", "error_message",
+      "start_time", "end_time", "duration_sec", "n_rows_processed")
+  )
+  expect_s3_class(st_empty$start_time, "POSIXct")
+  expect_s3_class(st_empty$end_time,   "POSIXct")
+  expect_type(st_empty$duration_sec,     "double")
+  expect_type(st_empty$n_rows_processed, "integer")
+})
+
+
+test_that("cryptR_status() returns NA metrics for running/failed/ad-hoc tasks", {
+  skip_if_not_installed("mirai")
+
+  t_done <- m_done(99L)          # ad-hoc — no .make_row_result payload
+  t_fail <- m_fail("boom")
+  t_run  <- m_running(3)
+  mirai::call_mirai(t_done)
+  mirai::call_mirai(t_fail)
+
+  job <- make_job(list(done_task = t_done,
+                       fail_task = t_fail,
+                       run_task  = t_run))
+  st <- cryptR_status(job)
+
+  # All rows: metrics expected NA because none of these tasks carry a
+  # .make_row_result payload. This documents the contract: metrics are
+  # only populated for tasks that resolved with an engine-shaped list.
+  expect_true(all(is.na(st$duration_sec)))
+  expect_true(all(is.na(st$n_rows_processed)))
+  expect_true(all(is.na(st$start_time)))
+  expect_true(all(is.na(st$end_time)))
+})
+
+
+test_that("cryptR_status() populates metrics from .make_row_result payload", {
+  skip_if_not_installed("mirai")
+
+  # Simulate an engine-shaped payload by making the mirai return a
+  # hand-built .make_row_result(). We build the list in the parent and
+  # ship it by value so we don't need .make_row_result visible inside
+  # the daemon (no cryptRopen installation required for this test).
+  t_start <- as.POSIXct("2026-04-23 10:00:00", tz = "UTC")
+  t_end   <- as.POSIXct("2026-04-23 10:00:05", tz = "UTC")
+  fake_payload <- list(
+    success        = TRUE,
+    error_message  = NA_character_,
+    tc_name        = NA_character_,
+    tc_df          = NULL,
+    metrics = list(
+      start_time             = t_start,
+      end_time               = t_end,
+      duration_sec           = 5,
+      n_rows_processed       = 1234L,
+      output_file_size_bytes = NA_real_,
+      output_file_sha256     = NA_character_
+    )
+  )
+  t_with_payload <- mirai::mirai(p, p = fake_payload)
+  mirai::call_mirai(t_with_payload)
+
+  job <- make_job(list(engine_task = t_with_payload))
+  st  <- cryptR_status(job)
+
+  expect_equal(as.character(st$state), "done")
+  expect_equal(st$duration_sec,     5)
+  expect_equal(st$n_rows_processed, 1234L)
+  expect_s3_class(st$start_time, "POSIXct")
+  expect_s3_class(st$end_time,   "POSIXct")
+  expect_equal(format(st$start_time, "%Y-%m-%d %H:%M:%S", tz = "UTC"),
+               "2026-04-23 10:00:00")
+})
+
+
+test_that("summary.cryptR_job() returns a populated dashboard object", {
+  skip_if_not_installed("mirai")
+
+  t1 <- m_done(1L)
+  t2 <- m_fail("x")
+  mirai::call_mirai(t1)
+  mirai::call_mirai(t2)
+
+  job <- make_job(list(a = t1, b = t2))
+  s   <- summary(job)
+
+  expect_s3_class(s, "summary.cryptR_job")
+  expect_named(s, c("n_tasks", "counts", "elapsed_sec", "n_workers",
+                    "total_rows", "output_path", "log_written", "status"))
+  expect_equal(s$n_tasks, 2L)
+  expect_equal(s$counts[["done"]],   1L)
+  expect_equal(s$counts[["failed"]], 1L)
+  expect_equal(s$counts[["running"]], 0L)
+  expect_gte(s$elapsed_sec, 0)
+  # n_workers: must be an integer(1) or NA.
+  expect_true(length(s$n_workers) == 1L)
+  # Status embedded: same column set as direct cryptR_status() call.
+  expect_named(
+    s$status,
+    c("encrypted_file", "state", "error_message",
+      "start_time", "end_time", "duration_sec", "n_rows_processed")
+  )
+})
+
+
+test_that("print.summary.cryptR_job() emits the expected labels", {
+  skip_if_not_installed("mirai")
+
+  t1 <- m_done(1L)
+  mirai::call_mirai(t1)
+  job <- make_job(list(one = t1))
+
+  out <- capture.output(print(summary(job)))
+  # Structural keywords — no regex on R base messages.
+  expect_true(any(grepl("cryptR_job summary", out)))
+  expect_true(any(grepl("tasks",       out)))
+  expect_true(any(grepl("workers",     out)))
+  expect_true(any(grepl("elapsed",     out)))
+  expect_true(any(grepl("rows total",  out)))
+  expect_true(any(grepl("output_path", out)))
+})
+
+
+test_that("print.cryptR_job() shows a workers line", {
+  skip_if_not_installed("mirai")
+
+  t1 <- m_done(1L)
+  mirai::call_mirai(t1)
+  job <- make_job(list(one = t1))
+  out <- capture.output(print(job))
+
+  expect_true(any(grepl("workers", out)))
+})
