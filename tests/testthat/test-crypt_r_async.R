@@ -371,18 +371,148 @@ test_that("after collect, correspondence tables are available via get_correspond
     n_workers = 1L)
   out <- cryptR_collect(job, timeout = 30)
 
-  # The TC is populated inside the *daemon*, not in this R process, so
-  # only an installed package can round-trip it back into
-  # `.cryptRopen_env` — via the daemon's own copy of cryptRopen. In
-  # dev mode the preflight would have skipped above, so reaching here
-  # means the daemon sees a real installed cryptRopen; its
-  # `.cryptRopen_env` is distinct from the caller's, hence the TC is
-  # NOT readable via `get_correspondence_tables()` in the parent.
-  #
-  # The disk parquet, however, is authoritative — it is what downstream
-  # users load. Assert it exists and is valid.
+  # Phase 1.D.6.c: the worker now returns `tc_df` inside its typed
+  # result (`.make_row_result()`), and `cryptR_collect()` re-injects it
+  # into the parent's `.cryptRopen_env` via
+  # `.reinject_correspondence_tables()`. So `get_correspondence_tables()`
+  # in the parent should see the TC even though the daemon populated a
+  # different env.
+  tcs <- cryptRopen::get_correspondence_tables()
+  expect_true("tc_persons_crypt" %in% names(tcs))
+  expect_true(all(c("id", "id_crypt") %in% names(tcs$tc_persons_crypt)))
+
+  # The disk parquet remains authoritative and must match.
   tc_path <- file.path(dirs$int, "tc_persons_crypt.parquet")
   expect_true(file.exists(tc_path))
-  tc <- as.data.frame(arrow::read_parquet(tc_path))
-  expect_true(all(c("id", "id_crypt") %in% names(tc)))
+  tc_disk <- as.data.frame(arrow::read_parquet(tc_path))
+  expect_setequal(tc_disk$id, tcs$tc_persons_crypt$id)
+})
+
+
+# ---- Recap log xlsx ----------------------------------------------------
+
+test_that("cryptR_collect() writes a log_crypt_r_<ts>.xlsx under output_path", {
+  skip_if_async_unavailable()
+  skip_if_not_installed("readxl")
+
+  dirs <- setup_dirs_async()
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  write_simple_csv(file.path(dirs$inp, "persons.csv"), n = 3L)
+  mk <- write_mask_xlsx(dirs, mask_row_async(
+    folder_path = dirs$inp, file = "persons.csv",
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+
+  job <- crypt_r(
+    mask_folder_path  = mk$folder, mask_file = mk$file,
+    output_path       = dirs$out,  intermediate_path = dirs$int,
+    encryption_key    = "k", algorithm = "md5",
+    correspondence_table = TRUE, engine = "in_memory",
+    n_workers = 1L)
+  out <- cryptR_collect(job, timeout = 30)
+
+  logs <- list.files(dirs$out, pattern = "^log_crypt_r_.*\\.xlsx$")
+  expect_length(logs, 1L)
+
+  # The log has the mask row + per-row metrics columns.
+  df <- readxl::read_xlsx(file.path(dirs$out, logs[[1]]))
+  expect_true("encrypted_file" %in% names(df))
+  expect_true(all(c("success", "error_message", "start_time",
+                    "end_time", "duration_sec", "n_rows_processed",
+                    "output_file_size_bytes", "output_file_sha256")
+                  %in% names(df)))
+  expect_equal(nrow(df), 1L)
+  expect_true(df$success[1])
+})
+
+
+test_that("a second cryptR_collect() on the same job does NOT write a second log", {
+  skip_if_async_unavailable()
+  skip_if_not_installed("readxl")
+
+  dirs <- setup_dirs_async()
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  write_simple_csv(file.path(dirs$inp, "persons.csv"), n = 2L)
+  mk <- write_mask_xlsx(dirs, mask_row_async(
+    folder_path = dirs$inp, file = "persons.csv",
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+
+  job <- crypt_r(
+    mask_folder_path  = mk$folder, mask_file = mk$file,
+    output_path       = dirs$out,  intermediate_path = dirs$int,
+    encryption_key    = "k", algorithm = "md5",
+    correspondence_table = TRUE, engine = "in_memory",
+    n_workers = 1L)
+  out1 <- cryptR_collect(job, timeout = 30)
+  # A second collect call passes the already-updated job (log_written = TRUE)
+  # AND even a third call on the original raw job would hit the
+  # `.log_already_written()` guard. Cover both paths.
+  out2 <- cryptR_collect(out1, timeout = 5)
+  out3 <- cryptR_collect(job,  timeout = 5)
+
+  logs <- list.files(dirs$out, pattern = "^log_crypt_r_.*\\.xlsx$")
+  expect_length(logs, 1L)
+})
+
+
+# ---- Auto watcher ------------------------------------------------------
+
+test_that("auto watcher writes the log without a manual cryptR_collect() after later::run_now()", {
+  skip_if_async_unavailable()
+  skip_if_not_installed("later")
+  skip_if_not_installed("readxl")
+
+  dirs <- setup_dirs_async()
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  write_simple_csv(file.path(dirs$inp, "persons.csv"), n = 2L)
+  mk <- write_mask_xlsx(dirs, mask_row_async(
+    folder_path = dirs$inp, file = "persons.csv",
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+
+  job <- crypt_r(
+    mask_folder_path  = mk$folder, mask_file = mk$file,
+    output_path       = dirs$out,  intermediate_path = dirs$int,
+    encryption_key    = "k", algorithm = "md5",
+    correspondence_table = TRUE, engine = "in_memory",
+    n_workers = 1L)
+
+  # The watcher slot is set by .start_watcher() when later is available.
+  expect_true(isTRUE(job$watcher))
+
+  # Wait for tasks — watcher callback has not fired yet (no run_now).
+  cryptR_wait(job, timeout = 30)
+  # Manually pump the later queue until the watcher finalises the job
+  # (the watcher reschedules itself on every tick where tasks are still
+  # running; here they are all done, so the first tick should finalize).
+  deadline <- Sys.time() + 10
+  while (Sys.time() < deadline) {
+    later::run_now()
+    logs <- list.files(dirs$out, pattern = "^log_crypt_r_.*\\.xlsx$")
+    if (length(logs) == 1L) break
+    Sys.sleep(0.2)
+  }
+
+  logs <- list.files(dirs$out, pattern = "^log_crypt_r_.*\\.xlsx$")
+  expect_length(logs, 1L)
+
+  # A manual collect afterwards must NOT add a second log file.
+  out <- cryptR_collect(job, timeout = 5)
+  logs2 <- list.files(dirs$out, pattern = "^log_crypt_r_.*\\.xlsx$")
+  expect_length(logs2, 1L)
+
+  # Ensure no daemons still lingering (watcher tears them down if owned).
+  if (isTRUE(out$daemons_owned_by_job)) {
+    try(mirai::daemons(0), silent = TRUE)
+  }
 })

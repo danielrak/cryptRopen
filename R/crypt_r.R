@@ -109,14 +109,17 @@ crypt_r <- function (mask_folder_path, mask_file,
   n_rows <- nrow(mask)
 
   # Empty mask: nothing to do. Return a trivial cryptR_job so the caller
-  # can still introspect / collect uniformly.
+  # can still introspect / collect uniformly. The watcher short-circuits
+  # to an immediate finalize on empty-mask jobs (an empty xlsx log is
+  # still produced for uniformity).
   if (n_rows == 0L) {
-    return(.new_cryptR_job(
+    job <- .new_cryptR_job(
       tasks                = list(),
       mask_rows            = mask,
       output_path          = output_path,
       intermediate_path    = intermediate_path,
-      daemons_owned_by_job = FALSE))
+      daemons_owned_by_job = FALSE)
+    return(.start_watcher(job))
   }
 
   # --- n_workers resolution --------------------------------------------
@@ -187,12 +190,110 @@ crypt_r <- function (mask_folder_path, mask_file,
 
   names(tasks) <- as.character(mask$encrypted_file)
 
-  .new_cryptR_job(
+  job <- .new_cryptR_job(
     tasks                = tasks,
     mask_rows            = mask,
     output_path          = output_path,
     intermediate_path    = intermediate_path,
     daemons_owned_by_job = daemons_owned_by_job)
+
+  # Phase 1.D.6.c: register the auto-watcher so the recap xlsx log is
+  # written as soon as the last mirai task resolves, without the user
+  # having to call cryptR_collect() manually. Idempotent wrt a manual
+  # collect — see R/cryptR_watcher.R + `.log_already_written()`.
+  .start_watcher(job)
+}
+
+#' Build the typed per-row result list returned by the engines.
+#'
+#' Introduced in Phase 1.D.6.c. The three engines
+#' (`.process_mask_row_in_memory()`, `.process_mask_row_streaming()`,
+#' `.process_mask_row_csv_streaming()`) previously returned
+#' `invisible(NULL)` and communicated results only through disk side
+#' effects (+ `.cryptRopen_env` stored TC). That was sufficient for the
+#' in-process use (tests calling the engine directly on the same R
+#' session), but when a worker runs inside a `mirai` daemon its private
+#' env is unreachable from the client; the recap log also needs
+#' per-row metrics that are only cheap to compute inside the worker.
+#'
+#' The engines now assemble a structured list via this helper; the
+#' mirai dispatcher ships it back to the parent as `task$data`, which
+#' `cryptR_collect()` consumes to (a) re-populate `.cryptRopen_env`
+#' with the correspondence tables captured inside the workers and
+#' (b) write the `log_crypt_r_<timestamp>.xlsx` recap.
+#'
+#' Disk outputs and `.cryptRopen_env` side effects are *unchanged* —
+#' this helper only packages additional metadata for the parent. Tests
+#' that exercise the engines directly still pass because they read
+#' from disk or `get_correspondence_tables()`, not from the return
+#' value.
+#'
+#' @param success Logical(1).
+#' @param error_message Character(1) or `NA_character_` when `success`
+#'   is `TRUE`. If multiple blocks failed, messages are concatenated
+#'   with `" | "`.
+#' @param tc_name Character(1) — e.g. `"tc_persons_crypt"` — or
+#'   `NA_character_` when `correspondence_table = FALSE` or when
+#'   nothing was produced.
+#' @param tc_df A tibble or `NULL`. Byte-identical to what was written
+#'   to `intermediate_path/tc_<stem>.parquet`.
+#' @param start_time,end_time POSIXct(1). `start_time` is captured
+#'   before the first I/O; `end_time` after the last I/O attempt
+#'   (including inspect xlsx).
+#' @param n_rows_processed Integer(1) or `NA_integer_`. Rows in the
+#'   final encrypted dataset (not counting the header).
+#' @param output_file_path Character(1). Full path to the encrypted
+#'   dataset on disk. Used to compute size / sha256 if the file
+#'   exists.
+#' @return A list with fields `success`, `error_message`, `tc_name`,
+#'   `tc_df`, `metrics`. `metrics` is itself a list with `start_time`,
+#'   `end_time`, `duration_sec`, `n_rows_processed`,
+#'   `output_file_size_bytes`, `output_file_sha256`.
+#' @noRd
+.make_row_result <- function(success,
+                             error_message,
+                             tc_name,
+                             tc_df,
+                             start_time,
+                             end_time,
+                             n_rows_processed,
+                             output_file_path) {
+
+  size_bytes <- NA_real_
+  sha256     <- NA_character_
+  if (is.character(output_file_path) &&
+      length(output_file_path) == 1L &&
+      !is.na(output_file_path) &&
+      file.exists(output_file_path)) {
+    size_bytes <- tryCatch(
+      as.numeric(file.info(output_file_path)$size),
+      error = function(e) NA_real_)
+    sha256 <- tryCatch(
+      digest::digest(file = output_file_path, algo = "sha256"),
+      error = function(e) NA_character_)
+  }
+
+  duration_sec <- tryCatch(
+    as.numeric(difftime(end_time, start_time, units = "secs")),
+    error = function(e) NA_real_)
+
+  list(
+    success        = isTRUE(success),
+    error_message  = if (is.null(error_message)) NA_character_
+                     else as.character(error_message),
+    tc_name        = if (is.null(tc_name)) NA_character_
+                     else as.character(tc_name),
+    tc_df          = tc_df,
+    metrics = list(
+      start_time             = start_time,
+      end_time               = end_time,
+      duration_sec           = duration_sec,
+      n_rows_processed       = if (is.null(n_rows_processed)) NA_integer_
+                               else as.integer(n_rows_processed),
+      output_file_size_bytes = size_bytes,
+      output_file_sha256     = sha256
+    )
+  )
 }
 
 #' Does the given path have a `.parquet` extension?
@@ -254,7 +355,11 @@ crypt_r <- function (mask_folder_path, mask_file,
 #'   routing rules above.
 #' @param chunk_size Integer. Forwarded to the streaming engines only;
 #'   ignored by in_memory.
-#' @return Invisible `NULL`.
+#' @return Invisible list from the selected engine — see
+#'   `.make_row_result()`. Before Phase 1.D.6.c this was
+#'   `invisible(NULL)`; callers who discarded the return value (most
+#'   unit tests, the AST-patched baseline `cases.R`) continue to work
+#'   unchanged.
 #' @noRd
 .process_mask_row <- function(sm, input_path, output_path, intermediate_path,
                               encryption_key, algorithm, correspondence_table,
@@ -351,17 +456,23 @@ crypt_r <- function (mask_folder_path, mask_file,
 #' @param output_path,intermediate_path Directories where outputs are written.
 #' @param encryption_key,algorithm,correspondence_table Forwarded from
 #'   `crypt_r()`.
-#' @return Invisible `NULL`. Outputs are side effects: files on disk
-#'   and, when `correspondence_table = TRUE`, one entry in
-#'   `.cryptRopen_env`. No more `globalenv()` pollution since 1.D.6.b.
+#' @return Invisible list with `success`, `error_message`, `tc_name`,
+#'   `tc_df`, `metrics` (see `.make_row_result()`). Outputs on disk
+#'   and `.cryptRopen_env` side effects are unchanged since
+#'   Phase 1.D.6.b / 1.D.6.c — the return value is additive, for the
+#'   mirai dispatcher to ship results back to `cryptR_collect()`.
+#'   Before 1.D.6.c this function returned `invisible(NULL)`; the new
+#'   payload is ignored by tests that call the engine for its side
+#'   effects only.
 #' @noRd
 .process_mask_row_in_memory <- function(sm, input_path, output_path, intermediate_path,
                                         encryption_key, algorithm, correspondence_table) {
 
   requireNamespace("magrittr")
 
-  encrypted_file <- sm[["encrypted_file"]]
-  encrypted_stem <- stringr::str_remove(encrypted_file, "\\..*$")
+  encrypted_file      <- sm[["encrypted_file"]]
+  encrypted_stem      <- stringr::str_remove(encrypted_file, "\\..*$")
+  encrypted_file_path <- file.path(output_path, encrypted_file)
 
   vars_to_encrypt <- sm[["vars_to_encrypt"]] %>%
     stringr::str_split(",") %>% unlist() %>%
@@ -374,11 +485,23 @@ crypt_r <- function (mask_folder_path, mask_file,
   # Holds the final in-memory dataset (post-assemble, post-drop) so the
   # export and inspect blocks below can re-use it without reading the
   # output file back. Stays NULL if the import / transform block errors —
-  # the downstream try() blocks then short-circuit cleanly.
+  # the downstream blocks then short-circuit cleanly.
   assembled_df <- NULL
+  tc_name      <- NA_character_
+  tc_df        <- NULL
+
+  # Error capture mirrors the historical 3 × try() structure: each
+  # block is independent so a failed inspect never masks a successful
+  # export. Pre-1.D.6.c we used `try()` and discarded messages silently;
+  # now we accumulate them so the recap log in `cryptR_collect()` can
+  # report what went wrong per row.
+  start_time         <- Sys.time()
+  errs               <- character(0)
+  transform_exported <- FALSE
+  export_ok          <- FALSE
 
   # --- Import, clean, encrypt, assemble --------------------------------
-  try({
+  tryCatch({
     # Import + character cleanup (empty → NA, trim).
     raw_df <- rio::import(input_path, trust = TRUE) %>%
       dplyr::mutate_if(is.character, \(x0) {
@@ -406,15 +529,30 @@ crypt_r <- function (mask_folder_path, mask_file,
     # Correspondence table — stored in the package-private env AND on disk.
     # `rio::export()` is deliberately kept (not `arrow::write_parquet()`)
     # so the TC parquet stays byte-identical to the pre-refactor baseline.
+    # In a mirai daemon the `.cryptRopen_env` populated here is not
+    # visible to the parent process; `cryptR_collect()` re-injects
+    # `tc_df` (ships back in the return list) into the parent's env.
     if (correspondence_table) {
-      tc_name <- paste0("tc_", encrypted_stem)
-      tc_df   <- dplyr::select(full_df, dplyr::all_of(vars_to_encrypt)) %>%
+      tc_name_local <- paste0("tc_", encrypted_stem)
+      tc_df_local   <- dplyr::select(full_df, dplyr::all_of(vars_to_encrypt)) %>%
         dplyr::bind_cols(crypted_df) %>%
         dplyr::distinct()
-      .store_correspondence_table(name = tc_name, df = tc_df)
+      .store_correspondence_table(name = tc_name_local, df = tc_df_local)
       rio::export(
-        tc_df,
-        file.path(intermediate_path, paste0(tc_name, ".parquet")))
+        tc_df_local,
+        file.path(intermediate_path, paste0(tc_name_local, ".parquet")))
+      # Only publish to the enclosing function frame once the disk write
+      # succeeded, so a half-written TC does not leak into the return
+      # value. NB. plain `<-` is load-bearing here: the `tryCatch` body
+      # evaluates via `eval(expr, parent.frame())` — i.e. in *this*
+      # function's frame — so `<-` modifies the local binding. `<<-`
+      # would walk past this frame up the lexical scope and silently
+      # create bindings in globalenv(), leaving `tc_name` and `tc_df`
+      # here at their initial NA / NULL. Same rule applies below for
+      # `assembled_df` and the `*_ok` flags in every block of every
+      # engine; error handlers (true closures) keep `<<-`.
+      tc_name <- tc_name_local
+      tc_df   <- tc_df_local
     }
 
     # Drop the original unencrypted columns, then user-specified removes.
@@ -423,19 +561,24 @@ crypt_r <- function (mask_folder_path, mask_file,
       full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_remove))
     }
 
-    assembled_df <- full_df
+    assembled_df       <- full_df
+    transform_exported <- TRUE
+  }, error = function(e) {
+    errs <<- c(errs, paste0("transform: ", conditionMessage(e)))
   })
 
   # --- Export final output ---------------------------------------------
-  try({
+  tryCatch({
     if (!is.null(assembled_df)) {
-      rio::export(assembled_df,
-                  file.path(output_path, encrypted_file))
+      rio::export(assembled_df, encrypted_file_path)
+      export_ok <- TRUE
     }
+  }, error = function(e) {
+    errs <<- c(errs, paste0("export: ", conditionMessage(e)))
   })
 
   # --- Inspect final output --------------------------------------------
-  try({
+  tryCatch({
     if (!is.null(assembled_df)) {
       g <- assembled_df
       i <- inspect(g)
@@ -451,9 +594,24 @@ crypt_r <- function (mask_folder_path, mask_file,
         file.path(output_path,
                   paste0("inspect_", encrypted_file, ".xlsx")))
     }
+  }, error = function(e) {
+    errs <<- c(errs, paste0("inspect: ", conditionMessage(e)))
   })
 
-  invisible(NULL)
+  end_time <- Sys.time()
+  success  <- transform_exported && export_ok
+
+  invisible(.make_row_result(
+    success          = success,
+    error_message    = if (length(errs) == 0L) NA_character_
+                       else paste(errs, collapse = " | "),
+    tc_name          = tc_name,
+    tc_df            = tc_df,
+    start_time       = start_time,
+    end_time         = end_time,
+    n_rows_processed = if (!is.null(assembled_df)) nrow(assembled_df)
+                       else NA_integer_,
+    output_file_path = encrypted_file_path))
 }
 
 #' Transform a single stream chunk: cleanup + crypt + column assembly.
@@ -649,8 +807,9 @@ crypt_r <- function (mask_folder_path, mask_file,
 #'   Forwarded from the dispatcher — see `.process_mask_row_in_memory()`.
 #' @param chunk_size Integer(1). Arrow Scanner `batch_size`. Only
 #'   affects memory usage and performance; results are invariant.
-#' @return Invisible `NULL`. Side effects: files on disk + one entry
-#'   in `.cryptRopen_env` when `correspondence_table = TRUE`.
+#' @return Invisible list (see `.make_row_result()`). Disk side
+#'   effects + `.cryptRopen_env` population unchanged; return value
+#'   added in Phase 1.D.6.c for the mirai collect path.
 #' @noRd
 .process_mask_row_streaming <- function(sm, input_path, output_path, intermediate_path,
                                         encryption_key, algorithm, correspondence_table,
@@ -671,12 +830,16 @@ crypt_r <- function (mask_folder_path, mask_file,
     stringr::str_split(",") %>% unlist() %>%
     stringr::str_trim()
 
-  tc_accum <- NULL
-  writer   <- NULL
-  sink     <- NULL
+  tc_accum     <- NULL
+  writer       <- NULL
+  sink         <- NULL
+  n_rows_accum <- 0L
+  start_time   <- Sys.time()
+  errs         <- character(0)
+  stream_ok    <- FALSE
 
   # --- Read / transform / write by chunks -------------------------------
-  try({
+  tryCatch({
     ds      <- arrow::open_dataset(input_path, format = "parquet")
     scanner <- arrow::Scanner$create(ds, batch_size = as.integer(chunk_size))
     reader  <- scanner$ToRecordBatchReader()
@@ -700,6 +863,7 @@ crypt_r <- function (mask_folder_path, mask_file,
       }
 
       arrow_tbl <- arrow::as_arrow_table(tf$out_chunk)
+      n_rows_accum <- n_rows_accum + nrow(tf$out_chunk)
 
       # First chunk fixes the output schema; subsequent chunks must
       # conform. Character cleanup + crypt_vector() are type-stable,
@@ -724,20 +888,46 @@ crypt_r <- function (mask_folder_path, mask_file,
 
     if (!is.null(writer)) writer$Close()
     if (!is.null(sink))   sink$close()
+    # `<-` (not `<<-`) because the tryCatch body evaluates in this
+    # function's frame — see the long comment in the in_memory engine.
+    stream_ok <- TRUE
+  }, error = function(e) {
+    errs <<- c(errs, paste0("stream: ", conditionMessage(e)))
+    # Ensure writer/sink are closed on partial streams so the file is
+    # flushable; otherwise the partial output stays locked on Windows.
+    try(if (!is.null(writer)) writer$Close(), silent = TRUE)
+    try(if (!is.null(sink))   sink$close(),   silent = TRUE)
   })
 
   # --- Correspondence table (shared finaliser) --------------------------
-  try({
+  tryCatch({
     .finalize_stream_tc(tc_accum, intermediate_path, encrypted_stem,
                         correspondence_table)
+  }, error = function(e) {
+    errs <<- c(errs, paste0("tc_finalize: ", conditionMessage(e)))
   })
 
   # --- Inspect (shared; rio::import for type fidelity) ------------------
-  try({
+  tryCatch({
     .write_stream_inspect(output_file_path, output_path, encrypted_file)
+  }, error = function(e) {
+    errs <<- c(errs, paste0("inspect: ", conditionMessage(e)))
   })
 
-  invisible(NULL)
+  end_time <- Sys.time()
+  tc_name  <- if (correspondence_table && !is.null(tc_accum))
+                paste0("tc_", encrypted_stem) else NA_character_
+
+  invisible(.make_row_result(
+    success          = stream_ok && file.exists(output_file_path),
+    error_message    = if (length(errs) == 0L) NA_character_
+                       else paste(errs, collapse = " | "),
+    tc_name          = tc_name,
+    tc_df            = tc_accum,
+    start_time       = start_time,
+    end_time         = end_time,
+    n_rows_processed = if (n_rows_accum > 0L) n_rows_accum else NA_integer_,
+    output_file_path = output_file_path))
 }
 
 #' Process one row of the encryption mask — streaming engine (CSV).
@@ -768,7 +958,8 @@ crypt_r <- function (mask_folder_path, mask_file,
 #' `.cryptRopen_env` + on disk.
 #'
 #' @inheritParams .process_mask_row_streaming
-#' @return Invisible `NULL`.
+#' @return Invisible list (see `.make_row_result()`). Disk side
+#'   effects unchanged; typed return added in Phase 1.D.6.c.
 #' @noRd
 .process_mask_row_csv_streaming <- function(sm, input_path, output_path, intermediate_path,
                                             encryption_key, algorithm, correspondence_table,
@@ -789,11 +980,15 @@ crypt_r <- function (mask_folder_path, mask_file,
     stringr::str_split(",") %>% unlist() %>%
     stringr::str_trim()
 
-  tc_accum    <- NULL
-  first_chunk <- TRUE
+  tc_accum     <- NULL
+  first_chunk  <- TRUE
+  n_rows_accum <- 0L
+  start_time   <- Sys.time()
+  errs         <- character(0)
+  stream_ok    <- FALSE
 
   # --- Read / transform / write by chunks -------------------------------
-  try({
+  tryCatch({
     ds      <- arrow::open_csv_dataset(input_path)
     scanner <- arrow::Scanner$create(ds, batch_size = as.integer(chunk_size))
     reader  <- scanner$ToRecordBatchReader()
@@ -816,6 +1011,8 @@ crypt_r <- function (mask_folder_path, mask_file,
                     else dplyr::distinct(dplyr::bind_rows(tc_accum, tf$tc_chunk))
       }
 
+      n_rows_accum <- n_rows_accum + nrow(tf$out_chunk)
+
       # Append chunk to CSV output. First chunk writes the header and
       # creates the file; subsequent chunks append without header.
       utils::write.table(
@@ -829,18 +1026,40 @@ crypt_r <- function (mask_folder_path, mask_file,
         append    = !first_chunk)
       first_chunk <- FALSE
     }
+    # `<-` (not `<<-`) because the tryCatch body evaluates in this
+    # function's frame — see the long comment in the in_memory engine.
+    stream_ok <- TRUE
+  }, error = function(e) {
+    errs <<- c(errs, paste0("stream: ", conditionMessage(e)))
   })
 
   # --- Correspondence table (shared finaliser) --------------------------
-  try({
+  tryCatch({
     .finalize_stream_tc(tc_accum, intermediate_path, encrypted_stem,
                         correspondence_table)
+  }, error = function(e) {
+    errs <<- c(errs, paste0("tc_finalize: ", conditionMessage(e)))
   })
 
   # --- Inspect (shared; rio::import for type fidelity) ------------------
-  try({
+  tryCatch({
     .write_stream_inspect(output_file_path, output_path, encrypted_file)
+  }, error = function(e) {
+    errs <<- c(errs, paste0("inspect: ", conditionMessage(e)))
   })
 
-  invisible(NULL)
+  end_time <- Sys.time()
+  tc_name  <- if (correspondence_table && !is.null(tc_accum))
+                paste0("tc_", encrypted_stem) else NA_character_
+
+  invisible(.make_row_result(
+    success          = stream_ok && file.exists(output_file_path),
+    error_message    = if (length(errs) == 0L) NA_character_
+                       else paste(errs, collapse = " | "),
+    tc_name          = tc_name,
+    tc_df            = tc_accum,
+    start_time       = start_time,
+    end_time         = end_time,
+    n_rows_processed = if (n_rows_accum > 0L) n_rows_accum else NA_integer_,
+    output_file_path = output_file_path))
 }

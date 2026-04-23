@@ -10,6 +10,7 @@ Imports:
     arrow,
     digest,
     dplyr,
+    later,
     lubridate,
     magrittr,
     mirai (>= 1.0.0),
