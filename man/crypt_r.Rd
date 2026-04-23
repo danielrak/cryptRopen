@@ -11,7 +11,9 @@ crypt_r(
   intermediate_path,
   encryption_key,
   algorithm = "md5",
-  correspondence_table = TRUE
+  correspondence_table = TRUE,
+  engine = c("auto", "in_memory", "streaming"),
+  chunk_size = 1000000L
 )
 }
 \arguments{
@@ -32,6 +34,18 @@ From digest::digest()'s algo argument.}
 
 \item{correspondence_table}{Logical vector. If TRUE, the correspondence tables will computed
 and stored in the indicated intermediate_path.}
+
+\item{engine}{One of \code{"auto"}, \code{"in_memory"}, \code{"streaming"}.
+Selects the per-row processing engine. \code{"auto"} (default) picks
+\code{"streaming"} for \code{.parquet} / \code{.csv} inputs and \code{"in_memory"}
+for every other format. \code{"in_memory"} reads the full input into
+RAM (historical behaviour). \code{"streaming"} scans the input by
+chunks via arrow and writes progressively. Introduced in Phase
+1.D.4.a; the streaming engine itself lands in 1.D.4.b/c.}
+
+\item{chunk_size}{Integer. Number of rows per chunk when \code{engine}
+resolves to \code{"streaming"}. Ignored by \code{"in_memory"}. Default
+\code{1e6}.}
 }
 \description{
 This function consolidates a set of procedures

@@ -6,7 +6,7 @@ Authors@R:
 Description: This package provides a framework to encrypt variables from
     datasets. Variables to encrypt and datasets can be in any number.
 License: MIT + file LICENSE
-Imports: 
+Imports:
     digest,
     dplyr,
     job,
