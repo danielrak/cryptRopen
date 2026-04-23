@@ -28,8 +28,15 @@ skip_if_no_baseline <- function() {
   root
 }
 
-# Load case definitions once (shared with generate_baseline.R)
-source(testthat::test_path("..", "baseline", "cases.R"))
+# Load case definitions once (shared with generate_baseline.R).
+# Guarded: tests/baseline/ is excluded from the tarball via .Rbuildignore
+# (phase 2.C.2), so cases.R is absent under R CMD check. Every test_that()
+# below starts with `skip_if_no_baseline()`, which skips before touching
+# any symbol defined in cases.R — sourcing is safely opt-in.
+.cases_path <- testthat::test_path("..", "baseline", "cases.R")
+if (file.exists(.cases_path)) {
+  source(.cases_path)
+}
 
 
 # ---------------------------------------------------------------------------

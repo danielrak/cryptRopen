@@ -52,8 +52,17 @@
 #' @seealso [cryptR_status()], [cryptR_wait()], [cryptR_collect()],
 #'   [get_correspondence_tables()].
 #' @importFrom magrittr %>%
+#' @importFrom nanoparquet read_parquet
 #' @export
 #'
+# `nanoparquet` is a transitive runtime dependency: `rio::export()` and
+# `rio::import()` dispatch parquet I/O to it (the TC parquet in
+# `.process_mask_row_in_memory()`, the final dataset when output_format
+# is parquet, and any parquet input). Declared in DESCRIPTION Imports so
+# install pulls it in; `@importFrom` above satisfies R CMD check's
+# "Namespaces in Imports field not imported from" rule. We do not call
+# `nanoparquet::read_parquet()` directly — keeping `rio::export()` is
+# deliberate (baseline byte-identity, see in_memory engine).
 crypt_r <- function (mask_folder_path, mask_file,
                      output_path, intermediate_path,
                      encryption_key, algorithm = "md5",
@@ -198,17 +207,29 @@ crypt_r <- function (mask_folder_path, mask_file,
     sm_i         <- mask[i, , drop = FALSE]
     input_path_i <- input_paths[[i]]
 
+    # Resolve the internal dispatcher inside the daemon via
+    # `getFromNamespace()` rather than `cryptRopen:::.process_mask_row`
+    # at the call site. Same runtime behaviour, but `:::` in a published
+    # function body triggers an R CMD check NOTE
+    # ("::: calls to the package's namespace in its code"); the
+    # `getFromNamespace()` form is the documented escape hatch. The
+    # daemon has already been asked to load cryptRopen via the
+    # `mirai::everywhere()` block above, so the namespace lookup
+    # succeeds in the worker.
     mirai::mirai(
-      cryptRopen:::.process_mask_row(
-        sm                   = sm_i,
-        input_path           = input_path_i,
-        output_path          = output_path,
-        intermediate_path    = intermediate_path,
-        encryption_key       = encryption_key,
-        algorithm            = algorithm,
-        correspondence_table = correspondence_table,
-        engine               = engine,
-        chunk_size           = chunk_size),
+      {
+        .pmr <- utils::getFromNamespace(".process_mask_row", "cryptRopen")
+        .pmr(
+          sm                   = sm_i,
+          input_path           = input_path_i,
+          output_path          = output_path,
+          intermediate_path    = intermediate_path,
+          encryption_key       = encryption_key,
+          algorithm            = algorithm,
+          correspondence_table = correspondence_table,
+          engine               = engine,
+          chunk_size           = chunk_size)
+      },
       sm_i                 = sm_i,
       input_path_i         = input_path_i,
       output_path          = output_path,

@@ -14,6 +14,7 @@ Imports:
     lubridate,
     magrittr,
     mirai (>= 1.0.0),
+    nanoparquet,
     parallel,
     purrr,
     rio,
