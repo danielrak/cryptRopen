@@ -313,3 +313,128 @@ test_that("dispatcher .process_mask_row() produces the same files as the in_memo
     arrow::read_parquet(file.path(d2$int, "tc_s_crypt.parquet")))
   expect_equal(tc1, tc2)
 })
+
+# ---- Locked invariants of the in_memory engine (Phase 1.D.3) -----------
+# These tests make explicit contracts that the baseline fixtures cover
+# only implicitly (by byte-equality after deserialization). They fail with
+# a specific diagnostic message if the invariant is broken, instead of a
+# diffuse "file X differs from baseline".
+
+test_that("inspect_*.xlsx layout: 'Obs =' / 'Nvars =' rows then indexed inspect()", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+  }, add = TRUE)
+
+  csv <- file.path(dirs$inp, "persons.csv")
+  utils::write.csv(
+    data.frame(id = c("alice", "bob", "carol", "dan"),
+               age = c(30, 40, 50, 60),
+               stringsAsFactors = FALSE),
+    csv, row.names = FALSE)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "persons.csv",
+                encrypted_file = "persons_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row_in_memory(
+    sm = sm, input_path = csv,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE)
+
+  inspect_path <- file.path(dirs$out, "inspect_persons_crypt.csv.xlsx")
+  expect_true(file.exists(inspect_path))
+
+  # Read raw. writexl writes a header row with the data.frame's column
+  # names ("1:nrow(i)", "variables", "types", ...); the semantic rows
+  # "Obs =" / "Nvars =" / indexed-inspect start at row 2. Trailing spaces
+  # may be stripped on the round-trip, so we compare trimmed strings.
+  raw <- readxl::read_xlsx(inspect_path, col_names = FALSE)
+  raw <- as.data.frame(raw, stringsAsFactors = FALSE)
+
+  # Row 2: "Obs =" + nrow (4).
+  expect_equal(trimws(raw[[1L]][2L]), "Obs =")
+  expect_equal(as.character(raw[[2L]][2L]), "4")
+
+  # Row 3: "Nvars =" + nvars in the output (id_crypt + age = 2).
+  expect_equal(trimws(raw[[1L]][3L]), "Nvars =")
+  expect_equal(as.character(raw[[2L]][3L]), "2")
+
+  # Row 4: first inspect() row, prefixed by a numeric index "1".
+  expect_equal(as.character(raw[[1L]][4L]), "1")
+})
+
+test_that("TC parquet contains only distinct (original, crypt) pairs", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+  }, add = TRUE)
+
+  # 10 rows but only 3 distinct id values → TC must have exactly 3 rows.
+  csv <- file.path(dirs$inp, "dup.csv")
+  utils::write.csv(
+    data.frame(id = rep(c("a", "b", "c"), length.out = 10),
+               v  = 1:10,
+               stringsAsFactors = FALSE),
+    csv, row.names = FALSE)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "dup.csv",
+                encrypted_file = "dup_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row_in_memory(
+    sm = sm, input_path = csv,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE)
+
+  tc <- as.data.frame(
+    arrow::read_parquet(file.path(dirs$int, "tc_dup_crypt.parquet")))
+
+  expect_equal(nrow(tc), 3L)
+  # Original values in the TC are post-trim but PRE-normalize (the
+  # upper-case is only applied inside crypt_vector() for hashing).
+  expect_equal(sort(unique(tc$id)), c("a", "b", "c"))
+  expect_equal(anyDuplicated(tc), 0L)
+})
+
+test_that("column order: <var>_crypt columns come before the non-encrypted ones", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+  }, add = TRUE)
+
+  csv <- file.path(dirs$inp, "ord.csv")
+  utils::write.csv(
+    data.frame(a    = c("x", "y"),
+               b    = c("p", "q"),
+               keep = c(1, 2),
+               tail = c(10, 20),
+               stringsAsFactors = FALSE),
+    csv, row.names = FALSE)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "ord.csv",
+                encrypted_file = "ord_crypt.csv",
+                vars_to_encrypt = "a, b")
+
+  cryptRopen:::.process_mask_row_in_memory(
+    sm = sm, input_path = csv,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = FALSE)
+
+  out_df <- utils::read.csv(file.path(dirs$out, "ord_crypt.csv"),
+                            stringsAsFactors = FALSE)
+
+  # Historical order: encrypted columns first (in the order listed in
+  # vars_to_encrypt), then the remaining non-encrypted columns (in their
+  # original input order).
+  expect_equal(names(out_df), c("a_crypt", "b_crypt", "keep", "tail"))
+})
