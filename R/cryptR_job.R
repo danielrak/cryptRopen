@@ -1,22 +1,36 @@
 # Asynchronous job scaffolding for crypt_r().
 #
-# Phase 1.D.6.a goal: introduce the `cryptR_job` S3 class and the four
-# companion functions (`cryptR_status()`, `cryptR_wait()`, `cryptR_collect()`,
-# `print.cryptR_job()`) *in isolation* — without touching `crypt_r()` yet.
-# The orchestrator itself is rewritten to return a `cryptR_job` in 1.D.6.b;
-# the récapitulatif log (`log_crypt_r_<timestamp>.xlsx`) is wired in 1.D.6.c.
+# Phase 1.D.6.a introduced the `cryptR_job` S3 class and the four companion
+# functions (`cryptR_status()`, `cryptR_wait()`, `cryptR_collect()`,
+# `print.cryptR_job()`) *in isolation* — without touching `crypt_r()`. Phase
+# 1.D.6.b wires the orchestrator: `crypt_r()` now dispatches per-row tasks
+# via `mirai::mirai()` and returns a `cryptR_job`. The recap log
+# (`log_crypt_r_<timestamp>.xlsx`) lands in 1.D.6.c.
 #
 # A `cryptR_job` is a thin S3 list carrying:
-#   tasks               : named list of `mirai` handles (one per filtered mask row;
-#                         names are the dedup'd `encrypted_file` stems).
-#   mask_rows           : data.frame of filtered mask rows, in 1:1 correspondence
-#                         with `tasks` (used by the 1.D.6.c log writer).
-#   output_path         : absolute path where outputs + the final log land.
-#   intermediate_path   : absolute path where TCs (parquet) land.
-#   started_at          : Sys.time() at dispatch.
-#   log_written         : logical flag, toggled by cryptR_collect().
-#   watcher             : reserved slot for the mirai watcher that will write
-#                         the log automatically in 1.D.6.c; NULL in 1.D.6.a.
+#   tasks                : named list of `mirai` handles (one per filtered
+#                          mask row; names are the dedup'd `encrypted_file`
+#                          stems).
+#   mask_rows            : data.frame of filtered mask rows, in 1:1
+#                          correspondence with `tasks` (used by the 1.D.6.c
+#                          log writer).
+#   output_path          : absolute path where outputs + the final log land.
+#   intermediate_path    : absolute path where TCs (parquet) land.
+#   started_at           : Sys.time() at dispatch.
+#   log_written          : logical flag, toggled by cryptR_collect().
+#   watcher              : reserved slot for the mirai watcher that will
+#                          write the log automatically in 1.D.6.c; NULL
+#                          in 1.D.6.a / 1.D.6.b.
+#   daemons_owned_by_job : logical(1). TRUE when crypt_r() set up the mirai
+#                          daemons itself (no pre-existing daemons detected)
+#                          — cryptR_collect() then tears them down on exit.
+#                          FALSE when the user is managing the daemons
+#                          externally, in which case cryptR_collect() leaves
+#                          them alone. Added in 1.D.6.b.
+#   daemons_torn_down    : logical(1). Set to TRUE by cryptR_collect() after
+#                          a successful `mirai::daemons(0)` teardown; keeps
+#                          the teardown idempotent across repeated collect
+#                          calls. Added in 1.D.6.b.
 
 
 #' @noRd
@@ -24,15 +38,18 @@
                             mask_rows,
                             output_path,
                             intermediate_path,
-                            started_at = Sys.time(),
-                            watcher = NULL) {
+                            started_at          = Sys.time(),
+                            watcher             = NULL,
+                            daemons_owned_by_job = FALSE) {
   stopifnot(
     is.list(tasks),
     is.data.frame(mask_rows),
     length(tasks) == nrow(mask_rows),
     is.character(output_path), length(output_path) == 1L,
     is.character(intermediate_path), length(intermediate_path) == 1L,
-    inherits(started_at, "POSIXct")
+    inherits(started_at, "POSIXct"),
+    is.logical(daemons_owned_by_job), length(daemons_owned_by_job) == 1L,
+    !is.na(daemons_owned_by_job)
   )
   # Task names: prefer existing names(tasks); fall back to mask_rows$encrypted_file
   # (already dedup'd by crypt_r's mask-processing code in 1.D.6.b).
@@ -42,13 +59,15 @@
 
   structure(
     list(
-      tasks             = tasks,
-      mask_rows         = mask_rows,
-      output_path       = output_path,
-      intermediate_path = intermediate_path,
-      started_at        = started_at,
-      log_written       = FALSE,
-      watcher           = watcher
+      tasks                = tasks,
+      mask_rows            = mask_rows,
+      output_path          = output_path,
+      intermediate_path    = intermediate_path,
+      started_at           = started_at,
+      log_written          = FALSE,
+      watcher              = watcher,
+      daemons_owned_by_job = daemons_owned_by_job,
+      daemons_torn_down    = FALSE
     ),
     class = "cryptR_job"
   )
@@ -158,13 +177,23 @@ cryptR_wait <- function(job, timeout = Inf, poll_interval = 0.1) {
 
 #' Finalize an asynchronous `crypt_r()` job
 #'
-#' Waits for all tasks to resolve (see [cryptR_wait()]) and triggers the
-#' recap log writer. In Phase 1.D.6.a the log writer is a stub that only
-#' flips `job$log_written`; Phase 1.D.6.c implements the full
-#' `log_crypt_r_<timestamp>.xlsx` output.
+#' Waits for all tasks to resolve (see [cryptR_wait()]), triggers the
+#' recap log writer, and — when `crypt_r()` created the mirai daemons
+#' itself (`daemons_owned_by_job = TRUE`) — tears them down.
+#'
+#' Phase 1.D.6.a shipped a stub log writer (flips `job$log_written`);
+#' Phase 1.D.6.b added the daemons teardown; Phase 1.D.6.c will implement
+#' the full `log_crypt_r_<timestamp>.xlsx` output.
+#'
+#' Idempotent: calling `cryptR_collect()` twice on the same job does not
+#' double-teardown the daemons (the `daemons_torn_down` slot guards this).
+#' If the user set up daemons externally before calling `crypt_r()`,
+#' `daemons_owned_by_job` is `FALSE` and teardown is never attempted —
+#' the user retains control of their own daemons.
 #'
 #' @inheritParams cryptR_wait
-#' @return `invisible(job)` — with `log_written = TRUE`.
+#' @return `invisible(job)` — with `log_written = TRUE` and, when
+#'   applicable, `daemons_torn_down = TRUE`.
 #' @seealso [cryptR_status()], [cryptR_wait()].
 #' @export
 #' @examples
@@ -184,6 +213,14 @@ cryptR_collect <- function(job, timeout = Inf, poll_interval = 0.1) {
   #   4. writexl::write_xlsx(..., file.path(job$output_path,
   #        paste0("log_crypt_r_", format(Sys.time(), ...), ".xlsx")))
   job$log_written <- TRUE
+
+  # Phase 1.D.6.b: tear down the daemons we own. Silently tolerate any
+  # failure (e.g. daemons already gone) — the flag below makes the
+  # operation idempotent across repeated collect calls.
+  if (isTRUE(job$daemons_owned_by_job) && !isTRUE(job$daemons_torn_down)) {
+    try(mirai::daemons(0), silent = TRUE)
+    job$daemons_torn_down <- TRUE
+  }
   invisible(job)
 }
 

@@ -88,10 +88,14 @@ test_that(".process_mask_row() writes crypt csv + tc parquet + inspect xlsx", {
   expect_true("age" %in% names(out_df))
   expect_equal(nrow(out_df), 3L)
 
-  # Historical side effects on globalenv (preserved until Phase 1.D.6).
-  expect_true(exists("id_crypt",      envir = globalenv()))
-  expect_true(exists("persons_crypt", envir = globalenv()))
-  expect_true(exists("tc_persons_crypt", envir = globalenv()))
+  # Phase 1.D.6.b: globalenv pollution retired. The in_memory engine no
+  # longer assigns `<var>_crypt`, `<encrypted_file_stem>` or `tc_*` into
+  # globalenv; correspondence tables live in .cryptRopen_env and are
+  # accessible via get_correspondence_tables().
+  expect_false(exists("id_crypt",      envir = globalenv(), inherits = FALSE))
+  expect_false(exists("persons_crypt", envir = globalenv(), inherits = FALSE))
+  expect_false(exists("tc_persons_crypt", envir = globalenv(), inherits = FALSE))
+  expect_true("tc_persons_crypt" %in% names(get_correspondence_tables()))
 })
 
 # ---- correspondence_table = FALSE --------------------------------------
@@ -157,8 +161,9 @@ test_that("multiple vars_to_encrypt: all encrypted, single combined TC", {
   expect_true(all(c("a_crypt", "b_crypt", "keep") %in% names(out_df)))
   expect_false(any(c("a", "b") %in% names(out_df)))
 
-  expect_true(exists("a_crypt", envir = globalenv()))
-  expect_true(exists("b_crypt", envir = globalenv()))
+  # Phase 1.D.6.b: no more globalenv pollution.
+  expect_false(exists("a_crypt", envir = globalenv(), inherits = FALSE))
+  expect_false(exists("b_crypt", envir = globalenv(), inherits = FALSE))
 
   expect_true(file.exists(file.path(dirs$int, "tc_two_crypt.parquet")))
   tc <- arrow::read_parquet(file.path(dirs$int, "tc_two_crypt.parquet"))
@@ -259,9 +264,12 @@ test_that(".process_mask_row_in_memory() produces the same outputs directly", {
 
   expect_true(file.exists(file.path(dirs$out, "persons_crypt.csv")))
   expect_true(file.exists(file.path(dirs$int, "tc_persons_crypt.parquet")))
-  expect_true(exists("persons_crypt",    envir = globalenv()))
-  expect_true(exists("id_crypt",         envir = globalenv()))
-  expect_true(exists("tc_persons_crypt", envir = globalenv()))
+  # Phase 1.D.6.b: in_memory engine no longer pollutes globalenv. TC is
+  # available via the package-private env.
+  expect_false(exists("persons_crypt",    envir = globalenv(), inherits = FALSE))
+  expect_false(exists("id_crypt",         envir = globalenv(), inherits = FALSE))
+  expect_false(exists("tc_persons_crypt", envir = globalenv(), inherits = FALSE))
+  expect_true("tc_persons_crypt" %in% names(get_correspondence_tables()))
 })
 
 test_that("dispatcher .process_mask_row() produces the same files as the in_memory engine", {
@@ -805,8 +813,8 @@ test_that("streaming: correspondence_table = FALSE writes no TC anywhere", {
 test_that("dispatcher: engine='streaming' with non-streamable input falls back to in_memory", {
   # Streaming is wired for parquet-in/out (1.D.4.b) and csv-in/out
   # (1.D.4.c). Any other input format (here, .rds) must fall back to
-  # the in_memory engine — preserving historical behaviour, including
-  # globalenv side effects.
+  # the in_memory engine. Since 1.D.6.b, no engine pollutes globalenv —
+  # the fallback now shares that clean contract.
   dirs <- setup_dirs()
   pre  <- ls(envir = globalenv())
   on.exit({
@@ -831,9 +839,8 @@ test_that("dispatcher: engine='streaming' with non-streamable input falls back t
 
   # Output exists in the historical format (rds — written via rio).
   expect_true(file.exists(file.path(dirs$out, "s_crypt.rds")))
-  # Historical side effect: the in_memory engine assigns to globalenv
-  # (this fallback preserves that behaviour — sanity check).
-  expect_true(exists("s_crypt", envir = globalenv(), inherits = FALSE))
+  # Phase 1.D.6.b: the fallback no longer pollutes globalenv.
+  expect_false(exists("s_crypt", envir = globalenv(), inherits = FALSE))
 })
 
 test_that("dispatcher: engine='streaming' with non-parquet output falls back to in_memory", {
@@ -862,7 +869,8 @@ test_that("dispatcher: engine='streaming' with non-parquet output falls back to 
     engine = "streaming", chunk_size = 1L)
 
   expect_true(file.exists(file.path(dirs$out, "mix_crypt.csv")))
-  expect_true(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
+  # Phase 1.D.6.b: the fallback no longer pollutes globalenv.
+  expect_false(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
 })
 
 # Test previously asserting that engine="auto" remained a synonym of
@@ -1158,9 +1166,9 @@ test_that("dispatcher: engine='streaming' parquet-in + csv-out falls back to in_
     correspondence_table = TRUE,
     engine = "streaming", chunk_size = 1L)
 
-  # Fell back to in_memory: historical globalenv side effect present.
+  # Fell back to in_memory. Phase 1.D.6.b: no globalenv pollution.
   expect_true(file.exists(file.path(dirs$out, "m_crypt.csv")))
-  expect_true(exists("m_crypt", envir = globalenv(), inherits = FALSE))
+  expect_false(exists("m_crypt", envir = globalenv(), inherits = FALSE))
 })
 
 test_that("dispatcher: engine='streaming' csv-in + parquet-out falls back to in_memory", {
@@ -1188,7 +1196,8 @@ test_that("dispatcher: engine='streaming' csv-in + parquet-out falls back to in_
     engine = "streaming", chunk_size = 1L)
 
   expect_true(file.exists(file.path(dirs$out, "mix_crypt.parquet")))
-  expect_true(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
+  # Phase 1.D.6.b: the fallback no longer pollutes globalenv.
+  expect_false(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
 })
 
 # ---- Phase 1.D.4.d — auto routing rule ---------------------------------
@@ -1198,8 +1207,8 @@ test_that("dispatcher: engine='streaming' csv-in + parquet-out falls back to in_
 #   - auto + parquet/parquet → streaming (no globalenv pollution, TC in
 #     .cryptRopen_env, no direct tc_* assignment).
 #   - auto + csv/csv         → streaming (same signature).
-#   - auto + rds             → in_memory (globalenv pollution present).
-#   - auto + mixed endpoints → in_memory (fallback).
+#   - auto + rds             → in_memory (since 1.D.6.b, also clean).
+#   - auto + mixed endpoints → in_memory (fallback, also clean).
 
 test_that("auto routing (1.D.4.d): engine='auto' routes parquet/parquet to the streaming engine", {
   dirs <- setup_dirs()
@@ -1318,8 +1327,9 @@ test_that("auto routing (1.D.4.d): engine='auto' routes csv/csv to the csv strea
 })
 
 test_that("auto routing (1.D.4.d): engine='auto' with non-streamable input falls back to in_memory", {
-  # rds is not streamable — auto must route to in_memory, which carries
-  # the historical globalenv side effects.
+  # rds is not streamable — auto must route to in_memory. Phase 1.D.6.b
+  # retired the in_memory globalenv side effect, so the fallback is
+  # also clean.
   dirs <- setup_dirs()
   pre  <- ls(envir = globalenv())
   on.exit({
@@ -1343,8 +1353,8 @@ test_that("auto routing (1.D.4.d): engine='auto' with non-streamable input falls
     engine = "auto", chunk_size = 4L)
 
   expect_true(file.exists(file.path(dirs$out, "s_crypt.rds")))
-  # in_memory signature — globalenv side effect present.
-  expect_true(exists("s_crypt", envir = globalenv(), inherits = FALSE))
+  # Phase 1.D.6.b: in_memory engine no longer pollutes globalenv.
+  expect_false(exists("s_crypt", envir = globalenv(), inherits = FALSE))
 })
 
 test_that("auto routing (1.D.4.d): engine='auto' with mixed endpoints falls back to in_memory", {
@@ -1373,6 +1383,6 @@ test_that("auto routing (1.D.4.d): engine='auto' with mixed endpoints falls back
     engine = "auto", chunk_size = 1L)
 
   expect_true(file.exists(file.path(dirs$out, "mix_crypt.csv")))
-  # in_memory signature — globalenv side effect present.
-  expect_true(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
+  # Phase 1.D.6.b: in_memory engine no longer pollutes globalenv.
+  expect_false(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
 })

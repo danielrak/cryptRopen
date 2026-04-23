@@ -15,13 +15,24 @@ On expiration, an error of class \code{cryptR_timeout} is raised.}
 \item{poll_interval}{Numeric. Polling period in seconds. Defaults to 0.1.}
 }
 \value{
-\code{invisible(job)} — with \code{log_written = TRUE}.
+\code{invisible(job)} — with \code{log_written = TRUE} and, when
+applicable, \code{daemons_torn_down = TRUE}.
 }
 \description{
-Waits for all tasks to resolve (see \code{\link[=cryptR_wait]{cryptR_wait()}}) and triggers the
-recap log writer. In Phase 1.D.6.a the log writer is a stub that only
-flips \code{job$log_written}; Phase 1.D.6.c implements the full
-\verb{log_crypt_r_<timestamp>.xlsx} output.
+Waits for all tasks to resolve (see \code{\link[=cryptR_wait]{cryptR_wait()}}), triggers the
+recap log writer, and — when \code{crypt_r()} created the mirai daemons
+itself (\code{daemons_owned_by_job = TRUE}) — tears them down.
+}
+\details{
+Phase 1.D.6.a shipped a stub log writer (flips \code{job$log_written});
+Phase 1.D.6.b added the daemons teardown; Phase 1.D.6.c will implement
+the full \verb{log_crypt_r_<timestamp>.xlsx} output.
+
+Idempotent: calling \code{cryptR_collect()} twice on the same job does not
+double-teardown the daemons (the \code{daemons_torn_down} slot guards this).
+If the user set up daemons externally before calling \code{crypt_r()},
+\code{daemons_owned_by_job} is \code{FALSE} and teardown is never attempted —
+the user retains control of their own daemons.
 }
 \examples{
 \dontrun{

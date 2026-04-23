@@ -2,11 +2,16 @@
 
 #' Industrialized dataset variables encryption.
 #'
-#' This function consolidates a set of procedures
-#' made to encrypt variables from datasets.
-#' Variables to encrypt and input datasets can be in any number,
-#' following user's needs.
-#' The design tries to approach parallel processing.
+#' This function consolidates a set of procedures made to encrypt
+#' variables from datasets. Variables to encrypt and input datasets can
+#' be in any number, following user's needs.
+#'
+#' Since Phase 1.D.6.b, `crypt_r()` is **non-blocking**: it builds a
+#' `cryptR_job` (one `mirai` task per filtered mask row) and returns
+#' immediately. The caller inspects / waits / finalises the job through
+#' the companion API (see *Value* and *See Also*). A per-row failure
+#' does not interrupt the other rows — the failure is captured on the
+#' corresponding task and surfaces via [cryptR_status()].
 #'
 #' @param mask_folder_path Folder path of the excel mask.
 #' @param mask_file File name (with extension) of the excel mask.
@@ -33,6 +38,19 @@
 #'   effective engine is streaming. Ignored by `"in_memory"` (and by
 #'   `"auto"` / `"streaming"` when falling back to in_memory). Default
 #'   `1e6`.
+#' @param n_workers Integer or `NULL`. Number of `mirai` daemons to
+#'   spawn for the dispatch. When `NULL` (default), `crypt_r()` picks
+#'   `min(parallel::detectCores() - 1, n_rows, 8L)` (floored at 1).
+#'   If daemons are already running on the default profile when
+#'   `crypt_r()` is called, `n_workers` is ignored and the existing
+#'   daemons are reused — the user retains control and
+#'   [cryptR_collect()] will not tear them down. Added in Phase 1.D.6.b.
+#' @return A [`cryptR_job`][cryptR_status] object carrying one `mirai`
+#'   task per filtered mask row. Inspect with [cryptR_status()]; block
+#'   with [cryptR_wait()]; finalise (write the recap log and, when
+#'   applicable, tear down the daemons) with [cryptR_collect()].
+#' @seealso [cryptR_status()], [cryptR_wait()], [cryptR_collect()],
+#'   [get_correspondence_tables()].
 #' @importFrom magrittr %>%
 #' @export
 #'
@@ -41,9 +59,11 @@ crypt_r <- function (mask_folder_path, mask_file,
                      encryption_key, algorithm = "md5",
                      correspondence_table = TRUE,
                      engine = c("auto", "in_memory", "streaming"),
-                     chunk_size = 1e6L) {
+                     chunk_size = 1e6L,
+                     n_workers = NULL) {
 
   requireNamespace("magrittr")
+  requireNamespace("mirai")
 
   engine <- match.arg(engine)
   stopifnot(is.numeric(chunk_size),
@@ -51,6 +71,12 @@ crypt_r <- function (mask_folder_path, mask_file,
             !is.na(chunk_size),
             chunk_size > 0)
   chunk_size <- as.integer(chunk_size)
+
+  if (!is.null(n_workers)) {
+    stopifnot(is.numeric(n_workers), length(n_workers) == 1L,
+              !is.na(n_workers), n_workers >= 1)
+    n_workers <- as.integer(n_workers)
+  }
 
   # The Excel mask:
   mask <-
@@ -80,51 +106,93 @@ crypt_r <- function (mask_folder_path, mask_file,
                       encrypted_file),
                encrypted_file))
 
-  # Split the mask with r rows into a list of r elements, named by full
-  # input file path:
-  split_mask <-
-    split(mask, mask$row_number) %>%
-    stats::setNames(paste0(mask$folder_path, "/", mask$file))
+  n_rows <- nrow(mask)
 
-  # Dispatch each row to its own background job. The per-row processing
-  # logic lives in .process_mask_row() — extracted in Phase 1.D.1 so it
-  # can be tested in isolation and swapped for in_memory / streaming
-  # engines in Phases 1.D.2 / 1.D.4. The job::job() wrapper will itself
-  # be replaced by mirai in Phase 1.D.6.
-  purrr::map(names(split_mask), \(x) {
+  # Empty mask: nothing to do. Return a trivial cryptR_job so the caller
+  # can still introspect / collect uniformly.
+  if (n_rows == 0L) {
+    return(.new_cryptR_job(
+      tasks                = list(),
+      mask_rows            = mask,
+      output_path          = output_path,
+      intermediate_path    = intermediate_path,
+      daemons_owned_by_job = FALSE))
+  }
 
-    # Sink args into the local frame so job::job() captures them.
-    sm                   <- split_mask[[x]]
-    input_path           <- x
-    output_path          <- output_path
-    intermediate_path    <- intermediate_path
-    encryption_key       <- encryption_key
-    algorithm            <- algorithm
-    correspondence_table <- correspondence_table
-    engine               <- engine
-    chunk_size           <- chunk_size
+  # --- n_workers resolution --------------------------------------------
+  # Heuristic: leave one core to the OS, cap at 8 to avoid hammering
+  # shared machines, never exceed the number of tasks.
+  if (is.null(n_workers)) {
+    cores <- tryCatch(parallel::detectCores(logical = TRUE),
+                      error = function(e) 2L)
+    if (is.null(cores) || is.na(cores) || cores < 2L) cores <- 2L
+    n_workers <- max(1L, min(as.integer(cores) - 1L, n_rows, 8L))
+  } else {
+    n_workers <- max(1L, min(n_workers, n_rows))
+  }
 
-    job::job({
-      .process_mask_row(
-        sm                   = sm,
-        input_path           = input_path,
+  # --- Daemons ownership ------------------------------------------------
+  # If daemons are already running on the default profile, we reuse them
+  # and leave teardown to the user. If none are running, we set up our
+  # own and flag the job so cryptR_collect() tears them down at the end.
+  n_existing <- tryCatch({
+    st <- mirai::status()
+    d  <- st$daemons
+    if (is.null(d)) 0L else if (is.matrix(d)) nrow(d) else length(d)
+  }, error = function(e) 0L)
+
+  daemons_owned_by_job <- FALSE
+  if (n_existing == 0L) {
+    mirai::daemons(n_workers)
+    daemons_owned_by_job <- TRUE
+  }
+
+  # Load the package in each daemon so `cryptRopen:::.process_mask_row`
+  # resolves. Silently tolerate failures: if cryptRopen is not installed
+  # in the daemon's library paths (dev session), task dispatch below will
+  # still surface the lookup error as a failed task via cryptR_status().
+  try(mirai::everywhere({
+    suppressPackageStartupMessages(requireNamespace("cryptRopen",
+                                                    quietly = TRUE))
+  }), silent = TRUE)
+
+  # --- Dispatch one mirai task per filtered mask row -------------------
+  input_paths <- paste0(mask$folder_path, "/", mask$file)
+
+  tasks <- purrr::map(seq_len(n_rows), \(i) {
+    sm_i         <- mask[i, , drop = FALSE]
+    input_path_i <- input_paths[[i]]
+
+    mirai::mirai(
+      cryptRopen:::.process_mask_row(
+        sm                   = sm_i,
+        input_path           = input_path_i,
         output_path          = output_path,
         intermediate_path    = intermediate_path,
         encryption_key       = encryption_key,
         algorithm            = algorithm,
         correspondence_table = correspondence_table,
         engine               = engine,
-        chunk_size           = chunk_size
-      )
-      job::export("none")
-    },
-    title = paste0("Encryption of ",
-                   input_path %>% strsplit("/") %>%
-                     purrr::map(\(xx) xx[length(xx)]) %>%
-                     unlist()))
+        chunk_size           = chunk_size),
+      sm_i                 = sm_i,
+      input_path_i         = input_path_i,
+      output_path          = output_path,
+      intermediate_path    = intermediate_path,
+      encryption_key       = encryption_key,
+      algorithm            = algorithm,
+      correspondence_table = correspondence_table,
+      engine               = engine,
+      chunk_size           = chunk_size)
   })
 
-  invisible(NULL)
+  names(tasks) <- as.character(mask$encrypted_file)
+
+  .new_cryptR_job(
+    tasks                = tasks,
+    mask_rows            = mask,
+    output_path          = output_path,
+    intermediate_path    = intermediate_path,
+    daemons_owned_by_job = daemons_owned_by_job)
 }
 
 #' Does the given path have a `.parquet` extension?
@@ -249,37 +317,32 @@ crypt_r <- function (mask_folder_path, mask_file,
 #' correspondence table, and export of the final dataset + inspect
 #' report. Extracted from `.process_mask_row()` in Phase 1.D.2 so that
 #' the historical code path can stay strictly unchanged while the
-#' streaming engine is being written in Phase 1.D.4. The parallel
-#' streaming engine will live in a sibling helper
-#' `.process_mask_row_streaming()`.
+#' streaming engine is being written in Phase 1.D.4.
 #'
-#' @section FROZEN (Phase 1.D.3):
-#' The behaviour of this function is locked by:
+#' @section FROZEN file outputs (Phase 1.D.3):
+#' The files produced by this function are locked by:
 #'   - `tests/baseline/outputs/` (byte-level fixtures regenerated by
 #'     `tests/baseline/generate_baseline.R`), and
 #'   - the explicit invariant tests at the bottom of
 #'     `tests/testthat/test-process_mask_row.R` (inspect xlsx layout,
 #'     TC parquet distinctness, output column order).
 #'
-#' Do **not** edit this function for refactoring, style, or
-#' "improvement" reasons. Any behavioural change — even cosmetic —
-#' requires:
-#'   1. A ticketed motivation in the phase plan (not an opportunistic
-#'      cleanup).
+#' Any change that affects the **content** of those files requires:
+#'   1. A ticketed motivation in the phase plan.
 #'   2. Regeneration of `tests/baseline/outputs/` in the same commit.
-#'   3. Review of the impact on the private (enterprise) branch that
-#'      consumes this package.
-#' The `assign_to_global()` + `eval(parse(text=))` patterns below are
-#' historical debt that will be retired only in Phase 1.D.6 together
-#' with the move to `mirai`; until then they are intentional.
+#'   3. Review of the impact on the private (enterprise) branch.
 #'
-#' Side effects are preserved from the historical implementation: the
-#' per-variable `<var>_crypt` vectors, the final
-#' `<encrypted_file_sans_ext>` dataset and (when
+#' @section Phase 1.D.6.b — retirement of globalenv() pollution:
+#' Historically this function assigned the per-variable `<var>_crypt`
+#' vectors, the final `<encrypted_file_sans_ext>` dataset and (when
 #' `correspondence_table = TRUE`) the `tc_<encrypted_file_sans_ext>`
-#' are still assigned to `globalenv()` via `assign_to_global()`. These
-#' assignments will disappear in Phase 1.D.6 (values flowing through
-#' return-values and `.cryptRopen_env` instead).
+#' into `globalenv()` via `assign_to_global()`, then read them back via
+#' `eval(parse(text = ...))`. Phase 1.D.6.b removes both patterns: the
+#' data flows through local variables only; the correspondence table is
+#' now stored in the package-private `.cryptRopen_env` (retrievable via
+#' [get_correspondence_tables()]) and on disk, mirroring the streaming
+#' engines introduced in 1.D.4. File outputs are byte-identical to the
+#' historical implementation on matching inputs — baseline unchanged.
 #'
 #' @param sm A one-row data.frame corresponding to one row of the
 #'   filtered mask (columns: folder_path, file, encrypted_file,
@@ -288,146 +351,106 @@ crypt_r <- function (mask_folder_path, mask_file,
 #' @param output_path,intermediate_path Directories where outputs are written.
 #' @param encryption_key,algorithm,correspondence_table Forwarded from
 #'   `crypt_r()`.
-#' @return Invisible `NULL`. All outputs are side effects (files on
-#'   disk and assignments in `globalenv()`).
+#' @return Invisible `NULL`. Outputs are side effects: files on disk
+#'   and, when `correspondence_table = TRUE`, one entry in
+#'   `.cryptRopen_env`. No more `globalenv()` pollution since 1.D.6.b.
 #' @noRd
 .process_mask_row_in_memory <- function(sm, input_path, output_path, intermediate_path,
                                         encryption_key, algorithm, correspondence_table) {
 
   requireNamespace("magrittr")
 
+  encrypted_file <- sm[["encrypted_file"]]
+  encrypted_stem <- stringr::str_remove(encrypted_file, "\\..*$")
+
+  vars_to_encrypt <- sm[["vars_to_encrypt"]] %>%
+    stringr::str_split(",") %>% unlist() %>%
+    stringr::str_trim()
+
+  vars_to_remove <- sm[["vars_to_remove"]] %>%
+    stringr::str_split(",") %>% unlist() %>%
+    stringr::str_trim()
+
+  # Holds the final in-memory dataset (post-assemble, post-drop) so the
+  # export and inspect blocks below can re-use it without reading the
+  # output file back. Stays NULL if the import / transform block errors —
+  # the downstream try() blocks then short-circuit cleanly.
+  assembled_df <- NULL
+
+  # --- Import, clean, encrypt, assemble --------------------------------
   try({
-    # Import and clean:
-    assign_to_global(
-      sm[["encrypted_file"]] %>% stringr::str_remove("\\..*$"),
-      rio::import(input_path, trust = TRUE) %>%
-        # 0-length values into NAs:
-        dplyr::mutate_if(is.character, \(x0) {
-          x0[nchar(stringr::str_trim(x0)) == 0] <- NA ;
-          stringr::str_trim(x0)
-        }) %>%
-        # Encrypt:
-        (\(x3) {
+    # Import + character cleanup (empty → NA, trim).
+    raw_df <- rio::import(input_path, trust = TRUE) %>%
+      dplyr::mutate_if(is.character, \(x0) {
+        x0[nchar(stringr::str_trim(x0)) == 0] <- NA
+        stringr::str_trim(x0)
+      })
 
-          # Each variable to encrypt in a vector:
-          vars_to_encrypt <- sm[["vars_to_encrypt"]] %>%
-            stringr::str_split(",") %>% unlist %>%
-            stringr::str_trim()
+    # Encrypt each requested variable. Names follow the historical
+    # `<var>_crypt` convention — they no longer leak to globalenv().
+    crypted_list <- purrr::map(vars_to_encrypt, \(v) {
+      crypt_vector(vector = raw_df[[v]],
+                   key    = encryption_key,
+                   algo   = algorithm)
+    })
+    names(crypted_list) <- paste0(vars_to_encrypt, "_crypt")
 
-          purrr::map(vars_to_encrypt, \(v) {
+    # Assemble: `<var>_crypt` columns first (in `vars_to_encrypt` order),
+    # then original columns (in input order). Matches historical ordering.
+    crypted_df <- do.call(dplyr::bind_cols, crypted_list) %>%
+      stats::setNames(names(crypted_list))
 
-            # Encryption algorithm using the digest:: package:
-            assign_to_global(paste0(v, "_crypt"),
-                   crypt_vector(vector = x3[[v]],
-                                key = encryption_key,
-                                algo = algorithm),
-                   pos = globalenv())
-          })
+    full_df <- dplyr::bind_cols(crypted_df, raw_df) %>%
+      dplyr::as_tibble()
 
-          # Fuse initial dataset and encrypted variables:
-          assign_to_global(
-            sm[["encrypted_file"]] %>%
-              stringr::str_remove("\\..*$"),
-            dplyr::bind_cols(
-                purrr::map(vars_to_encrypt %>%
-                             paste0("_crypt"), get) %>%
-                  do.call(what = dplyr::bind_cols) %>%
-                  stats::setNames(vars_to_encrypt %>%
-                                    paste0("_crypt")),
-                x3) %>%
-              dplyr::as_tibble() %>%
+    # Correspondence table — stored in the package-private env AND on disk.
+    # `rio::export()` is deliberately kept (not `arrow::write_parquet()`)
+    # so the TC parquet stays byte-identical to the pre-refactor baseline.
+    if (correspondence_table) {
+      tc_name <- paste0("tc_", encrypted_stem)
+      tc_df   <- dplyr::select(full_df, dplyr::all_of(vars_to_encrypt)) %>%
+        dplyr::bind_cols(crypted_df) %>%
+        dplyr::distinct()
+      .store_correspondence_table(name = tc_name, df = tc_df)
+      rio::export(
+        tc_df,
+        file.path(intermediate_path, paste0(tc_name, ".parquet")))
+    }
 
-              # Correspondence table:
-              (\(d) {
-                if (! correspondence_table) {d} else {
-                  purrr::map(vars_to_encrypt, \(v2) {
-                    assign_to_global(
-                      sm[["encrypted_file"]] %>%
-                        stringr::str_remove("\\..*$") %>%
-                        (\(x4) paste0("tc_", x4)),
-                      dplyr::select(d,
-                                    vars_to_encrypt) %>%
-                        dplyr::bind_cols(
-                          purrr::map(
-                            vars_to_encrypt %>%
-                              paste0("_crypt"), get) %>%
-                            do.call(
-                              what = dplyr::bind_cols) %>%
-                            stats::setNames(
-                              vars_to_encrypt %>%
-                                paste0("_crypt"))) %>%
-                        dplyr::distinct(),
-                      pos = globalenv()
-                    )
-                  })
+    # Drop the original unencrypted columns, then user-specified removes.
+    full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_encrypt))
+    if (!all(is.na(vars_to_remove))) {
+      full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_remove))
+    }
 
-                  # Export into intermediate folder:
-                  rio::export(
-                    sm[["encrypted_file"]] %>%
-                      stringr::str_remove("\\..*$") %>%
-                      (\(x4)
-                        paste0("tc_", x4)) %>% get(),
-
-                    file.path(intermediate_path,
-                              sm[["encrypted_file"]] %>%
-                                stringr::str_remove(
-                                  "\\..*$") %>%
-                                (\(x4)
-                                  paste0("tc_", x4)) %>%
-                                paste0(".parquet"))
-                  )
-                  d
-                }
-              }) %>%
-
-              # Output without original variables:
-              dplyr::select(- vars_to_encrypt) %>%
-
-              # Without any other variables user want to remove
-              # from output, if applicable:
-              (\(dfin) {
-                vars_to_remove <- sm[["vars_to_remove"]] %>%
-                  stringr::str_split(",") %>% unlist %>%
-                  stringr::str_trim()
-
-                if (all(is.na(vars_to_remove))) {
-                  dfin
-                } else {
-                  dplyr::select(dfin, - vars_to_remove)
-                }
-              }),
-            pos = globalenv())
-        }
-        )
-    )
-  })
-  invisible()
-
-  # Export final output:
-  try({
-    rio::export(
-      eval(parse(text = sm[["encrypted_file"]] %>%
-                   stringr::str_remove("\\..*$"))),
-      file.path(output_path,
-                sm[["encrypted_file"]]))
+    assembled_df <- full_df
   })
 
-  # Inspect final output:
+  # --- Export final output ---------------------------------------------
   try({
-    writexl::write_xlsx(
-      eval(parse(text =  sm[["encrypted_file"]] %>%
-                   stringr::str_remove("\\..*$"))) %>%
-        (\(g)
-          inspect(g) %>%
-            (\(i) rbind(c("Obs = ", nrow(g),
-                          rep("", ncol(i) - 1)),
-                        c("Nvars = ", nrow(i),
-                          rep("", ncol(i) - 1)),
-                        cbind(1:nrow(i), i)))),
-      file.path(output_path,
-                paste0("inspect_", sm[["encrypted_file"]],
-                       ".xlsx"))
-    )
+    if (!is.null(assembled_df)) {
+      rio::export(assembled_df,
+                  file.path(output_path, encrypted_file))
+    }
+  })
+
+  # --- Inspect final output --------------------------------------------
+  try({
+    if (!is.null(assembled_df)) {
+      g <- assembled_df
+      i <- inspect(g)
+      # NB. The `1:nrow(i)` spelling is load-bearing — see the matching
+      # comment in `.write_stream_inspect()` for why seq_len()/seq.int()
+      # would break baseline on the first cell of the xlsx.
+      layout <- rbind(
+        c("Obs = ",   nrow(g), rep("", ncol(i) - 1)),
+        c("Nvars = ", nrow(i), rep("", ncol(i) - 1)),
+        cbind(1:nrow(i), i))
+      writexl::write_xlsx(
+        layout,
+        file.path(output_path,
+                  paste0("inspect_", encrypted_file, ".xlsx")))
+    }
   })
 
   invisible(NULL)
