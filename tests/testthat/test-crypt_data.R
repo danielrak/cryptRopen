@@ -6,66 +6,79 @@
 # ---- Legacy snapshot anchor --------------------------------------------
 
 test_that("Valid outputs are consistent (mtcars snapshot)", {
-
-  output <- structure(list(
-    mpg_crypt = c("CEA9D4F43791ACE22D90EDBF6CE405F5",
-                  "CEA9D4F43791ACE22D90EDBF6CE405F5",
-                  "65080BE2078D5C5934F018F806E72E81",
-                  "18C5941010E3CDCB669F472DF3A1DD5E",
-                  "1866EA523631A281BD9431915F7C407F"),
-    disp = c(160, 160, 108, 258, 360),
-    hp = c(110, 110, 93, 110, 175),
-    drat = c(3.9, 3.9, 3.85, 3.08, 3.15),
-    wt = c(2.62, 2.875, 2.32, 3.215, 3.44),
-    qsec = c(16.46, 17.02, 18.61, 19.44, 17.02),
-    vs = c(0, 0, 1, 1, 0),
-    am = c(1, 1, 1, 0, 0),
-    gear = c(4, 4, 4, 3, 3),
-    carb = c(4, 4, 1, 1, 2)),
+  output <- structure(
+    list(
+      mpg_crypt = c(
+        "CEA9D4F43791ACE22D90EDBF6CE405F5",
+        "CEA9D4F43791ACE22D90EDBF6CE405F5",
+        "65080BE2078D5C5934F018F806E72E81",
+        "18C5941010E3CDCB669F472DF3A1DD5E",
+        "1866EA523631A281BD9431915F7C407F"
+      ),
+      disp = c(160, 160, 108, 258, 360),
+      hp = c(110, 110, 93, 110, 175),
+      drat = c(3.9, 3.9, 3.85, 3.08, 3.15),
+      wt = c(2.62, 2.875, 2.32, 3.215, 3.44),
+      qsec = c(16.46, 17.02, 18.61, 19.44, 17.02),
+      vs = c(0, 0, 1, 1, 0),
+      am = c(1, 1, 1, 0, 0),
+      gear = c(4, 4, 4, 3, 3),
+      carb = c(4, 4, 1, 1, 2)
+    ),
     class = "data.frame",
-    row.names = c("Mazda RX4", "Mazda RX4 Wag", "Datsun 710",
-                  "Hornet 4 Drive", "Hornet Sportabout"))
+    row.names = c(
+      "Mazda RX4", "Mazda RX4 Wag", "Datsun 710",
+      "Hornet 4 Drive", "Hornet Sportabout"
+    )
+  )
 
-  expect_identical(object = output,
-                   expected = crypt_data(
-                     loaded_dataset = mtcars[1:5, ],
-                     vars_to_encrypt = "mpg",
-                     vars_to_remove = "cyl",
-                     encryption_key = "1234567",
-                     algorithm = "md5",
-                     correspondence_table = FALSE
-                   ))
+  expect_identical(
+    object = output,
+    expected = crypt_data(
+      loaded_dataset = mtcars[1:5, ],
+      vars_to_encrypt = "mpg",
+      vars_to_remove = "cyl",
+      encryption_key = "1234567",
+      algorithm = "md5",
+      correspondence_table = FALSE
+    )
+  )
 })
 
 # ---- Argument validation -----------------------------------------------
 
 test_that("Errors are consistent", {
-
   expect_error(
-    object = crypt_data(loaded_dataset = mtcars[1:5],
-                        vars_to_encrypt = "noexist",
-                        vars_to_remove = "cyl",
-                        encryption_key = "123456",
-                        algorithm = "md5",
-                        correspondence_table = FALSE),
+    object = crypt_data(
+      loaded_dataset = mtcars[1:5],
+      vars_to_encrypt = "noexist",
+      vars_to_remove = "cyl",
+      encryption_key = "123456",
+      algorithm = "md5",
+      correspondence_table = FALSE
+    ),
     regexp = "All indicated vars_to_encrypt must be effectively a variable name."
   )
 
   expect_error(
-    object = crypt_data(loaded_dataset = mtcars[1:5],
-                        vars_to_encrypt = "mpg",
-                        vars_to_remove = "noexist",
-                        encryption_key = "123456",
-                        algorithm = "md5",
-                        correspondence_table = FALSE),
+    object = crypt_data(
+      loaded_dataset = mtcars[1:5],
+      vars_to_encrypt = "mpg",
+      vars_to_remove = "noexist",
+      encryption_key = "123456",
+      algorithm = "md5",
+      correspondence_table = FALSE
+    ),
     regexp = "All indicated vars_to_remove must be effectively a variable name."
   )
 
   expect_error(
-    object = crypt_data(loaded_dataset = mtcars[1:5, ],
-                        vars_to_encrypt = "mpg",
-                        encryption_key = "1234567",
-                        correspondence_table = TRUE),
+    object = crypt_data(
+      loaded_dataset = mtcars[1:5, ],
+      vars_to_encrypt = "mpg",
+      encryption_key = "1234567",
+      correspondence_table = TRUE
+    ),
     regexp = "correspondence_table_label must be indicated"
   )
 })
@@ -133,16 +146,20 @@ test_that("correspondence_table = FALSE stores nothing", {
 test_that("successive calls accumulate (stacking semantics)", {
   cryptRopen:::.clear_correspondence_tables()
 
-  crypt_data(loaded_dataset = mtcars[1:5, ],
-             vars_to_encrypt = "mpg",
-             encryption_key = "k",
-             correspondence_table = TRUE,
-             correspondence_table_label = "A")
-  crypt_data(loaded_dataset = mtcars[1:5, ],
-             vars_to_encrypt = "hp",
-             encryption_key = "k",
-             correspondence_table = TRUE,
-             correspondence_table_label = "B")
+  crypt_data(
+    loaded_dataset = mtcars[1:5, ],
+    vars_to_encrypt = "mpg",
+    encryption_key = "k",
+    correspondence_table = TRUE,
+    correspondence_table_label = "A"
+  )
+  crypt_data(
+    loaded_dataset = mtcars[1:5, ],
+    vars_to_encrypt = "hp",
+    encryption_key = "k",
+    correspondence_table = TRUE,
+    correspondence_table_label = "B"
+  )
 
   tcs <- get_correspondence_tables()
   expect_setequal(names(tcs), c("tc_crypt_A", "tc_crypt_B"))
@@ -158,16 +175,20 @@ test_that("successive calls accumulate (stacking semantics)", {
 test_that("get_correspondence_tables(names = ...) returns the requested subset", {
   cryptRopen:::.clear_correspondence_tables()
 
-  crypt_data(loaded_dataset = mtcars[1:5, ],
-             vars_to_encrypt = "mpg",
-             encryption_key = "k",
-             correspondence_table = TRUE,
-             correspondence_table_label = "A")
-  crypt_data(loaded_dataset = mtcars[1:5, ],
-             vars_to_encrypt = "hp",
-             encryption_key = "k",
-             correspondence_table = TRUE,
-             correspondence_table_label = "B")
+  crypt_data(
+    loaded_dataset = mtcars[1:5, ],
+    vars_to_encrypt = "mpg",
+    encryption_key = "k",
+    correspondence_table = TRUE,
+    correspondence_table_label = "A"
+  )
+  crypt_data(
+    loaded_dataset = mtcars[1:5, ],
+    vars_to_encrypt = "hp",
+    encryption_key = "k",
+    correspondence_table = TRUE,
+    correspondence_table_label = "B"
+  )
 
   res <- get_correspondence_tables(names = "tc_crypt_B")
   expect_named(res, "tc_crypt_B")
@@ -179,16 +200,20 @@ test_that("get_correspondence_tables(names = ...) returns the requested subset",
 test_that("get_correspondence_tables(names = ...) preserves the requested order", {
   cryptRopen:::.clear_correspondence_tables()
 
-  crypt_data(loaded_dataset = mtcars[1:5, ],
-             vars_to_encrypt = "mpg",
-             encryption_key = "k",
-             correspondence_table = TRUE,
-             correspondence_table_label = "A")
-  crypt_data(loaded_dataset = mtcars[1:5, ],
-             vars_to_encrypt = "hp",
-             encryption_key = "k",
-             correspondence_table = TRUE,
-             correspondence_table_label = "B")
+  crypt_data(
+    loaded_dataset = mtcars[1:5, ],
+    vars_to_encrypt = "mpg",
+    encryption_key = "k",
+    correspondence_table = TRUE,
+    correspondence_table_label = "A"
+  )
+  crypt_data(
+    loaded_dataset = mtcars[1:5, ],
+    vars_to_encrypt = "hp",
+    encryption_key = "k",
+    correspondence_table = TRUE,
+    correspondence_table_label = "B"
+  )
 
   res <- get_correspondence_tables(names = c("tc_crypt_B", "tc_crypt_A"))
   expect_equal(names(res), c("tc_crypt_B", "tc_crypt_A"))
@@ -199,11 +224,13 @@ test_that("get_correspondence_tables(names = ...) preserves the requested order"
 test_that("get_correspondence_tables(names = ...) returns NULL for missing keys", {
   cryptRopen:::.clear_correspondence_tables()
 
-  crypt_data(loaded_dataset = mtcars[1:5, ],
-             vars_to_encrypt = "mpg",
-             encryption_key = "k",
-             correspondence_table = TRUE,
-             correspondence_table_label = "A")
+  crypt_data(
+    loaded_dataset = mtcars[1:5, ],
+    vars_to_encrypt = "mpg",
+    encryption_key = "k",
+    correspondence_table = TRUE,
+    correspondence_table_label = "A"
+  )
 
   res <- get_correspondence_tables(names = c("tc_crypt_A", "tc_crypt_ghost"))
   expect_equal(names(res), c("tc_crypt_A", "tc_crypt_ghost"))
@@ -221,11 +248,13 @@ test_that("get_correspondence_tables(names = ...) validates input type", {
 test_that("get_correspondence_tables(names = character(0)) returns an empty named list", {
   cryptRopen:::.clear_correspondence_tables()
 
-  crypt_data(loaded_dataset = mtcars[1:5, ],
-             vars_to_encrypt = "mpg",
-             encryption_key = "k",
-             correspondence_table = TRUE,
-             correspondence_table_label = "A")
+  crypt_data(
+    loaded_dataset = mtcars[1:5, ],
+    vars_to_encrypt = "mpg",
+    encryption_key = "k",
+    correspondence_table = TRUE,
+    correspondence_table_label = "A"
+  )
 
   res <- get_correspondence_tables(names = character(0))
   expect_length(res, 0L)
@@ -235,11 +264,13 @@ test_that("get_correspondence_tables(names = character(0)) returns an empty name
 })
 
 test_that(".clear_correspondence_tables() empties the env", {
-  crypt_data(loaded_dataset = mtcars[1:5, ],
-             vars_to_encrypt = "mpg",
-             encryption_key = "k",
-             correspondence_table = TRUE,
-             correspondence_table_label = "toclear")
+  crypt_data(
+    loaded_dataset = mtcars[1:5, ],
+    vars_to_encrypt = "mpg",
+    encryption_key = "k",
+    correspondence_table = TRUE,
+    correspondence_table_label = "toclear"
+  )
   expect_true(length(get_correspondence_tables()) > 0L)
 
   cryptRopen:::.clear_correspondence_tables()

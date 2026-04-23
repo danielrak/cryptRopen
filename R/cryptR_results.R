@@ -103,26 +103,35 @@ cryptR_results <- function(job) {
   output_file_path <- file.path(job$output_path, encrypted_files)
 
   data.frame(
-    encrypted_file   = encrypted_files,
+    encrypted_file = encrypted_files,
     output_file_path = output_file_path,
-    exists           = file.exists(output_file_path),
-    size_bytes       = vapply(
+    exists = file.exists(output_file_path),
+    size_bytes = vapply(
       results,
-      \(r) if (is.null(r$metrics$output_file_size_bytes)) NA_real_
-           else as.numeric(r$metrics$output_file_size_bytes),
+      \(r) if (is.null(r$metrics$output_file_size_bytes)) {
+        NA_real_
+      } else {
+        as.numeric(r$metrics$output_file_size_bytes)
+      },
       numeric(1)
     ),
-    sha256           = vapply(
+    sha256 = vapply(
       results,
-      \(r) if (is.null(r$metrics$output_file_sha256)) NA_character_
-           else as.character(r$metrics$output_file_sha256),
+      \(r) if (is.null(r$metrics$output_file_sha256)) {
+        NA_character_
+      } else {
+        as.character(r$metrics$output_file_sha256)
+      },
       character(1)
     ),
-    success          = vapply(results, \(r) isTRUE(r$success), logical(1)),
-    error_message    = vapply(
+    success = vapply(results, \(r) isTRUE(r$success), logical(1)),
+    error_message = vapply(
       results,
-      \(r) if (is.null(r$error_message)) NA_character_
-           else as.character(r$error_message),
+      \(r) if (is.null(r$error_message)) {
+        NA_character_
+      } else {
+        as.character(r$error_message)
+      },
       character(1)
     ),
     stringsAsFactors = FALSE

@@ -42,7 +42,8 @@
   # mirai stores the error as a classed character scalar in `task$data`.
   # `as.character()` strips the class and yields the message.
   msg <- tryCatch(as.character(task$data),
-                  error = function(e) NA_character_)
+    error = function(e) NA_character_
+  )
   if (length(msg) != 1L || is.na(msg) || !nzchar(msg)) {
     return("unknown mirai error")
   }
@@ -76,26 +77,44 @@
     duration_sec     = NA_real_,
     n_rows_processed = NA_integer_
   )
-  if (!inherits(task, "mirai")) return(empty)
-  if (isTRUE(mirai::unresolved(task))) return(empty)
-  if (isTRUE(mirai::is_error_value(task$data))) return(empty)
+  if (!inherits(task, "mirai")) {
+    return(empty)
+  }
+  if (isTRUE(mirai::unresolved(task))) {
+    return(empty)
+  }
+  if (isTRUE(mirai::is_error_value(task$data))) {
+    return(empty)
+  }
 
   value <- task$data
-  if (!is.list(value) || is.null(value$metrics)) return(empty)
+  if (!is.list(value) || is.null(value$metrics)) {
+    return(empty)
+  }
   m <- value$metrics
 
   list(
-    start_time       = if (inherits(m$start_time, "POSIXct")) m$start_time
-                       else as.POSIXct(NA),
-    end_time         = if (inherits(m$end_time, "POSIXct")) m$end_time
-                       else as.POSIXct(NA),
-    duration_sec     = if (is.numeric(m$duration_sec))
-                         as.numeric(m$duration_sec)
-                       else NA_real_,
+    start_time = if (inherits(m$start_time, "POSIXct")) {
+      m$start_time
+    } else {
+      as.POSIXct(NA)
+    },
+    end_time = if (inherits(m$end_time, "POSIXct")) {
+      m$end_time
+    } else {
+      as.POSIXct(NA)
+    },
+    duration_sec = if (is.numeric(m$duration_sec)) {
+      as.numeric(m$duration_sec)
+    } else {
+      NA_real_
+    },
     n_rows_processed = if (is.numeric(m$n_rows_processed) ||
-                           is.integer(m$n_rows_processed))
-                         as.integer(m$n_rows_processed)
-                       else NA_integer_
+      is.integer(m$n_rows_processed)) {
+      as.integer(m$n_rows_processed)
+    } else {
+      NA_integer_
+    }
   )
 }
 
@@ -121,11 +140,18 @@
 #' @return Integer(1), possibly `NA`.
 #' @noRd
 .n_workers_active <- function() {
-  tryCatch({
-    st <- mirai::status()
-    d  <- st$daemons
-    if (is.null(d)) 0L
-    else if (is.matrix(d)) as.integer(nrow(d))
-    else as.integer(length(d))
-  }, error = function(e) NA_integer_)
+  tryCatch(
+    {
+      st <- mirai::status()
+      d <- st$daemons
+      if (is.null(d)) {
+        0L
+      } else if (is.matrix(d)) {
+        as.integer(nrow(d))
+      } else {
+        as.integer(length(d))
+      }
+    },
+    error = function(e) NA_integer_
+  )
 }

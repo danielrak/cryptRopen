@@ -52,40 +52,51 @@
                              end_time,
                              n_rows_processed,
                              output_file_path) {
-
   size_bytes <- NA_real_
-  sha256     <- NA_character_
+  sha256 <- NA_character_
   if (is.character(output_file_path) &&
-      length(output_file_path) == 1L &&
-      !is.na(output_file_path) &&
-      file.exists(output_file_path)) {
+    length(output_file_path) == 1L &&
+    !is.na(output_file_path) &&
+    file.exists(output_file_path)) {
     size_bytes <- tryCatch(
       as.numeric(file.info(output_file_path)$size),
-      error = function(e) NA_real_)
+      error = function(e) NA_real_
+    )
     sha256 <- tryCatch(
       digest::digest(file = output_file_path, algo = "sha256"),
-      error = function(e) NA_character_)
+      error = function(e) NA_character_
+    )
   }
 
   duration_sec <- tryCatch(
     as.numeric(difftime(end_time, start_time, units = "secs")),
-    error = function(e) NA_real_)
+    error = function(e) NA_real_
+  )
 
   list(
-    success        = isTRUE(success),
-    error_message  = if (is.null(error_message)) NA_character_
-                     else as.character(error_message),
-    tc_name        = if (is.null(tc_name)) NA_character_
-                     else as.character(tc_name),
-    tc_df          = tc_df,
+    success = isTRUE(success),
+    error_message = if (is.null(error_message)) {
+      NA_character_
+    } else {
+      as.character(error_message)
+    },
+    tc_name = if (is.null(tc_name)) {
+      NA_character_
+    } else {
+      as.character(tc_name)
+    },
+    tc_df = tc_df,
     metrics = list(
-      start_time             = start_time,
-      end_time               = end_time,
-      duration_sec           = duration_sec,
-      n_rows_processed       = if (is.null(n_rows_processed)) NA_integer_
-                               else as.integer(n_rows_processed),
+      start_time = start_time,
+      end_time = end_time,
+      duration_sec = duration_sec,
+      n_rows_processed = if (is.null(n_rows_processed)) {
+        NA_integer_
+      } else {
+        as.integer(n_rows_processed)
+      },
       output_file_size_bytes = size_bytes,
-      output_file_sha256     = sha256
+      output_file_sha256 = sha256
     )
   )
 }

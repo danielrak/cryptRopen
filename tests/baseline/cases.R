@@ -13,11 +13,13 @@
 
 build_persons_simple <- function() {
   data.frame(
-    id          = sprintf("ID%03d", 1:10),
-    name        = c("Alice", "Bob", "Charlie", "David", "Eve",
-                    "Frank", "Grace", "Heidi", "Ivan", "Judy"),
-    email       = paste0(letters[1:10], "@example.com"),
-    city        = rep(c("Paris", "Lyon"), 5),
+    id = sprintf("ID%03d", 1:10),
+    name = c(
+      "Alice", "Bob", "Charlie", "David", "Eve",
+      "Frank", "Grace", "Heidi", "Ivan", "Judy"
+    ),
+    email = paste0(letters[1:10], "@example.com"),
+    city = rep(c("Paris", "Lyon"), 5),
     joined_date = as.character(as.Date("2020-01-01") + 0:9),
     stringsAsFactors = FALSE
   )
@@ -26,15 +28,21 @@ build_persons_simple <- function() {
 build_persons_with_na <- function() {
   data.frame(
     id = c(sprintf("ID%03d", 1:14), NA),
-    name_with_spaces = c(" Alice ", "Bob", "  Charlie", "", NA,
-                         "Dave ", "Eve", "Frank", "  ", "Grace",
-                         "Heidi", "Ivan", "Judy", "Karl", "Liam"),
-    email = c("a@ex.com", "", NA, "d@ex.com", "e@ex.com",
-              "f@ex.com", "g@ex.com", "h@ex.com", "i@ex.com", "j@ex.com",
-              "k@ex.com", "l@ex.com", "m@ex.com", "n@ex.com", "o@ex.com"),
-    city = c("Paris", "Lyon", "Paris", "Marseille", "Lyon",
-             "Paris", "Lyon", "Marseille", "Paris", "Lyon",
-             "Marseille", "Paris", "Lyon", "Marseille", "Paris"),
+    name_with_spaces = c(
+      " Alice ", "Bob", "  Charlie", "", NA,
+      "Dave ", "Eve", "Frank", "  ", "Grace",
+      "Heidi", "Ivan", "Judy", "Karl", "Liam"
+    ),
+    email = c(
+      "a@ex.com", "", NA, "d@ex.com", "e@ex.com",
+      "f@ex.com", "g@ex.com", "h@ex.com", "i@ex.com", "j@ex.com",
+      "k@ex.com", "l@ex.com", "m@ex.com", "n@ex.com", "o@ex.com"
+    ),
+    city = c(
+      "Paris", "Lyon", "Paris", "Marseille", "Lyon",
+      "Paris", "Lyon", "Marseille", "Paris", "Lyon",
+      "Marseille", "Paris", "Lyon", "Marseille", "Paris"
+    ),
     stringsAsFactors = FALSE
   )
 }
@@ -43,11 +51,11 @@ build_orders <- function() {
   set.seed(2026)
   n <- 5000
   data.frame(
-    order_id    = sprintf("ORD%06d", seq_len(n)),
+    order_id = sprintf("ORD%06d", seq_len(n)),
     customer_id = sprintf("CUST%04d", sample(1:500, n, replace = TRUE)),
-    amount      = round(runif(n, 10, 1000), 2),
-    order_date  = as.character(as.Date("2024-01-01") +
-                                 sample(0:365, n, replace = TRUE)),
+    amount = round(runif(n, 10, 1000), 2),
+    order_date = as.character(as.Date("2024-01-01") +
+      sample(0:365, n, replace = TRUE)),
     stringsAsFactors = FALSE
   )
 }
@@ -55,9 +63,9 @@ build_orders <- function() {
 build_products <- function() {
   set.seed(2027)
   data.frame(
-    product_id   = sprintf("P%03d", 1:50),
+    product_id = sprintf("P%03d", 1:50),
     product_name = paste("Product", LETTERS[sample(1:26, 50, replace = TRUE)]),
-    category     = sample(c("A", "B", "C"), 50, replace = TRUE),
+    category = sample(c("A", "B", "C"), 50, replace = TRUE),
     stringsAsFactors = FALSE
   )
 }
@@ -65,8 +73,8 @@ build_products <- function() {
 build_employees <- function() {
   set.seed(2028)
   data.frame(
-    emp_id     = sprintf("E%04d", 1:100),
-    full_name  = paste0("Emp", 1:100),
+    emp_id = sprintf("E%04d", 1:100),
+    full_name = paste0("Emp", 1:100),
     department = sample(c("Sales", "Eng", "HR"), 100, replace = TRUE),
     manager_id = sprintf("E%04d", sample(1:10, 100, replace = TRUE)),
     stringsAsFactors = FALSE
@@ -93,14 +101,19 @@ build_orders_large <- function() {
   set.seed(2029)
   n <- 50000L
   data.frame(
-    order_id    = sprintf("ORD%08d", seq_len(n)),
+    order_id = sprintf("ORD%08d", seq_len(n)),
     customer_id = sprintf("CUST%05d", sample(1:5000, n, replace = TRUE)),
-    amount      = round(stats::runif(n, 1, 10000), 2),
-    order_date  = as.character(as.Date("2020-01-01") +
-                                 sample(0:1825, n, replace = TRUE)),
-    city        = sample(c("Paris", "Lyon", "Marseille", "Nice",
-                           "Toulouse", "Bordeaux"),
-                         n, replace = TRUE),
+    amount = round(stats::runif(n, 1, 10000), 2),
+    order_date = as.character(as.Date("2020-01-01") +
+      sample(0:1825, n, replace = TRUE)),
+    city = sample(
+      c(
+        "Paris", "Lyon", "Marseille", "Nice",
+        "Toulouse", "Bordeaux"
+      ),
+      n,
+      replace = TRUE
+    ),
     stringsAsFactors = FALSE
   )
 }
@@ -108,8 +121,10 @@ build_orders_large <- function() {
 build_special_chars <- function() {
   df <- data.frame(
     a = sprintf("X%02d", 1:20),
-    b = c("Jose", "Muller", "Oyvind", "Zoe", "Chloe",
-          rep("Foo", 15)),
+    b = c(
+      "Jose", "Muller", "Oyvind", "Zoe", "Chloe",
+      rep("Foo", 15)
+    ),
     c = 1:20,
     stringsAsFactors = FALSE
   )
@@ -123,21 +138,33 @@ write_all_datasets <- function(datasets_dir) {
   dir.create(datasets_dir, recursive = TRUE, showWarnings = FALSE)
 
   utils::write.csv(build_persons_simple(),
-                   file.path(datasets_dir, "persons_simple.csv"),
-                   row.names = FALSE)
+    file.path(datasets_dir, "persons_simple.csv"),
+    row.names = FALSE
+  )
   utils::write.csv(build_persons_with_na(),
-                   file.path(datasets_dir, "persons_with_na.csv"),
-                   row.names = FALSE, na = "")
-  arrow::write_parquet(build_orders(),
-                       file.path(datasets_dir, "orders.parquet"))
-  arrow::write_parquet(build_orders_large(),
-                       file.path(datasets_dir, "orders_large.parquet"))
-  saveRDS(build_products(),
-          file.path(datasets_dir, "products.rds"))
-  writexl::write_xlsx(build_employees(),
-                      file.path(datasets_dir, "employees.xlsx"))
-  writexl::write_xlsx(build_special_chars(),
-                      file.path(datasets_dir, "special_chars.xlsx"))
+    file.path(datasets_dir, "persons_with_na.csv"),
+    row.names = FALSE, na = ""
+  )
+  arrow::write_parquet(
+    build_orders(),
+    file.path(datasets_dir, "orders.parquet")
+  )
+  arrow::write_parquet(
+    build_orders_large(),
+    file.path(datasets_dir, "orders_large.parquet")
+  )
+  saveRDS(
+    build_products(),
+    file.path(datasets_dir, "products.rds")
+  )
+  writexl::write_xlsx(
+    build_employees(),
+    file.path(datasets_dir, "employees.xlsx")
+  )
+  writexl::write_xlsx(
+    build_special_chars(),
+    file.path(datasets_dir, "special_chars.xlsx")
+  )
 
   invisible(NULL)
 }
@@ -150,92 +177,126 @@ write_all_datasets <- function(datasets_dir) {
 mask_row <- function(folder_path, file, to_encrypt, encrypted_file,
                      vars_to_encrypt, vars_to_remove = NA) {
   data.frame(
-    folder_path     = folder_path,
-    file            = file,
-    to_encrypt      = to_encrypt,
-    encrypted_file  = encrypted_file,
+    folder_path = folder_path,
+    file = file,
+    to_encrypt = to_encrypt,
+    encrypted_file = encrypted_file,
     vars_to_encrypt = vars_to_encrypt,
-    vars_to_remove  = vars_to_remove,
+    vars_to_remove = vars_to_remove,
     stringsAsFactors = FALSE
   )
 }
 
 make_mask_simple <- function(datasets_dir) {
-  mask_row(datasets_dir, "persons_simple.csv", "X",
-           "persons_simple_crypt.csv", "id")
+  mask_row(
+    datasets_dir, "persons_simple.csv", "X",
+    "persons_simple_crypt.csv", "id"
+  )
 }
 
 make_mask_multi <- function(datasets_dir) {
   rbind(
-    mask_row(datasets_dir, "persons_simple.csv", "X",
-             "persons_simple_crypt.csv", "id"),
-    mask_row(datasets_dir, "orders.parquet", "X",
-             "orders_crypt.parquet", "customer_id"),
-    mask_row(datasets_dir, "products.rds", "X",
-             "products_crypt.rds", "product_id")
+    mask_row(
+      datasets_dir, "persons_simple.csv", "X",
+      "persons_simple_crypt.csv", "id"
+    ),
+    mask_row(
+      datasets_dir, "orders.parquet", "X",
+      "orders_crypt.parquet", "customer_id"
+    ),
+    mask_row(
+      datasets_dir, "products.rds", "X",
+      "products_crypt.rds", "product_id"
+    )
   )
 }
 
 make_mask_with_skipped <- function(datasets_dir) {
   rbind(
-    mask_row(datasets_dir, "persons_simple.csv", "X",
-             "persons_simple_crypt.csv", "id"),
+    mask_row(
+      datasets_dir, "persons_simple.csv", "X",
+      "persons_simple_crypt.csv", "id"
+    ),
     # Blank line (all NA) — should be filtered by filter_all(any_vars(!is.na(.)))
     mask_row(NA, NA, NA, NA, NA, NA),
     # to_encrypt != "X" — should be skipped
-    mask_row(datasets_dir, "products.rds", "N",
-             "products_crypt.rds", "product_id"),
-    mask_row(datasets_dir, "persons_with_na.csv", "X",
-             "persons_with_na_crypt.csv", "id")
+    mask_row(
+      datasets_dir, "products.rds", "N",
+      "products_crypt.rds", "product_id"
+    ),
+    mask_row(
+      datasets_dir, "persons_with_na.csv", "X",
+      "persons_with_na_crypt.csv", "id"
+    )
   )
 }
 
 make_mask_dupl_files <- function(datasets_dir) {
   rbind(
-    mask_row(datasets_dir, "persons_simple.csv", "X",
-             "out_crypt.csv", "id"),
-    mask_row(datasets_dir, "persons_with_na.csv", "X",
-             "out_crypt.csv", "id")
+    mask_row(
+      datasets_dir, "persons_simple.csv", "X",
+      "out_crypt.csv", "id"
+    ),
+    mask_row(
+      datasets_dir, "persons_with_na.csv", "X",
+      "out_crypt.csv", "id"
+    )
   )
 }
 
 make_mask_multi_vars <- function(datasets_dir) {
-  mask_row(datasets_dir, "persons_simple.csv", "X",
-           "persons_simple_crypt.csv", "id, email")
+  mask_row(
+    datasets_dir, "persons_simple.csv", "X",
+    "persons_simple_crypt.csv", "id, email"
+  )
 }
 
 make_mask_with_remove <- function(datasets_dir) {
   rbind(
     mask_row(datasets_dir, "persons_simple.csv", "X",
-             "persons_simple_crypt.csv", "id", vars_to_remove = "city"),
+      "persons_simple_crypt.csv", "id",
+      vars_to_remove = "city"
+    ),
     mask_row(datasets_dir, "products.rds", "X",
-             "products_crypt.rds", "product_id", vars_to_remove = NA)
+      "products_crypt.rds", "product_id",
+      vars_to_remove = NA
+    )
   )
 }
 
 make_mask_xlsx_input <- function(datasets_dir) {
-  mask_row(datasets_dir, "employees.xlsx", "X",
-           "employees_crypt.xlsx", "emp_id")
+  mask_row(
+    datasets_dir, "employees.xlsx", "X",
+    "employees_crypt.xlsx", "emp_id"
+  )
 }
 
 make_mask_parquet_input <- function(datasets_dir) {
-  mask_row(datasets_dir, "orders.parquet", "X",
-           "orders_crypt.parquet", "customer_id")
+  mask_row(
+    datasets_dir, "orders.parquet", "X",
+    "orders_crypt.parquet", "customer_id"
+  )
 }
 
 make_mask_rds_input <- function(datasets_dir) {
-  mask_row(datasets_dir, "products.rds", "X",
-           "products_crypt.rds", "product_id")
+  mask_row(
+    datasets_dir, "products.rds", "X",
+    "products_crypt.rds", "product_id"
+  )
 }
 
 make_mask_special_chars <- function(datasets_dir) {
-  mask_row(datasets_dir, "special_chars.xlsx", "X",
-           "special_chars_crypt.xlsx", "id number")
+  mask_row(
+    datasets_dir, "special_chars.xlsx", "X",
+    "special_chars_crypt.xlsx", "id number"
+  )
 }
 
 make_mask_large_parquet <- function(datasets_dir) {
-  mask_row(datasets_dir, "orders_large.parquet", "X",
-           "orders_large_crypt.parquet", "customer_id")
+  mask_row(
+    datasets_dir, "orders_large.parquet", "X",
+    "orders_large_crypt.parquet", "customer_id"
+  )
 }
 
 
@@ -255,8 +316,10 @@ write_all_masks <- function(masks_dir, datasets_dir) {
     mask_large_parquet  = make_mask_large_parquet
   )
   for (nm in names(builders)) {
-    writexl::write_xlsx(builders[[nm]](datasets_dir),
-                        file.path(masks_dir, paste0(nm, ".xlsx")))
+    writexl::write_xlsx(
+      builders[[nm]](datasets_dir),
+      file.path(masks_dir, paste0(nm, ".xlsx"))
+    )
   }
   invisible(names(builders))
 }
@@ -269,43 +332,59 @@ write_all_masks <- function(masks_dir, datasets_dir) {
 crypt_vector_cases <- list(
   list(
     name = "ascii_simple",
-    args = list(vector = c("1234", "5678", "9101112"),
-                key = "key_abc", algo = "md5")
+    args = list(
+      vector = c("1234", "5678", "9101112"),
+      key = "key_abc", algo = "md5"
+    )
   ),
   list(
     name = "with_na_and_empty",
-    args = list(vector = c("1234", NA_character_, "", "5678"),
-                key = "key_abc", algo = "md5")
+    args = list(
+      vector = c("1234", NA_character_, "", "5678"),
+      key = "key_abc", algo = "md5"
+    )
   ),
   list(
     name = "leading_trailing_spaces",
-    args = list(vector = c("  foo  ", "bar  ", "  baz"),
-                key = "key_abc", algo = "md5")
+    args = list(
+      vector = c("  foo  ", "bar  ", "  baz"),
+      key = "key_abc", algo = "md5"
+    )
   ),
   list(
     name = "internal_spaces",
-    args = list(vector = c("hello world", "a b c d", "no_spaces"),
-                key = "key_abc", algo = "md5")
+    args = list(
+      vector = c("hello world", "a b c d", "no_spaces"),
+      key = "key_abc", algo = "md5"
+    )
   ),
   list(
     name = "mixed_case",
-    args = list(vector = c("Hello", "WORLD", "miXeD"),
-                key = "key_abc", algo = "md5")
+    args = list(
+      vector = c("Hello", "WORLD", "miXeD"),
+      key = "key_abc", algo = "md5"
+    )
   ),
   list(
     name = "unicode",
-    args = list(vector = c("cafe", "naive", "Zoe", "Muller"),
-                key = "key_abc", algo = "md5")
+    args = list(
+      vector = c("cafe", "naive", "Zoe", "Muller"),
+      key = "key_abc", algo = "md5"
+    )
   ),
   list(
     name = "numeric_vector",
-    args = list(vector = c(1234, 5678, 9101112),
-                key = "key_abc", algo = "md5")
+    args = list(
+      vector = c(1234, 5678, 9101112),
+      key = "key_abc", algo = "md5"
+    )
   ),
   list(
     name = "date_vector",
-    args = list(vector = as.Date(c("2024-01-01", "2024-06-15", "2025-12-31")),
-                key = "key_abc", algo = "md5")
+    args = list(
+      vector = as.Date(c("2024-01-01", "2024-06-15", "2025-12-31")),
+      key = "key_abc", algo = "md5"
+    )
   ),
   list(
     name = "length_one",
@@ -313,18 +392,24 @@ crypt_vector_cases <- list(
   ),
   list(
     name = "algo_sha1",
-    args = list(vector = c("abc", "def", "ghi"),
-                key = "key_abc", algo = "sha1")
+    args = list(
+      vector = c("abc", "def", "ghi"),
+      key = "key_abc", algo = "sha1"
+    )
   ),
   list(
     name = "algo_sha256",
-    args = list(vector = c("abc", "def", "ghi"),
-                key = "key_abc", algo = "sha256")
+    args = list(
+      vector = c("abc", "def", "ghi"),
+      key = "key_abc", algo = "sha256"
+    )
   ),
   list(
     name = "special_key",
-    args = list(vector = c("abc", "def"),
-                key = "k3y!@#$%&*()", algo = "md5")
+    args = list(
+      vector = c("abc", "def"),
+      key = "k3y!@#$%&*()", algo = "md5"
+    )
   )
 )
 
@@ -334,54 +419,62 @@ crypt_vector_cases <- list(
 crypt_data_cases <- list(
   list(
     name = "readme_example_no_tc",
-    args_factory = function() list(
-      loaded_dataset = mtcars[1:5, ],
-      vars_to_encrypt = "mpg",
-      vars_to_remove = "cyl",
-      encryption_key = "1234567",
-      algorithm = "md5",
-      correspondence_table = FALSE
-    )
+    args_factory = function() {
+      list(
+        loaded_dataset = mtcars[1:5, ],
+        vars_to_encrypt = "mpg",
+        vars_to_remove = "cyl",
+        encryption_key = "1234567",
+        algorithm = "md5",
+        correspondence_table = FALSE
+      )
+    }
   ),
   list(
     name = "with_tc",
-    args_factory = function() list(
-      loaded_dataset = mtcars[1:5, ],
-      vars_to_encrypt = "mpg",
-      vars_to_remove = NULL,
-      encryption_key = "1234567",
-      algorithm = "md5",
-      correspondence_table = TRUE,
-      correspondence_table_label = "readme_mtcars"
-    )
+    args_factory = function() {
+      list(
+        loaded_dataset = mtcars[1:5, ],
+        vars_to_encrypt = "mpg",
+        vars_to_remove = NULL,
+        encryption_key = "1234567",
+        algorithm = "md5",
+        correspondence_table = TRUE,
+        correspondence_table_label = "readme_mtcars"
+      )
+    }
   ),
   list(
     name = "multi_vars",
-    args_factory = function() list(
-      loaded_dataset = data.frame(
-        id     = sprintf("ID%03d", 1:10),
-        email  = paste0(letters[1:10], "@ex.com"),
-        name   = letters[1:10],
-        amount = 1:10,
-        stringsAsFactors = FALSE
-      ),
-      vars_to_encrypt = c("id", "email"),
-      vars_to_remove = NULL,
-      encryption_key = "testkey",
-      algorithm = "md5",
-      correspondence_table = FALSE
-    )
+    args_factory = function() {
+      list(
+        loaded_dataset = data.frame(
+          id = sprintf("ID%03d", 1:10),
+          email = paste0(letters[1:10], "@ex.com"),
+          name = letters[1:10],
+          amount = 1:10,
+          stringsAsFactors = FALSE
+        ),
+        vars_to_encrypt = c("id", "email"),
+        vars_to_remove = NULL,
+        encryption_key = "testkey",
+        algorithm = "md5",
+        correspondence_table = FALSE
+      )
+    }
   ),
   list(
     name = "vars_to_remove_null",
-    args_factory = function() list(
-      loaded_dataset = mtcars[1:5, ],
-      vars_to_encrypt = "mpg",
-      vars_to_remove = NULL,
-      encryption_key = "k",
-      algorithm = "md5",
-      correspondence_table = FALSE
-    )
+    args_factory = function() {
+      list(
+        loaded_dataset = mtcars[1:5, ],
+        vars_to_encrypt = "mpg",
+        vars_to_remove = NULL,
+        encryption_key = "k",
+        algorithm = "md5",
+        correspondence_table = FALSE
+      )
+    }
   ),
   list(
     name = "dedup_name_collision",
@@ -402,18 +495,20 @@ crypt_data_cases <- list(
   ),
   list(
     name = "trim_and_na_chars",
-    args_factory = function() list(
-      loaded_dataset = data.frame(
-        id = c(" A1 ", "  ", "", NA, "A2", "  A3"),
-        v  = 1:6,
-        stringsAsFactors = FALSE
-      ),
-      vars_to_encrypt = "id",
-      vars_to_remove = NULL,
-      encryption_key = "k",
-      algorithm = "md5",
-      correspondence_table = FALSE
-    )
+    args_factory = function() {
+      list(
+        loaded_dataset = data.frame(
+          id = c(" A1 ", "  ", "", NA, "A2", "  A3"),
+          v = 1:6,
+          stringsAsFactors = FALSE
+        ),
+        vars_to_encrypt = "id",
+        vars_to_remove = NULL,
+        encryption_key = "k",
+        algorithm = "md5",
+        correspondence_table = FALSE
+      )
+    }
   )
 )
 
@@ -421,36 +516,60 @@ crypt_data_cases <- list(
 # For crypt_r, cases reference a mask file name (built by write_all_masks)
 # and carry the param values passed to crypt_r() at call time.
 crypt_r_cases <- list(
-  list(name = "simple_csv",
-       mask = "mask_simple.xlsx",            correspondence_table = TRUE),
-  list(name = "simple_csv_no_tc",
-       mask = "mask_simple.xlsx",            correspondence_table = FALSE),
-  list(name = "multi_files",
-       mask = "mask_multi.xlsx",             correspondence_table = TRUE),
-  list(name = "with_skipped_lines",
-       mask = "mask_with_skipped.xlsx",      correspondence_table = TRUE),
-  list(name = "dupl_files",
-       mask = "mask_dupl_files.xlsx",        correspondence_table = TRUE),
-  list(name = "multi_vars_per_file",
-       mask = "mask_multi_vars.xlsx",        correspondence_table = TRUE),
-  list(name = "with_remove",
-       mask = "mask_with_remove.xlsx",       correspondence_table = TRUE),
-  list(name = "xlsx_input",
-       mask = "mask_xlsx_input.xlsx",        correspondence_table = TRUE),
-  list(name = "parquet_input",
-       mask = "mask_parquet_input.xlsx",     correspondence_table = TRUE),
-  list(name = "rds_input",
-       mask = "mask_rds_input.xlsx",         correspondence_table = TRUE),
-  list(name = "special_chars_cols",
-       mask = "mask_special_chars.xlsx",     correspondence_table = TRUE),
+  list(
+    name = "simple_csv",
+    mask = "mask_simple.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "simple_csv_no_tc",
+    mask = "mask_simple.xlsx", correspondence_table = FALSE
+  ),
+  list(
+    name = "multi_files",
+    mask = "mask_multi.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "with_skipped_lines",
+    mask = "mask_with_skipped.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "dupl_files",
+    mask = "mask_dupl_files.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "multi_vars_per_file",
+    mask = "mask_multi_vars.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "with_remove",
+    mask = "mask_with_remove.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "xlsx_input",
+    mask = "mask_xlsx_input.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "parquet_input",
+    mask = "mask_parquet_input.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "rds_input",
+    mask = "mask_rds_input.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "special_chars_cols",
+    mask = "mask_special_chars.xlsx", correspondence_table = TRUE
+  ),
 
   # Phase 1.D.5 — large parquet case exercising multi-chunk streaming.
   # chunk_size = 15000 on a 50k-row input triggers ~4 scanner iterations,
   # forcing real accumulation in .transform_stream_chunk() / tc_accum and
   # repeated WriteTable() calls on the same ParquetFileWriter.
-  list(name = "large_parquet_multichunk",
-       mask = "mask_large_parquet.xlsx",     correspondence_table = TRUE,
-       chunk_size = 15000L)
+  list(
+    name = "large_parquet_multichunk",
+    mask = "mask_large_parquet.xlsx", correspondence_table = TRUE,
+    chunk_size = 15000L
+  )
 )
 
 CRYPT_R_KEY <- "baseline_key_2026"
@@ -535,7 +654,7 @@ install_sync_crypt_r_patch <- function() {
       # `run_crypt_r_case()` in test-baseline.R detects NULL via the
       # `inherits(result, "cryptR_job")` guard and skips `cryptR_wait()`.
       if (is.symbol(fn) &&
-          identical(as.character(fn), ".new_cryptR_job")) {
+        identical(as.character(fn), ".new_cryptR_job")) {
         return(quote(invisible(NULL)))
       }
       # Phase 1.D.6.c added `.start_watcher(job)` right after
@@ -544,7 +663,7 @@ install_sync_crypt_r_patch <- function() {
       # which would blow up the watcher's `stopifnot(inherits(...))`.
       # Strip the whole call — baseline tests do not need the auto-log.
       if (is.symbol(fn) &&
-          identical(as.character(fn), ".start_watcher")) {
+        identical(as.character(fn), ".start_watcher")) {
         return(quote(invisible(NULL)))
       }
       for (i in seq_along(expr)) {
@@ -558,7 +677,9 @@ install_sync_crypt_r_patch <- function() {
   body(new_fn) <- rewrite(body(original))
 
   rebind <- function(env, name, value) {
-    if (!exists(name, envir = env, inherits = FALSE)) return(invisible())
+    if (!exists(name, envir = env, inherits = FALSE)) {
+      return(invisible())
+    }
     if (bindingIsLocked(name, env)) unlockBinding(name, env)
     assign(name, value, envir = env)
     lockBinding(name, env)
@@ -575,7 +696,7 @@ install_sync_crypt_r_patch <- function() {
     targets <- list()
     add <- function(env) {
       if (is.environment(env) &&
-          exists("crypt_r", envir = env, inherits = FALSE)) {
+        exists("crypt_r", envir = env, inherits = FALSE)) {
         targets[[length(targets) + 1L]] <<- env
       }
     }

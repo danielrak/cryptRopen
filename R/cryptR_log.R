@@ -56,10 +56,10 @@
 .extract_row_result <- function(task, encrypted_file) {
   # Defensive default — populated further down.
   default <- list(
-    success        = FALSE,
-    error_message  = NA_character_,
-    tc_name        = NA_character_,
-    tc_df          = NULL,
+    success = FALSE,
+    error_message = NA_character_,
+    tc_name = NA_character_,
+    tc_df = NULL,
     metrics = list(
       start_time             = as.POSIXct(NA),
       end_time               = as.POSIXct(NA),
@@ -75,8 +75,8 @@
     # cryptR_job around raw mirai objects. We don't know the payload
     # shape; report a minimal success so the log writer has something
     # to show.
-    default$success        <- TRUE
-    default$error_message  <- NA_character_
+    default$success <- TRUE
+    default$error_message <- NA_character_
     return(default)
   }
 
@@ -84,14 +84,16 @@
   # cryptR_wait). Just surface the state.
   if (isTRUE(mirai::unresolved(task))) {
     default$error_message <- sprintf(
-      "task for %s still unresolved at collect time", encrypted_file)
+      "task for %s still unresolved at collect time", encrypted_file
+    )
     return(default)
   }
 
   # Resolved — distinguish mirai-level error vs. user-returned value.
   if (isTRUE(mirai::is_error_value(task$data))) {
     msg <- tryCatch(as.character(task$data),
-                    error = function(e) "unknown mirai error")
+      error = function(e) "unknown mirai error"
+    )
     if (length(msg) != 1L || is.na(msg) || !nzchar(msg)) {
       msg <- "unknown mirai error"
     }
@@ -103,8 +105,10 @@
 
   # Expected shape: a list produced by .make_row_result().
   if (is.list(value) &&
-      all(c("success", "error_message", "tc_name",
-            "tc_df", "metrics") %in% names(value))) {
+    all(c(
+      "success", "error_message", "tc_name",
+      "tc_df", "metrics"
+    ) %in% names(value))) {
     return(value)
   }
 
@@ -136,9 +140,9 @@
 .reinject_correspondence_tables <- function(results) {
   for (r in results) {
     if (isTRUE(r$success) &&
-        is.character(r$tc_name) && length(r$tc_name) == 1L &&
-        !is.na(r$tc_name) && nzchar(r$tc_name) &&
-        !is.null(r$tc_df)) {
+      is.character(r$tc_name) && length(r$tc_name) == 1L &&
+      !is.na(r$tc_name) && nzchar(r$tc_name) &&
+      !is.null(r$tc_df)) {
       .store_correspondence_table(name = r$tc_name, df = r$tc_df)
     }
   }
@@ -192,40 +196,69 @@
   stopifnot(length(results) == n)
 
   extras <- data.frame(
-    success                = vapply(results, \(r) isTRUE(r$success), logical(1)),
-    error_message          = vapply(results,
-                                    \(r) if (is.null(r$error_message)) NA_character_
-                                         else as.character(r$error_message),
-                                    character(1)),
-    start_time             = do.call(c, lapply(results,
-                                    \(r) if (is.null(r$metrics$start_time))
-                                           as.POSIXct(NA)
-                                         else r$metrics$start_time)),
-    end_time               = do.call(c, lapply(results,
-                                    \(r) if (is.null(r$metrics$end_time))
-                                           as.POSIXct(NA)
-                                         else r$metrics$end_time)),
-    duration_sec           = vapply(results,
-                                    \(r) if (is.null(r$metrics$duration_sec))
-                                           NA_real_
-                                         else as.numeric(r$metrics$duration_sec),
-                                    numeric(1)),
-    n_rows_processed       = vapply(results,
-                                    \(r) if (is.null(r$metrics$n_rows_processed))
-                                           NA_integer_
-                                         else as.integer(r$metrics$n_rows_processed),
-                                    integer(1)),
-    output_file_size_bytes = vapply(results,
-                                    \(r) if (is.null(r$metrics$output_file_size_bytes))
-                                           NA_real_
-                                         else as.numeric(r$metrics$output_file_size_bytes),
-                                    numeric(1)),
-    output_file_sha256     = vapply(results,
-                                    \(r) if (is.null(r$metrics$output_file_sha256))
-                                           NA_character_
-                                         else as.character(r$metrics$output_file_sha256),
-                                    character(1)),
-    stringsAsFactors       = FALSE
+    success = vapply(results, \(r) isTRUE(r$success), logical(1)),
+    error_message = vapply(
+      results,
+      \(r) if (is.null(r$error_message)) {
+        NA_character_
+      } else {
+        as.character(r$error_message)
+      },
+      character(1)
+    ),
+    start_time = do.call(c, lapply(
+      results,
+      \(r) if (is.null(r$metrics$start_time)) {
+        as.POSIXct(NA)
+      } else {
+        r$metrics$start_time
+      }
+    )),
+    end_time = do.call(c, lapply(
+      results,
+      \(r) if (is.null(r$metrics$end_time)) {
+        as.POSIXct(NA)
+      } else {
+        r$metrics$end_time
+      }
+    )),
+    duration_sec = vapply(
+      results,
+      \(r) if (is.null(r$metrics$duration_sec)) {
+        NA_real_
+      } else {
+        as.numeric(r$metrics$duration_sec)
+      },
+      numeric(1)
+    ),
+    n_rows_processed = vapply(
+      results,
+      \(r) if (is.null(r$metrics$n_rows_processed)) {
+        NA_integer_
+      } else {
+        as.integer(r$metrics$n_rows_processed)
+      },
+      integer(1)
+    ),
+    output_file_size_bytes = vapply(
+      results,
+      \(r) if (is.null(r$metrics$output_file_size_bytes)) {
+        NA_real_
+      } else {
+        as.numeric(r$metrics$output_file_size_bytes)
+      },
+      numeric(1)
+    ),
+    output_file_sha256 = vapply(
+      results,
+      \(r) if (is.null(r$metrics$output_file_sha256)) {
+        NA_character_
+      } else {
+        as.character(r$metrics$output_file_sha256)
+      },
+      character(1)
+    ),
+    stringsAsFactors = FALSE
   )
 
   cbind(job$mask_rows, extras)
@@ -252,9 +285,9 @@
   # line to stderr that `tryCatch` can't silence. Detect the condition
   # early and bail cleanly.
   if (!is.character(job$output_path) ||
-      length(job$output_path) != 1L ||
-      is.na(job$output_path) ||
-      !dir.exists(job$output_path)) {
+    length(job$output_path) != 1L ||
+    is.na(job$output_path) ||
+    !dir.exists(job$output_path)) {
     return(NA_character_)
   }
 
@@ -263,10 +296,13 @@
   ts <- format(now, "%Y%m%d_%H%M%S")
   path <- file.path(job$output_path, paste0("log_crypt_r_", ts, ".xlsx"))
 
-  tryCatch({
-    writexl::write_xlsx(df, path)
-    path
-  }, error = function(e) NA_character_)
+  tryCatch(
+    {
+      writexl::write_xlsx(df, path)
+      path
+    },
+    error = function(e) NA_character_
+  )
 }
 
 
@@ -288,9 +324,9 @@
 #' @noRd
 .log_already_written <- function(job) {
   if (!is.character(job$output_path) ||
-      length(job$output_path) != 1L ||
-      is.na(job$output_path) ||
-      !dir.exists(job$output_path)) {
+    length(job$output_path) != 1L ||
+    is.na(job$output_path) ||
+    !dir.exists(job$output_path)) {
     return(FALSE)
   }
   started <- job$started_at
@@ -298,9 +334,12 @@
     return(FALSE)
   }
   existing <- list.files(job$output_path,
-                         pattern = "^log_crypt_r_.*\\.xlsx$",
-                         full.names = TRUE)
-  if (length(existing) == 0L) return(FALSE)
+    pattern = "^log_crypt_r_.*\\.xlsx$",
+    full.names = TRUE
+  )
+  if (length(existing) == 0L) {
+    return(FALSE)
+  }
   info <- file.info(existing)
   mtimes <- info$mtime
   # 1-second slack absorbs filesystem mtime quantisation (Windows NTFS

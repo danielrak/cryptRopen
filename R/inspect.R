@@ -18,23 +18,25 @@
 #' @examples
 #' inspect(CO2)
 inspect <- function(data_frame, nrow = FALSE) {
-
   rows <- base::nrow(data_frame)
 
   # Date-time class correction to keep class(.x) single-valued
   # (base R equivalent of dplyr::mutate_if(is.POSIXct, ...),
   # avoids tidyselect deprecation warnings):
   posixct_cols <- names(data_frame)[
-    vapply(data_frame, lubridate::is.POSIXct, logical(1))]
+    vapply(data_frame, lubridate::is.POSIXct, logical(1))
+  ]
   if (length(posixct_cols) > 0) {
     data_frame[posixct_cols] <- lapply(
       data_frame[posixct_cols],
-      \(x) structure(as.character(x), class = "Date-time"))
+      \(x) structure(as.character(x), class = "Date-time")
+    )
   }
 
   df <- purrr::list_rbind(
     purrr::map(data_frame, \(x) .inspect_column(x, rows = rows)),
-    names_to = "variables")
+    names_to = "variables"
+  )
 
   if (nrow) {
     print(base::nrow(data_frame))
@@ -56,7 +58,6 @@ inspect <- function(data_frame, nrow = FALSE) {
 #' @return A tibble with one row per class of `x`.
 #' @noRd
 .inspect_column <- function(x, rows) {
-
   n_val_unique <- dplyr::n_distinct(x)
   nchar_values <- nchar(as.character(x))
   n_char_unique <- dplyr::n_distinct(nchar_values)
@@ -71,9 +72,11 @@ inspect <- function(data_frame, nrow = FALSE) {
     prop_void = nb_void / rows,
     nchars = paste(
       unique(sort(nchar_values))[1:min(n_char_unique, 10)],
-      collapse = " / "),
+      collapse = " / "
+    ),
     modalities = paste(
       sort(unique(x))[1:min(n_val_unique, 10)],
-      collapse = " / ")
+      collapse = " / "
+    )
   )
 }

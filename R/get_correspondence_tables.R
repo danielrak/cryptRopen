@@ -41,6 +41,8 @@ get_correspondence_tables <- function(names = NULL) {
   # the requested order. The result is always a named list of the same
   # length as `names`; callers introspect `is.null(x[[n]])` to detect
   # the miss.
-  mget(names, envir = .cryptRopen_env,
-       ifnotfound = list(NULL))
+  mget(names,
+    envir = .cryptRopen_env,
+    ifnotfound = list(NULL)
+  )
 }

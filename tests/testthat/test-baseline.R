@@ -45,14 +45,15 @@ if (file.exists(.cases_path)) {
 
 read_any <- function(path) {
   ext <- tolower(tools::file_ext(path))
-  switch(
-    ext,
+  switch(ext,
     "parquet" = as.data.frame(arrow::read_parquet(path)),
-    "rds"     = readRDS(path),
-    "xlsx"    = as.data.frame(readxl::read_xlsx(path)),
-    "csv"     = utils::read.csv(path, stringsAsFactors = FALSE,
-                                na.strings = c("NA", ""),
-                                check.names = FALSE),
+    "rds" = readRDS(path),
+    "xlsx" = as.data.frame(readxl::read_xlsx(path)),
+    "csv" = utils::read.csv(path,
+      stringsAsFactors = FALSE,
+      na.strings = c("NA", ""),
+      check.names = FALSE
+    ),
     # Fallback via rio for other formats
     as.data.frame(rio::import(path))
   )
@@ -70,7 +71,8 @@ sort_tc <- function(df) {
 
 compare_dataset <- function(ref_path, new_path, info = NULL) {
   testthat::expect_true(file.exists(new_path),
-                        info = paste(info, "- file exists:", new_path))
+    info = paste(info, "- file exists:", new_path)
+  )
   ref <- read_any(ref_path)
   new <- read_any(new_path)
   # Row names are meaningless once written to disk and read back;
@@ -82,7 +84,8 @@ compare_dataset <- function(ref_path, new_path, info = NULL) {
 
 compare_tc <- function(ref_path, new_path, info = NULL) {
   testthat::expect_true(file.exists(new_path),
-                        info = paste(info, "- file exists:", new_path))
+    info = paste(info, "- file exists:", new_path)
+  )
   ref <- sort_tc(as.data.frame(arrow::read_parquet(ref_path)))
   new <- sort_tc(as.data.frame(arrow::read_parquet(new_path)))
   rownames(ref) <- NULL
@@ -92,7 +95,8 @@ compare_tc <- function(ref_path, new_path, info = NULL) {
 
 compare_inspect <- function(ref_path, new_path, info = NULL) {
   testthat::expect_true(file.exists(new_path),
-                        info = paste(info, "- file exists:", new_path))
+    info = paste(info, "- file exists:", new_path)
+  )
   ref <- read_inspect(ref_path)
   new <- read_inspect(new_path)
   rownames(ref) <- NULL
@@ -109,8 +113,10 @@ test_that("crypt_vector matches baseline", {
   root <- skip_if_no_baseline()
 
   for (case in crypt_vector_cases) {
-    ref_path <- file.path(root, "outputs", "crypt_vector",
-                          paste0(case$name, ".rds"))
+    ref_path <- file.path(
+      root, "outputs", "crypt_vector",
+      paste0(case$name, ".rds")
+    )
     if (!file.exists(ref_path)) {
       fail(paste0("missing baseline for crypt_vector case: ", case$name))
       next
@@ -130,8 +136,10 @@ test_that("crypt_data matches baseline (result + tc_* via get_correspondence_tab
   root <- skip_if_no_baseline()
 
   for (case in crypt_data_cases) {
-    ref_path <- file.path(root, "outputs", "crypt_data",
-                          paste0(case$name, ".rds"))
+    ref_path <- file.path(
+      root, "outputs", "crypt_data",
+      paste0(case$name, ".rds")
+    )
     if (!file.exists(ref_path)) {
       fail(paste0("missing baseline for crypt_data case: ", case$name))
       next
@@ -149,17 +157,20 @@ test_that("crypt_data matches baseline (result + tc_* via get_correspondence_tab
     expect_equal(new_result, ref$result, info = paste(case$name, "- result"))
 
     expect_equal(setdiff(ls(envir = globalenv()), pre_globals),
-                 character(0),
-                 info = paste(case$name, "- no globalenv pollution"))
+      character(0),
+      info = paste(case$name, "- no globalenv pollution")
+    )
 
     new_tcs <- get_correspondence_tables()
 
     expect_equal(sort(names(new_tcs)), sort(names(ref$tcs)),
-                 info = paste(case$name, "- tc names"))
+      info = paste(case$name, "- tc names")
+    )
     for (nm in names(ref$tcs)) {
       if (nm %in% names(new_tcs)) {
         expect_equal(new_tcs[[nm]], ref$tcs[[nm]],
-                     info = paste(case$name, "- tc:", nm))
+          info = paste(case$name, "- tc:", nm)
+        )
       }
     }
   }
@@ -183,11 +194,14 @@ test_that("crypt_data matches baseline (result + tc_* via get_correspondence_tab
 
 run_crypt_r_case <- function(case, masks_dir, output_dir, intermediate_dir) {
   pre <- ls(envir = globalenv())
-  on.exit({
-    post <- ls(envir = globalenv())
-    new_names <- setdiff(post, pre)
-    if (length(new_names) > 0) rm(list = new_names, envir = globalenv())
-  }, add = TRUE)
+  on.exit(
+    {
+      post <- ls(envir = globalenv())
+      new_names <- setdiff(post, pre)
+      if (length(new_names) > 0) rm(list = new_names, envir = globalenv())
+    },
+    add = TRUE
+  )
 
   # Explicit cryptRopen:: prefix forces namespace lookup, so the body rewrite
   # installed by install_sync_crypt_r_patch() (which only updates the namespace
@@ -212,7 +226,7 @@ run_crypt_r_case <- function(case, masks_dir, output_dir, intermediate_dir) {
 
   # Post-refactor: result will be a cryptR_job — wait for completion.
   if (inherits(result, "cryptR_job") &&
-      exists("cryptR_wait", envir = asNamespace("cryptRopen"))) {
+    exists("cryptR_wait", envir = asNamespace("cryptRopen"))) {
     cryptRopen::cryptR_wait(result)
   }
 
@@ -237,7 +251,8 @@ compare_crypt_r_file <- function(case_name, rel_file, ref_path, new_path) {
 test_that("crypt_r matches baseline", {
   root <- skip_if_no_baseline()
   manifest <- jsonlite::read_json(file.path(root, "manifest.json"),
-                                  simplifyVector = FALSE)
+    simplifyVector = FALSE
+  )
 
   # Set up a fresh tempdir with regenerated inputs
   tmp_root <- tempfile("cryptR_baseline_")
@@ -245,20 +260,25 @@ test_that("crypt_r matches baseline", {
   on.exit(unlink(tmp_root, recursive = TRUE, force = TRUE), add = TRUE)
 
   tmp_datasets <- file.path(tmp_root, "datasets")
-  tmp_masks    <- file.path(tmp_root, "masks")
+  tmp_masks <- file.path(tmp_root, "masks")
   write_all_datasets(tmp_datasets)
-  write_all_masks(tmp_masks, normalizePath(tmp_datasets, winslash = "/",
-                                           mustWork = TRUE))
+  write_all_masks(tmp_masks, normalizePath(tmp_datasets,
+    winslash = "/",
+    mustWork = TRUE
+  ))
 
   # Deterministic env during comparison
   old_tz <- Sys.getenv("TZ")
   old_locale <- Sys.getlocale("LC_COLLATE")
   Sys.setenv(TZ = "UTC")
   Sys.setlocale("LC_COLLATE", "C")
-  on.exit({
-    Sys.setenv(TZ = old_tz)
-    Sys.setlocale("LC_COLLATE", old_locale)
-  }, add = TRUE)
+  on.exit(
+    {
+      Sys.setenv(TZ = old_tz)
+      Sys.setlocale("LC_COLLATE", old_locale)
+    },
+    add = TRUE
+  )
 
   # Rewrite body(crypt_r) to strip job::job() for synchronous execution while
   # the pre-refactor implementation is still in place. No-op once crypt_r is
@@ -271,10 +291,10 @@ test_that("crypt_r matches baseline", {
   for (case_entry in manifest$crypt_r) {
     case <- Filter(function(x) x$name == case_entry$name, crypt_r_cases)[[1]]
 
-    case_dir      <- file.path(tmp_root, "cases", case$name)
-    new_output    <- file.path(case_dir, "output")
-    new_intermed  <- file.path(case_dir, "intermediate")
-    dir.create(new_output,   recursive = TRUE, showWarnings = FALSE)
+    case_dir <- file.path(tmp_root, "cases", case$name)
+    new_output <- file.path(case_dir, "output")
+    new_intermed <- file.path(case_dir, "intermediate")
+    dir.create(new_output, recursive = TRUE, showWarnings = FALSE)
     dir.create(new_intermed, recursive = TRUE, showWarnings = FALSE)
 
     run_crypt_r_case(case, abs_masks, new_output, new_intermed)
@@ -283,19 +303,27 @@ test_that("crypt_r matches baseline", {
     ref_case_dir <- file.path(root, "outputs", "crypt_r", case$name)
     for (f in case_entry$files) {
       ref_path <- file.path(ref_case_dir, f$dir, f$relpath)
-      new_path <- file.path(case_dir,     f$dir, f$relpath)
+      new_path <- file.path(case_dir, f$dir, f$relpath)
       compare_crypt_r_file(case$name, f$relpath, ref_path, new_path)
     }
 
     # Also verify no unexpected extra files appeared
-    new_out_files <- list.files(new_output,   recursive = TRUE)
+    new_out_files <- list.files(new_output, recursive = TRUE)
     new_int_files <- list.files(new_intermed, recursive = TRUE)
-    expected_out <- vapply(Filter(function(x) x$dir == "output",
-                                  case_entry$files),
-                           function(x) x$relpath, character(1))
-    expected_int <- vapply(Filter(function(x) x$dir == "intermediate",
-                                  case_entry$files),
-                           function(x) x$relpath, character(1))
+    expected_out <- vapply(
+      Filter(
+        function(x) x$dir == "output",
+        case_entry$files
+      ),
+      function(x) x$relpath, character(1)
+    )
+    expected_int <- vapply(
+      Filter(
+        function(x) x$dir == "intermediate",
+        case_entry$files
+      ),
+      function(x) x$relpath, character(1)
+    )
     expect_setequal(new_out_files, expected_out)
     expect_setequal(new_int_files, expected_int)
   }

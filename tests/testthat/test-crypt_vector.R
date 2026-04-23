@@ -10,16 +10,19 @@
 test_that("crypt_vector matches digest::digest() on simple inputs", {
   # Normalization is trivial here ("ABC" stays "ABC").
   expected <- toupper(digest::digest("ABCkey", algo = "md5", serialize = FALSE))
-  result   <- crypt_vector("ABC", key = "key", algo = "md5")
+  result <- crypt_vector("ABC", key = "key", algo = "md5")
 
   expect_equal(result, expected)
 })
 
 test_that("crypt_vector applies upper-case then concatenates with key", {
   expected <- toupper(digest::digest("HELLOsecret",
-                                     algo = "md5", serialize = FALSE))
-  expect_equal(crypt_vector("hello", key = "secret", algo = "md5"),
-               expected)
+    algo = "md5", serialize = FALSE
+  ))
+  expect_equal(
+    crypt_vector("hello", key = "secret", algo = "md5"),
+    expected
+  )
 })
 
 test_that("crypt_vector strips leading, trailing and internal spaces", {
@@ -37,15 +40,19 @@ test_that("crypt_vector reproduces historical known hashes", {
   # Values captured from the pre-refactor package — must not drift.
   expect_identical(
     crypt_vector(c(123, 456, 789), key = "123456", algo = "md5"),
-    c("1E191D851B3B49A248F4EA62F6B06410",
+    c(
+      "1E191D851B3B49A248F4EA62F6B06410",
       "F87003205DD342BEC2B81EE940172A4D",
-      "11A22927C85333CE98510B0FA1A1C27D")
+      "11A22927C85333CE98510B0FA1A1C27D"
+    )
   )
   expect_identical(
     crypt_vector(c("abc", "def", NA), key = "123456", algo = "md5"),
-    c("09C74ADA9E6C9FBDEF249B258A66E948",
+    c(
+      "09C74ADA9E6C9FBDEF249B258A66E948",
       "4FF225BA6F02CC8E5EB64E7647FBB7FC",
-      NA)
+      NA
+    )
   )
 })
 
@@ -123,11 +130,11 @@ test_that("different keys produce different hashes on non-NA values", {
 
 test_that("different algos produce hashes of different lengths", {
   v <- c("foo", "bar")
-  l_md5    <- nchar(crypt_vector(v, key = "K", algo = "md5"))
-  l_sha1   <- nchar(crypt_vector(v, key = "K", algo = "sha1"))
+  l_md5 <- nchar(crypt_vector(v, key = "K", algo = "md5"))
+  l_sha1 <- nchar(crypt_vector(v, key = "K", algo = "sha1"))
   l_sha256 <- nchar(crypt_vector(v, key = "K", algo = "sha256"))
-  expect_true(all(l_md5    == 32L))
-  expect_true(all(l_sha1   == 40L))
+  expect_true(all(l_md5 == 32L))
+  expect_true(all(l_sha1 == 40L))
   expect_true(all(l_sha256 == 64L))
 })
 
@@ -181,5 +188,5 @@ test_that(".normalize_crypt_input preserves length", {
 
 test_that(".normalize_crypt_input returns character", {
   expect_type(cryptRopen:::.normalize_crypt_input("abc"), "character")
-  expect_type(cryptRopen:::.normalize_crypt_input(123),   "character")
+  expect_type(cryptRopen:::.normalize_crypt_input(123), "character")
 })

@@ -29,7 +29,6 @@
 .transform_stream_chunk <- function(chunk, vars_to_encrypt, vars_to_remove,
                                     encryption_key, algorithm,
                                     correspondence_table) {
-
   # 1. Character cleanup — trim + empty-string-to-NA.
   chunk <- dplyr::mutate(
     chunk,
@@ -41,8 +40,10 @@
 
   # 2. Encrypt each requested variable.
   crypted <- purrr::map(vars_to_encrypt, \(v) {
-    crypt_vector(vector = chunk[[v]], key = encryption_key,
-                 algo = algorithm)
+    crypt_vector(
+      vector = chunk[[v]], key = encryption_key,
+      algo = algorithm
+    )
   })
   names(crypted) <- paste0(vars_to_encrypt, "_crypt")
   crypted_df <- dplyr::as_tibble(crypted)
@@ -61,9 +62,10 @@
   # 4. Assemble output: <var>_crypt first, non-encrypted in input order,
   #    then vars_to_remove dropped.
   non_enc_cols <- setdiff(names(chunk), vars_to_encrypt)
-  out_chunk    <- dplyr::bind_cols(
+  out_chunk <- dplyr::bind_cols(
     crypted_df,
-    dplyr::select(chunk, dplyr::all_of(non_enc_cols)))
+    dplyr::select(chunk, dplyr::all_of(non_enc_cols))
+  )
 
   if (!all(is.na(vars_to_remove))) {
     to_drop <- intersect(vars_to_remove, names(out_chunk))
@@ -91,14 +93,19 @@
 #' @noRd
 .finalize_stream_tc <- function(tc_accum, intermediate_path, encrypted_stem,
                                 correspondence_table) {
-  if (!correspondence_table || is.null(tc_accum)) return(invisible(NULL))
+  if (!correspondence_table || is.null(tc_accum)) {
+    return(invisible(NULL))
+  }
 
   tc_name <- paste0("tc_", encrypted_stem)
   .store_correspondence_table(name = tc_name, df = tc_accum)
   arrow::write_parquet(
     tc_accum,
-    file.path(intermediate_path,
-              paste0(tc_name, ".parquet")))
+    file.path(
+      intermediate_path,
+      paste0(tc_name, ".parquet")
+    )
+  )
   invisible(NULL)
 }
 
@@ -135,7 +142,9 @@
 #' @noRd
 .write_stream_inspect <- function(output_file_path,
                                   output_path, encrypted_file) {
-  if (!file.exists(output_file_path)) return(invisible(NULL))
+  if (!file.exists(output_file_path)) {
+    return(invisible(NULL))
+  }
 
   out_df <- as.data.frame(rio::import(output_file_path, trust = TRUE))
   i <- inspect(out_df)
@@ -147,12 +156,16 @@
   # row 1, column 1 in the compared xlsx. Using any other expression
   # (seq_len(), seq.int()…) breaks baseline on this single cell.
   layout <- rbind(
-    c("Obs = ",   nrow(out_df), rep("", ncol(i) - 1)),
-    c("Nvars = ", nrow(i),      rep("", ncol(i) - 1)),
-    cbind(1:nrow(i), i))
+    c("Obs = ", nrow(out_df), rep("", ncol(i) - 1)),
+    c("Nvars = ", nrow(i), rep("", ncol(i) - 1)),
+    cbind(1:nrow(i), i)
+  )
   writexl::write_xlsx(
     layout,
-    file.path(output_path,
-              paste0("inspect_", encrypted_file, ".xlsx")))
+    file.path(
+      output_path,
+      paste0("inspect_", encrypted_file, ".xlsx")
+    )
+  )
   invisible(NULL)
 }

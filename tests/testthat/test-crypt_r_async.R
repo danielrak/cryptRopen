@@ -25,13 +25,18 @@
 # surface `there is no package called 'cryptRopen'`. Run the probe once
 # at file scope and gate every test with `skip_if_async_unavailable()`.
 .cryptR_async_preflight <- function() {
-  if (!requireNamespace("mirai", quietly = TRUE)) return(FALSE)
+  if (!requireNamespace("mirai", quietly = TRUE)) {
+    return(FALSE)
+  }
 
-  had_daemons <- tryCatch({
-    st <- mirai::status()
-    d  <- st$daemons
-    !is.null(d) && ((is.matrix(d) && nrow(d) > 0L) || length(d) > 0L)
-  }, error = function(e) FALSE)
+  had_daemons <- tryCatch(
+    {
+      st <- mirai::status()
+      d <- st$daemons
+      !is.null(d) && ((is.matrix(d) && nrow(d) > 0L) || length(d) > 0L)
+    },
+    error = function(e) FALSE
+  )
 
   if (!had_daemons) {
     mirai::daemons(1)
@@ -40,19 +45,24 @@
     on.exit(try(mirai::daemons(0), silent = TRUE), add = TRUE)
   }
 
-  tryCatch({
-    t <- mirai::mirai(requireNamespace("cryptRopen", quietly = TRUE))
-    mirai::call_mirai(t)
-    isTRUE(t$data)
-  }, error = function(e) FALSE)
+  tryCatch(
+    {
+      t <- mirai::mirai(requireNamespace("cryptRopen", quietly = TRUE))
+      mirai::call_mirai(t)
+      isTRUE(t$data)
+    },
+    error = function(e) FALSE
+  )
 }
 .cryptR_async_ok <- tryCatch(.cryptR_async_preflight(),
-                             error = function(e) FALSE)
+  error = function(e) FALSE
+)
 
 skip_if_async_unavailable <- function() {
   if (!isTRUE(.cryptR_async_ok)) {
     testthat::skip(
-      "cryptRopen is not resolvable inside mirai daemons (likely devtools::test())")
+      "cryptRopen is not resolvable inside mirai daemons (likely devtools::test())"
+    )
   }
 }
 
@@ -62,10 +72,14 @@ skip_if_async_unavailable <- function() {
 setup_dirs_async <- function() {
   root <- tempfile("crypt_r_async_")
   dir.create(root)
-  inp <- file.path(root, "inputs");       dir.create(inp)
-  out <- file.path(root, "output");       dir.create(out)
-  int <- file.path(root, "intermediate"); dir.create(int)
-  msk <- file.path(root, "mask");         dir.create(msk)
+  inp <- file.path(root, "inputs")
+  dir.create(inp)
+  out <- file.path(root, "output")
+  dir.create(out)
+  int <- file.path(root, "intermediate")
+  dir.create(int)
+  msk <- file.path(root, "mask")
+  dir.create(msk)
   list(root = root, inp = inp, out = out, int = int, msk = msk)
 }
 
@@ -75,12 +89,12 @@ mask_row_async <- function(folder_path, file, encrypted_file,
                            vars_to_encrypt, to_encrypt = "X",
                            vars_to_remove = NA) {
   data.frame(
-    folder_path     = folder_path,
-    file            = file,
-    to_encrypt      = to_encrypt,
-    encrypted_file  = encrypted_file,
+    folder_path = folder_path,
+    file = file,
+    to_encrypt = to_encrypt,
+    encrypted_file = encrypted_file,
     vars_to_encrypt = vars_to_encrypt,
-    vars_to_remove  = vars_to_remove,
+    vars_to_remove = vars_to_remove,
     stringsAsFactors = FALSE
   )
 }
@@ -96,7 +110,7 @@ write_mask_xlsx <- function(dirs, mask_df, filename = "mask.xlsx") {
 # Seed a simple CSV input with a handful of rows.
 write_simple_csv <- function(path, n = 3L) {
   df <- data.frame(
-    id  = paste0("u", seq_len(n)),
+    id = paste0("u", seq_len(n)),
     val = seq_len(n),
     stringsAsFactors = FALSE
   )
@@ -117,17 +131,19 @@ test_that("crypt_r() fast-fails when output_path does not exist", {
   write_simple_csv(file.path(dirs$inp, "persons.csv"))
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "persons.csv",
-    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   bogus <- file.path(dirs$root, "does_not_exist")
   err <- expect_error(crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = bogus,     intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = bogus, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L))
+    n_workers = 1L
+  ))
   # Structural match — no regex on R base messages.
-  expect_true(grepl("output_path",   conditionMessage(err)))
+  expect_true(grepl("output_path", conditionMessage(err)))
   expect_true(grepl("does_not_exist", conditionMessage(err), fixed = TRUE))
 })
 
@@ -142,17 +158,19 @@ test_that("crypt_r() fast-fails when intermediate_path does not exist", {
   write_simple_csv(file.path(dirs$inp, "persons.csv"))
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "persons.csv",
-    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   bogus <- file.path(dirs$root, "never_created")
   err <- expect_error(crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = bogus,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = bogus,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L))
+    n_workers = 1L
+  ))
   expect_true(grepl("intermediate_path", conditionMessage(err)))
-  expect_true(grepl("never_created",     conditionMessage(err), fixed = TRUE))
+  expect_true(grepl("never_created", conditionMessage(err), fixed = TRUE))
 })
 
 
@@ -166,28 +184,32 @@ test_that("crypt_r() fast-fails when output_path is NA / empty / non-character",
   write_simple_csv(file.path(dirs$inp, "persons.csv"))
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "persons.csv",
-    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   expect_error(crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = NA_character_, intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = NA_character_, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L))
+    n_workers = 1L
+  ))
 
   expect_error(crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = "", intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = "", intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L))
+    n_workers = 1L
+  ))
 
   expect_error(crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = 42, intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = 42, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L))
+    n_workers = 1L
+  ))
 })
 
 
@@ -198,24 +220,29 @@ test_that("crypt_r() returns a cryptR_job immediately (non-blocking)", {
   skip_if_not_installed("readxl")
 
   dirs <- setup_dirs_async()
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    cryptRopen:::.clear_correspondence_tables()
-  }, add = TRUE)
+  on.exit(
+    {
+      unlink(dirs$root, recursive = TRUE, force = TRUE)
+      cryptRopen:::.clear_correspondence_tables()
+    },
+    add = TRUE
+  )
 
   write_simple_csv(file.path(dirs$inp, "persons.csv"))
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "persons.csv",
-    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"
+  ))
 
-  t0  <- Sys.time()
+  t0 <- Sys.time()
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "testkey", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "testkey", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L)
-  t1  <- Sys.time()
+    n_workers = 1L
+  )
+  t1 <- Sys.time()
   on.exit(try(cryptR_collect(job, timeout = 30), silent = TRUE), add = TRUE)
 
   expect_s3_class(job, "cryptR_job")
@@ -240,14 +267,16 @@ test_that("crypt_r() on an empty mask returns a trivial cryptR_job without spawn
   empty_mask <- mask_row_async(
     folder_path = dirs$inp, file = "n.csv",
     encrypted_file = "n_crypt.csv", vars_to_encrypt = "id",
-    to_encrypt = "N")
+    to_encrypt = "N"
+  )
   mk <- write_mask_xlsx(dirs, empty_mask)
 
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
-    correspondence_table = TRUE)
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE
+  )
 
   expect_s3_class(job, "cryptR_job")
   expect_length(job$tasks, 0L)
@@ -265,22 +294,27 @@ test_that("after cryptR_wait(), file outputs are produced and match in_memory se
   skip_if_not_installed("readxl")
 
   dirs <- setup_dirs_async()
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    cryptRopen:::.clear_correspondence_tables()
-  }, add = TRUE)
+  on.exit(
+    {
+      unlink(dirs$root, recursive = TRUE, force = TRUE)
+      cryptRopen:::.clear_correspondence_tables()
+    },
+    add = TRUE
+  )
 
   src <- write_simple_csv(file.path(dirs$inp, "persons.csv"), n = 4L)
-  mk  <- write_mask_xlsx(dirs, mask_row_async(
+  mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "persons.csv",
-    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L)
+    n_workers = 1L
+  )
   on.exit(try(cryptR_collect(job, timeout = 30), silent = TRUE), add = TRUE)
 
   cryptR_wait(job, timeout = 30)
@@ -291,13 +325,15 @@ test_that("after cryptR_wait(), file outputs are produced and match in_memory se
   expect_true(file.exists(file.path(dirs$out, "persons_crypt.csv")))
   expect_true(file.exists(file.path(dirs$int, "tc_persons_crypt.parquet")))
   expect_true(file.exists(
-    file.path(dirs$out, "inspect_persons_crypt.csv.xlsx")))
+    file.path(dirs$out, "inspect_persons_crypt.csv.xlsx")
+  ))
 
   # Encrypted output has the expected schema.
   out_df <- utils::read.csv(file.path(dirs$out, "persons_crypt.csv"),
-                            stringsAsFactors = FALSE)
+    stringsAsFactors = FALSE
+  )
   expect_true("id_crypt" %in% names(out_df))
-  expect_false("id"      %in% names(out_df))
+  expect_false("id" %in% names(out_df))
   expect_equal(nrow(out_df), nrow(src))
 })
 
@@ -309,31 +345,39 @@ test_that("one failing row does not poison the others", {
   skip_if_not_installed("readxl")
 
   dirs <- setup_dirs_async()
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    cryptRopen:::.clear_correspondence_tables()
-  }, add = TRUE)
+  on.exit(
+    {
+      unlink(dirs$root, recursive = TRUE, force = TRUE)
+      cryptRopen:::.clear_correspondence_tables()
+    },
+    add = TRUE
+  )
 
   write_simple_csv(file.path(dirs$inp, "ok.csv"))
   # Second row references a non-existent file — rio::import will error
   # inside the task, which must be captured by the in_memory engine's
   # try() and not propagate beyond the task.
   mask_df <- rbind(
-    mask_row_async(folder_path = dirs$inp, file = "ok.csv",
-                   encrypted_file = "ok_crypt.csv",
-                   vars_to_encrypt = "id"),
-    mask_row_async(folder_path = dirs$inp, file = "ghost.csv",
-                   encrypted_file = "ghost_crypt.csv",
-                   vars_to_encrypt = "id")
+    mask_row_async(
+      folder_path = dirs$inp, file = "ok.csv",
+      encrypted_file = "ok_crypt.csv",
+      vars_to_encrypt = "id"
+    ),
+    mask_row_async(
+      folder_path = dirs$inp, file = "ghost.csv",
+      encrypted_file = "ghost_crypt.csv",
+      vars_to_encrypt = "id"
+    )
   )
   mk <- write_mask_xlsx(dirs, mask_df)
 
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 2L)
+    n_workers = 2L
+  )
   on.exit(try(cryptR_collect(job, timeout = 30), silent = TRUE), add = TRUE)
 
   # cryptR_wait() never throws on task failure — it just waits for resolution.
@@ -355,31 +399,42 @@ test_that("when no daemons are running, crypt_r() claims ownership and cryptR_co
 
   # Start from a clean slate: if something left daemons running, we
   # don't own them, but we also don't want to interfere.
-  already_running <- tryCatch({
-    st <- mirai::status(); d <- st$daemons
-    !is.null(d) && ((is.matrix(d) && nrow(d) > 0L) || length(d) > 0L)
-  }, error = function(e) FALSE)
-  skip_if(already_running,
-          "pre-existing daemons — the 'job-owned' path cannot be tested cleanly")
+  already_running <- tryCatch(
+    {
+      st <- mirai::status()
+      d <- st$daemons
+      !is.null(d) && ((is.matrix(d) && nrow(d) > 0L) || length(d) > 0L)
+    },
+    error = function(e) FALSE
+  )
+  skip_if(
+    already_running,
+    "pre-existing daemons — the 'job-owned' path cannot be tested cleanly"
+  )
 
   dirs <- setup_dirs_async()
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    cryptRopen:::.clear_correspondence_tables()
-    try(mirai::daemons(0), silent = TRUE)  # belt-and-braces
-  }, add = TRUE)
+  on.exit(
+    {
+      unlink(dirs$root, recursive = TRUE, force = TRUE)
+      cryptRopen:::.clear_correspondence_tables()
+      try(mirai::daemons(0), silent = TRUE) # belt-and-braces
+    },
+    add = TRUE
+  )
 
   write_simple_csv(file.path(dirs$inp, "ok.csv"))
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "ok.csv",
-    encrypted_file = "ok_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "ok_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 2L)
+    n_workers = 2L
+  )
 
   expect_true(job$daemons_owned_by_job)
   expect_false(job$daemons_torn_down)
@@ -402,21 +457,26 @@ test_that("when daemons are already running, crypt_r() reuses them and does NOT 
   on.exit(try(mirai::daemons(0), silent = TRUE), add = TRUE)
 
   dirs <- setup_dirs_async()
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    cryptRopen:::.clear_correspondence_tables()
-  }, add = TRUE)
+  on.exit(
+    {
+      unlink(dirs$root, recursive = TRUE, force = TRUE)
+      cryptRopen:::.clear_correspondence_tables()
+    },
+    add = TRUE
+  )
 
   write_simple_csv(file.path(dirs$inp, "ok.csv"))
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "ok.csv",
-    encrypted_file = "ok_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "ok_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
-    correspondence_table = TRUE, engine = "in_memory")
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE, engine = "in_memory"
+  )
 
   expect_false(job$daemons_owned_by_job)
 
@@ -437,24 +497,29 @@ test_that("after collect, correspondence tables are available via get_correspond
   skip_if_not_installed("readxl")
 
   dirs <- setup_dirs_async()
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    cryptRopen:::.clear_correspondence_tables()
-  }, add = TRUE)
+  on.exit(
+    {
+      unlink(dirs$root, recursive = TRUE, force = TRUE)
+      cryptRopen:::.clear_correspondence_tables()
+    },
+    add = TRUE
+  )
 
   cryptRopen:::.clear_correspondence_tables()
 
   write_simple_csv(file.path(dirs$inp, "persons.csv"), n = 5L)
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "persons.csv",
-    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L)
+    n_workers = 1L
+  )
   out <- cryptR_collect(job, timeout = 30)
 
   # Phase 1.D.6.c: the worker now returns `tc_df` inside its typed
@@ -482,22 +547,27 @@ test_that("cryptR_collect() writes a log_crypt_r_<ts>.xlsx under output_path", {
   skip_if_not_installed("readxl")
 
   dirs <- setup_dirs_async()
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    cryptRopen:::.clear_correspondence_tables()
-  }, add = TRUE)
+  on.exit(
+    {
+      unlink(dirs$root, recursive = TRUE, force = TRUE)
+      cryptRopen:::.clear_correspondence_tables()
+    },
+    add = TRUE
+  )
 
   write_simple_csv(file.path(dirs$inp, "persons.csv"), n = 3L)
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "persons.csv",
-    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L)
+    n_workers = 1L
+  )
   out <- cryptR_collect(job, timeout = 30)
 
   logs <- list.files(dirs$out, pattern = "^log_crypt_r_.*\\.xlsx$")
@@ -506,10 +576,12 @@ test_that("cryptR_collect() writes a log_crypt_r_<ts>.xlsx under output_path", {
   # The log has the mask row + per-row metrics columns.
   df <- readxl::read_xlsx(file.path(dirs$out, logs[[1]]))
   expect_true("encrypted_file" %in% names(df))
-  expect_true(all(c("success", "error_message", "start_time",
-                    "end_time", "duration_sec", "n_rows_processed",
-                    "output_file_size_bytes", "output_file_sha256")
-                  %in% names(df)))
+  expect_true(all(c(
+    "success", "error_message", "start_time",
+    "end_time", "duration_sec", "n_rows_processed",
+    "output_file_size_bytes", "output_file_sha256"
+  )
+  %in% names(df)))
   expect_equal(nrow(df), 1L)
   expect_true(df$success[1])
 })
@@ -520,28 +592,33 @@ test_that("a second cryptR_collect() on the same job does NOT write a second log
   skip_if_not_installed("readxl")
 
   dirs <- setup_dirs_async()
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    cryptRopen:::.clear_correspondence_tables()
-  }, add = TRUE)
+  on.exit(
+    {
+      unlink(dirs$root, recursive = TRUE, force = TRUE)
+      cryptRopen:::.clear_correspondence_tables()
+    },
+    add = TRUE
+  )
 
   write_simple_csv(file.path(dirs$inp, "persons.csv"), n = 2L)
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "persons.csv",
-    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L)
+    n_workers = 1L
+  )
   out1 <- cryptR_collect(job, timeout = 30)
   # A second collect call passes the already-updated job (log_written = TRUE)
   # AND even a third call on the original raw job would hit the
   # `.log_already_written()` guard. Cover both paths.
   out2 <- cryptR_collect(out1, timeout = 5)
-  out3 <- cryptR_collect(job,  timeout = 5)
+  out3 <- cryptR_collect(job, timeout = 5)
 
   logs <- list.files(dirs$out, pattern = "^log_crypt_r_.*\\.xlsx$")
   expect_length(logs, 1L)
@@ -556,22 +633,27 @@ test_that("auto watcher writes the log without a manual cryptR_collect() after l
   skip_if_not_installed("readxl")
 
   dirs <- setup_dirs_async()
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    cryptRopen:::.clear_correspondence_tables()
-  }, add = TRUE)
+  on.exit(
+    {
+      unlink(dirs$root, recursive = TRUE, force = TRUE)
+      cryptRopen:::.clear_correspondence_tables()
+    },
+    add = TRUE
+  )
 
   write_simple_csv(file.path(dirs$inp, "persons.csv"), n = 2L)
   mk <- write_mask_xlsx(dirs, mask_row_async(
     folder_path = dirs$inp, file = "persons.csv",
-    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"
+  ))
 
   job <- crypt_r(
-    mask_folder_path  = mk$folder, mask_file = mk$file,
-    output_path       = dirs$out,  intermediate_path = dirs$int,
-    encryption_key    = "k", algorithm = "md5",
+    mask_folder_path = mk$folder, mask_file = mk$file,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
     correspondence_table = TRUE, engine = "in_memory",
-    n_workers = 1L)
+    n_workers = 1L
+  )
 
   # The watcher slot is set by .start_watcher() when later is available.
   expect_true(isTRUE(job$watcher))

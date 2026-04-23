@@ -38,22 +38,21 @@ crypt_data <- function(loaded_dataset,
                        encryption_key,
                        algorithm = "md5",
                        correspondence_table = TRUE,
-                       correspondence_table_label = NULL
-) {
+                       correspondence_table_label = NULL) {
   # First checks:
   vars <- names(loaded_dataset)
 
-  if (! all(vars_to_encrypt %in% vars)) {
+  if (!all(vars_to_encrypt %in% vars)) {
     stop("All indicated vars_to_encrypt must be effectively a variable name.")
   }
 
-  if (! is.null(vars_to_remove) &&
-      ! all(vars_to_remove %in% vars)) {
+  if (!is.null(vars_to_remove) &&
+    !all(vars_to_remove %in% vars)) {
     stop("All indicated vars_to_remove must be effectively a variable name.")
   }
 
   if (correspondence_table &&
-      is.null(correspondence_table_label)) {
+    is.null(correspondence_table_label)) {
     stop("If the correspondence_table arg is TRUE, correspondence_table_label must be indicated.")
   }
 
@@ -72,15 +71,16 @@ crypt_data <- function(loaded_dataset,
 
   encrypted_data <- purrr::map(
     vars_to_encrypt, \(x)
-    crypt_vector(loaded_dataset[[x]], key = encryption_key,
-                 algo = algorithm)
+    crypt_vector(loaded_dataset[[x]],
+      key = encryption_key,
+      algo = algorithm
+    )
   )
   encrypted_data <- do.call(what = cbind, encrypted_data)
   encrypted_data <- as.data.frame(encrypted_data)
   colnames(encrypted_data) <- paste0(vars_to_encrypt, "_crypt")
 
   if (any(duplicated(c(names(encrypted_data), names(loaded_dataset))))) {
-
     dedupl_char_values <- function(x) {
       u <- unique(x[duplicated(x)])
       l <- lapply(u, function(d) which(x == d))
@@ -97,8 +97,11 @@ crypt_data <- function(loaded_dataset,
       })
       l <- do.call(what = rbind, l)
       l <- apply(l, 2, \(r) {
-        if (length(unique(r)) == 1) {unique(r)}
-        else {r[grep("dupl", r)]}
+        if (length(unique(r)) == 1) {
+          unique(r)
+        } else {
+          r[grep("dupl", r)]
+        }
       })
       l
     }
@@ -106,7 +109,8 @@ crypt_data <- function(loaded_dataset,
     namestot <- c(names(encrypted_data), names(loaded_dataset))
     namestot_dedupl <- dedupl_char_values(namestot)
     names(loaded_dataset) <- namestot_dedupl[
-      (length(names(encrypted_data)) + 1):length(namestot_dedupl)]
+      (length(names(encrypted_data)) + 1):length(namestot_dedupl)
+    ]
   }
 
   encrypted_data <- cbind(encrypted_data, loaded_dataset)
@@ -118,21 +122,24 @@ crypt_data <- function(loaded_dataset,
       name = paste0("tc_crypt_", correspondence_table_label),
       df = dplyr::select(
         encrypted_data,
-        dplyr::all_of(c(vars_to_encrypt,
-                        paste0(vars_to_encrypt, "_crypt"))))
+        dplyr::all_of(c(
+          vars_to_encrypt,
+          paste0(vars_to_encrypt, "_crypt")
+        ))
+      )
     )
   }
 
   # Output without original variables and additional variables to remove:
-  if (! is.null(vars_to_remove)) {
+  if (!is.null(vars_to_remove)) {
     encrypted_data <- dplyr::select(
       encrypted_data,
-      - dplyr::all_of(c(vars_to_encrypt, vars_to_remove))
+      -dplyr::all_of(c(vars_to_encrypt, vars_to_remove))
     )
   } else {
     encrypted_data <- dplyr::select(
       encrypted_data,
-      - dplyr::all_of(vars_to_encrypt)
+      -dplyr::all_of(vars_to_encrypt)
     )
   }
 
