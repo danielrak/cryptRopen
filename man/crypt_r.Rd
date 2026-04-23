@@ -36,15 +36,19 @@ From digest::digest()'s algo argument.}
 and stored in the indicated intermediate_path.}
 
 \item{engine}{One of \code{"auto"}, \code{"in_memory"}, \code{"streaming"}.
-Selects the per-row processing engine. \code{"auto"} (default) picks
-\code{"streaming"} for \code{.parquet} / \code{.csv} inputs and \code{"in_memory"}
-for every other format. \code{"in_memory"} reads the full input into
-RAM (historical behaviour). \code{"streaming"} scans the input by
-chunks via arrow and writes progressively. Introduced in Phase
-1.D.4.a; the streaming engine itself lands in 1.D.4.b/c.}
+Selects the per-row processing engine. \code{"auto"} (default) and
+\code{"streaming"} both route parquet-in/parquet-out and csv-in/csv-out
+to the streaming engines (arrow Scanner by chunks, progressive
+write); mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
+csv→parquet) silently fall back to \code{"in_memory"} to preserve
+non-regression. \code{"in_memory"} always reads the full input into
+RAM (historical behaviour). Introduced in Phase 1.D.4.a
+(plumbing), streaming engines in 1.D.4.b/c, auto-routing rule in
+1.D.4.d.}
 
-\item{chunk_size}{Integer. Number of rows per chunk when \code{engine}
-resolves to \code{"streaming"}. Ignored by \code{"in_memory"}. Default
+\item{chunk_size}{Integer. Number of rows per chunk when the
+effective engine is streaming. Ignored by \code{"in_memory"} (and by
+\code{"auto"} / \code{"streaming"} when falling back to in_memory). Default
 \code{1e6}.}
 }
 \description{

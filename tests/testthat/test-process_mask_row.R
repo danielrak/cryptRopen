@@ -865,38 +865,10 @@ test_that("dispatcher: engine='streaming' with non-parquet output falls back to 
   expect_true(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
 })
 
-test_that("dispatcher: engine='auto' still routes parquet-in/parquet-out to in_memory in 1.D.4.b", {
-  # Auto routing rule for parquet inputs is scheduled for 1.D.4.d. In
-  # 1.D.4.b, "auto" remains a synonym of in_memory — so this call must
-  # NOT populate the .cryptRopen_env-only path; the historical
-  # globalenv side effects must still appear.
-  dirs <- setup_dirs()
-  pre  <- ls(envir = globalenv())
-  on.exit({
-    unlink(dirs$root, recursive = TRUE, force = TRUE)
-    clean_globals(pre)
-    cryptRopen:::.clear_correspondence_tables()
-  }, add = TRUE)
-
-  src <- data.frame(id = c("a", "b"), stringsAsFactors = FALSE)
-  inp <- file.path(dirs$inp, "a.parquet")
-  write_parquet_fixture(inp, src)
-
-  sm <- make_sm(folder_path = dirs$inp, file = "a.parquet",
-                encrypted_file  = "a_crypt.parquet",
-                vars_to_encrypt = "id")
-
-  cryptRopen:::.process_mask_row(
-    sm = sm, input_path = inp,
-    output_path = dirs$out, intermediate_path = dirs$int,
-    encryption_key = "k", algorithm = "md5",
-    correspondence_table = TRUE,
-    engine = "auto", chunk_size = 1L)
-
-  expect_true(file.exists(file.path(dirs$out, "a_crypt.parquet")))
-  # in_memory signature — globalenv side effect present.
-  expect_true(exists("a_crypt", envir = globalenv(), inherits = FALSE))
-})
+# Test previously asserting that engine="auto" remained a synonym of
+# in_memory in 1.D.4.b was removed in 1.D.4.d: auto now actively routes
+# to streaming when possible. The symmetric assertion (auto routes
+# parquet/parquet to streaming) lives in the 1.D.4.d section below.
 
 # ---- Phase 1.D.4.c — CSV streaming engine ------------------------------
 # Same design contract as the parquet streaming engine: no globalenv
@@ -1216,5 +1188,191 @@ test_that("dispatcher: engine='streaming' csv-in + parquet-out falls back to in_
     engine = "streaming", chunk_size = 1L)
 
   expect_true(file.exists(file.path(dirs$out, "mix_crypt.parquet")))
+  expect_true(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
+})
+
+# ---- Phase 1.D.4.d — auto routing rule ---------------------------------
+# `engine = "auto"` now behaves as `engine = "streaming"` for streamable
+# endpoints (parquet/parquet, csv/csv) and falls back to in_memory
+# otherwise. These blocks verify both branches:
+#   - auto + parquet/parquet → streaming (no globalenv pollution, TC in
+#     .cryptRopen_env, no direct tc_* assignment).
+#   - auto + csv/csv         → streaming (same signature).
+#   - auto + rds             → in_memory (globalenv pollution present).
+#   - auto + mixed endpoints → in_memory (fallback).
+
+test_that("auto routing (1.D.4.d): engine='auto' routes parquet/parquet to the streaming engine", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  src <- data.frame(id = c("alice", "bob", "carol"),
+                    age = c(30L, 40L, 50L),
+                    stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "a.parquet")
+  write_parquet_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "a.parquet",
+                encrypted_file  = "a_crypt.parquet",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE,
+    engine = "auto", chunk_size = 1L)
+
+  # Streaming signature — no globalenv pollution; TC in .cryptRopen_env.
+  expect_false(exists("a_crypt",    envir = globalenv(), inherits = FALSE))
+  expect_false(exists("tc_a_crypt", envir = globalenv(), inherits = FALSE))
+  expect_false(exists("id_crypt",   envir = globalenv(), inherits = FALSE))
+  expect_true(file.exists(file.path(dirs$out, "a_crypt.parquet")))
+  expect_true(file.exists(file.path(dirs$int, "tc_a_crypt.parquet")))
+
+  tcs <- cryptRopen::get_correspondence_tables()
+  expect_true("tc_a_crypt" %in% names(tcs))
+
+  # Cross-check: auto and explicit streaming yield the same row set.
+  dirs2 <- setup_dirs()
+  on.exit(unlink(dirs2$root, recursive = TRUE, force = TRUE), add = TRUE)
+  inp2 <- file.path(dirs2$inp, "a.parquet")
+  write_parquet_fixture(inp2, src)
+  sm2 <- make_sm(folder_path = dirs2$inp, file = "a.parquet",
+                 encrypted_file  = "a_crypt.parquet",
+                 vars_to_encrypt = "id")
+  cryptRopen:::.process_mask_row(
+    sm = sm2, input_path = inp2,
+    output_path = dirs2$out, intermediate_path = dirs2$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE,
+    engine = "streaming", chunk_size = 1L)
+
+  auto_out   <- as.data.frame(arrow::read_parquet(
+    file.path(dirs$out,  "a_crypt.parquet")))
+  stream_out <- as.data.frame(arrow::read_parquet(
+    file.path(dirs2$out, "a_crypt.parquet")))
+  expect_equal(rowset(auto_out), rowset(stream_out))
+})
+
+test_that("auto routing (1.D.4.d): engine='auto' routes csv/csv to the csv streaming engine", {
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  src <- data.frame(id = c("alice", "bob", "carol"),
+                    age = c(30L, 40L, 50L),
+                    stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "a.csv")
+  write_csv_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "a.csv",
+                encrypted_file  = "a_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE,
+    engine = "auto", chunk_size = 2L)
+
+  # Streaming signature — no globalenv pollution.
+  expect_false(exists("a_crypt",    envir = globalenv(), inherits = FALSE))
+  expect_false(exists("tc_a_crypt", envir = globalenv(), inherits = FALSE))
+  expect_false(exists("id_crypt",   envir = globalenv(), inherits = FALSE))
+  expect_true(file.exists(file.path(dirs$out, "a_crypt.csv")))
+  expect_true(file.exists(file.path(dirs$int, "tc_a_crypt.parquet")))
+
+  tcs <- cryptRopen::get_correspondence_tables()
+  expect_true("tc_a_crypt" %in% names(tcs))
+
+  # Cross-check: auto and explicit streaming yield the same row set.
+  dirs2 <- setup_dirs()
+  on.exit(unlink(dirs2$root, recursive = TRUE, force = TRUE), add = TRUE)
+  inp2 <- file.path(dirs2$inp, "a.csv")
+  write_csv_fixture(inp2, src)
+  sm2 <- make_sm(folder_path = dirs2$inp, file = "a.csv",
+                 encrypted_file  = "a_crypt.csv",
+                 vars_to_encrypt = "id")
+  cryptRopen:::.process_mask_row(
+    sm = sm2, input_path = inp2,
+    output_path = dirs2$out, intermediate_path = dirs2$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE,
+    engine = "streaming", chunk_size = 2L)
+
+  auto_out   <- as.data.frame(arrow::read_csv_arrow(
+    file.path(dirs$out,  "a_crypt.csv")))
+  stream_out <- as.data.frame(arrow::read_csv_arrow(
+    file.path(dirs2$out, "a_crypt.csv")))
+  expect_equal(rowset(auto_out), rowset(stream_out))
+})
+
+test_that("auto routing (1.D.4.d): engine='auto' with non-streamable input falls back to in_memory", {
+  # rds is not streamable — auto must route to in_memory, which carries
+  # the historical globalenv side effects.
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  rds <- file.path(dirs$inp, "s.rds")
+  saveRDS(data.frame(id = c("a", "b"), stringsAsFactors = FALSE), rds)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "s.rds",
+                encrypted_file  = "s_crypt.rds",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row(
+    sm = sm, input_path = rds,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE,
+    engine = "auto", chunk_size = 4L)
+
+  expect_true(file.exists(file.path(dirs$out, "s_crypt.rds")))
+  # in_memory signature — globalenv side effect present.
+  expect_true(exists("s_crypt", envir = globalenv(), inherits = FALSE))
+})
+
+test_that("auto routing (1.D.4.d): engine='auto' with mixed endpoints falls back to in_memory", {
+  # parquet-in / csv-out — neither streaming engine applies.
+  dirs <- setup_dirs()
+  pre  <- ls(envir = globalenv())
+  on.exit({
+    unlink(dirs$root, recursive = TRUE, force = TRUE)
+    clean_globals(pre)
+    cryptRopen:::.clear_correspondence_tables()
+  }, add = TRUE)
+
+  src <- data.frame(id = c("a", "b"), stringsAsFactors = FALSE)
+  inp <- file.path(dirs$inp, "mix.parquet")
+  write_parquet_fixture(inp, src)
+
+  sm <- make_sm(folder_path = dirs$inp, file = "mix.parquet",
+                encrypted_file  = "mix_crypt.csv",
+                vars_to_encrypt = "id")
+
+  cryptRopen:::.process_mask_row(
+    sm = sm, input_path = inp,
+    output_path = dirs$out, intermediate_path = dirs$int,
+    encryption_key = "k", algorithm = "md5",
+    correspondence_table = TRUE,
+    engine = "auto", chunk_size = 1L)
+
+  expect_true(file.exists(file.path(dirs$out, "mix_crypt.csv")))
+  # in_memory signature — globalenv side effect present.
   expect_true(exists("mix_crypt", envir = globalenv(), inherits = FALSE))
 })

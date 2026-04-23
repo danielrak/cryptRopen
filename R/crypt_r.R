@@ -20,14 +20,18 @@
 #' @param correspondence_table Logical vector. If TRUE, the correspondence tables will computed
 #' and stored in the indicated intermediate_path.
 #' @param engine One of `"auto"`, `"in_memory"`, `"streaming"`.
-#'   Selects the per-row processing engine. `"auto"` (default) picks
-#'   `"streaming"` for `.parquet` / `.csv` inputs and `"in_memory"`
-#'   for every other format. `"in_memory"` reads the full input into
-#'   RAM (historical behaviour). `"streaming"` scans the input by
-#'   chunks via arrow and writes progressively. Introduced in Phase
-#'   1.D.4.a; the streaming engine itself lands in 1.D.4.b/c.
-#' @param chunk_size Integer. Number of rows per chunk when `engine`
-#'   resolves to `"streaming"`. Ignored by `"in_memory"`. Default
+#'   Selects the per-row processing engine. `"auto"` (default) and
+#'   `"streaming"` both route parquet-in/parquet-out and csv-in/csv-out
+#'   to the streaming engines (arrow Scanner by chunks, progressive
+#'   write); mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
+#'   csv→parquet) silently fall back to `"in_memory"` to preserve
+#'   non-regression. `"in_memory"` always reads the full input into
+#'   RAM (historical behaviour). Introduced in Phase 1.D.4.a
+#'   (plumbing), streaming engines in 1.D.4.b/c, auto-routing rule in
+#'   1.D.4.d.
+#' @param chunk_size Integer. Number of rows per chunk when the
+#'   effective engine is streaming. Ignored by `"in_memory"` (and by
+#'   `"auto"` / `"streaming"` when falling back to in_memory). Default
 #'   `1e6`.
 #' @importFrom magrittr %>%
 #' @export
@@ -152,21 +156,30 @@ crypt_r <- function (mask_folder_path, mask_file,
 
 #' Process one row of the encryption mask (dispatcher).
 #'
-#' Thin dispatcher introduced in Phase 1.D.2 and extended in Phases
-#' 1.D.4.b (parquet streaming) and 1.D.4.c (csv streaming). Routes to:
-#'   - `.process_mask_row_streaming()` when `engine == "streaming"`
-#'     **and** both endpoints are parquet;
-#'   - `.process_mask_row_csv_streaming()` when `engine == "streaming"`
-#'     **and** both endpoints are csv;
-#'   - `.process_mask_row_in_memory()` in every other case (including
-#'     `engine = "auto"` — the auto routing rule lands in 1.D.4.d —
-#'     and mixed streaming requests like parquet→csv or csv→parquet
-#'     which silently fall back to preserve non-regression).
+#' Thin dispatcher introduced in Phase 1.D.2 and progressively extended:
+#' 1.D.4.b (parquet streaming), 1.D.4.c (csv streaming), 1.D.4.d
+#' (auto-routing rule + streaming helpers factorised).
+#'
+#' Routing rule (Phase 1.D.4.d):
+#'   - `engine == "in_memory"` → always routes to
+#'     `.process_mask_row_in_memory()` (historical code path).
+#'   - `engine %in% c("auto", "streaming")` → tries streaming:
+#'       * parquet-in + parquet-out → `.process_mask_row_streaming()`;
+#'       * csv-in     + csv-out     → `.process_mask_row_csv_streaming()`;
+#'       * mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
+#'         csv→parquet, …) → silent fallback to
+#'         `.process_mask_row_in_memory()` to preserve non-regression.
+#'
+#' `"auto"` and `"streaming"` are functionally equivalent after
+#' 1.D.4.d. The distinction is kept for clarity: `"auto"` is the
+#' default promising smart routing; `"streaming"` is an explicit
+#' opt-in. We deliberately do **not** make `"streaming"` strict
+#' (i.e. erroring on non-streamable inputs) — that would be an API
+#' change not authorised by CLAUDE.md.
 #'
 #' Keeping the dispatcher separate from the engines guarantees that
-#' the historical code path stays strictly untouched while the
-#' streaming engines evolve, protecting non-regression on existing
-#' baselines.
+#' the historical code path stays untouched while the streaming
+#' engines evolve, protecting non-regression on existing baselines.
 #'
 #' @inheritParams .process_mask_row_in_memory
 #' @param engine One of `"auto"`, `"in_memory"`, `"streaming"`. See
@@ -179,13 +192,13 @@ crypt_r <- function (mask_folder_path, mask_file,
                               encryption_key, algorithm, correspondence_table,
                               engine = "in_memory", chunk_size = 1e6L) {
 
-  is_stream <- identical(engine, "streaming")
-  out_file  <- sm[["encrypted_file"]]
+  try_stream <- engine %in% c("auto", "streaming")
+  out_file   <- sm[["encrypted_file"]]
 
-  use_parquet_stream <- is_stream &&
+  use_parquet_stream <- try_stream &&
                         .is_parquet(input_path) &&
                         .is_parquet(out_file)
-  use_csv_stream     <- is_stream &&
+  use_csv_stream     <- try_stream &&
                         .is_csv(input_path) &&
                         .is_csv(out_file)
 
@@ -212,10 +225,10 @@ crypt_r <- function (mask_folder_path, mask_file,
       chunk_size           = chunk_size
     )
   } else {
-    # `engine = "auto"` lands here until 1.D.4.d wires it. Any
-    # `engine = "streaming"` call with mixed or non-streamable
-    # endpoints silently falls back to the historical engine —
-    # documented in the roxygen of crypt_r().
+    # Fallback: `engine = "in_memory"`, or streaming requested on a
+    # non-streamable input (rds, xlsx, etc.) or mixed endpoints
+    # (parquet→csv, csv→parquet). Historical engine preserves
+    # non-regression behaviour in all these cases.
     .process_mask_row_in_memory(
       sm                   = sm,
       input_path           = input_path,
@@ -420,40 +433,193 @@ crypt_r <- function (mask_folder_path, mask_file,
   invisible(NULL)
 }
 
+#' Transform a single stream chunk: cleanup + crypt + column assembly.
+#'
+#' Introduced in Phase 1.D.4.d to factorise the ~80 lines previously
+#' duplicated between `.process_mask_row_streaming()` (parquet) and
+#' `.process_mask_row_csv_streaming()` (csv). Pure function — no I/O,
+#' no globalenv / .cryptRopen_env side effect.
+#'
+#' Transformation steps (byte-for-byte identical to the historical
+#' in_memory engine on matching inputs):
+#'   1. Character cleanup: `str_trim()` then empty strings → `NA`.
+#'   2. Per-variable encryption via `crypt_vector()`.
+#'   3. Column assembly: `<var>_crypt` columns first in `vars_to_encrypt`
+#'      order, then non-encrypted input columns in input order.
+#'   4. Optional `vars_to_remove` drop (intersect-based — missing
+#'      columns are silently ignored, matching in_memory behaviour).
+#'
+#' The returned `tc_chunk` is already `distinct()`. The caller merges
+#' chunks across iterations with an outer `bind_rows %>% distinct`.
+#'
+#' @param chunk A tibble / data.frame — one scanner batch.
+#' @param vars_to_encrypt,vars_to_remove Character vectors (as split
+#'   from the mask row and trimmed).
+#' @param encryption_key,algorithm Forwarded to `crypt_vector()`.
+#' @param correspondence_table Logical(1). Controls whether `tc_chunk`
+#'   is computed (`NULL` when `FALSE`).
+#' @return A named list: `out_chunk` (tibble ready to write) and
+#'   `tc_chunk` (tibble or `NULL`).
+#' @noRd
+.transform_stream_chunk <- function(chunk, vars_to_encrypt, vars_to_remove,
+                                    encryption_key, algorithm,
+                                    correspondence_table) {
+
+  # 1. Character cleanup — trim + empty-string-to-NA.
+  chunk <- dplyr::mutate(
+    chunk,
+    dplyr::across(dplyr::where(is.character), \(x0) {
+      x0[nchar(stringr::str_trim(x0)) == 0] <- NA
+      stringr::str_trim(x0)
+    })
+  )
+
+  # 2. Encrypt each requested variable.
+  crypted <- purrr::map(vars_to_encrypt, \(v) {
+    crypt_vector(vector = chunk[[v]], key = encryption_key,
+                 algo = algorithm)
+  })
+  names(crypted) <- paste0(vars_to_encrypt, "_crypt")
+  crypted_df <- dplyr::as_tibble(crypted)
+
+  # 3. Per-chunk correspondence rows (if requested).
+  tc_chunk <- NULL
+  if (correspondence_table) {
+    tc_chunk <- dplyr::distinct(
+      dplyr::bind_cols(
+        dplyr::select(chunk, dplyr::all_of(vars_to_encrypt)),
+        crypted_df
+      )
+    )
+  }
+
+  # 4. Assemble output: <var>_crypt first, non-encrypted in input order,
+  #    then vars_to_remove dropped.
+  non_enc_cols <- setdiff(names(chunk), vars_to_encrypt)
+  out_chunk    <- dplyr::bind_cols(
+    crypted_df,
+    dplyr::select(chunk, dplyr::all_of(non_enc_cols)))
+
+  if (!all(is.na(vars_to_remove))) {
+    to_drop <- intersect(vars_to_remove, names(out_chunk))
+    if (length(to_drop) > 0L) {
+      out_chunk <- dplyr::select(out_chunk, -dplyr::all_of(to_drop))
+    }
+  }
+
+  list(out_chunk = out_chunk, tc_chunk = tc_chunk)
+}
+
+#' Finalise the accumulated correspondence table: store in the package
+#' private env + export to parquet on disk.
+#'
+#' Introduced in Phase 1.D.4.d. Extracted from the two streaming
+#' engines whose post-loop finalisation was identical. Idempotent — a
+#' no-op when `correspondence_table` is `FALSE` or when no rows were
+#' accumulated.
+#'
+#' @param tc_accum The accumulated correspondence tibble, or `NULL`.
+#' @param intermediate_path Directory for the parquet output.
+#' @param encrypted_stem The encrypted file stem (extension stripped).
+#' @param correspondence_table Logical(1).
+#' @return Invisible `NULL`.
+#' @noRd
+.finalize_stream_tc <- function(tc_accum, intermediate_path, encrypted_stem,
+                                correspondence_table) {
+  if (!correspondence_table || is.null(tc_accum)) return(invisible(NULL))
+
+  tc_name <- paste0("tc_", encrypted_stem)
+  .store_correspondence_table(name = tc_name, df = tc_accum)
+  arrow::write_parquet(
+    tc_accum,
+    file.path(intermediate_path,
+              paste0(tc_name, ".parquet")))
+  invisible(NULL)
+}
+
+#' Re-read a freshly written streamed output and emit the companion
+#' `inspect_*.xlsx` report.
+#'
+#' Introduced in Phase 1.D.4.d. Both streaming engines rely on a
+#' relecture-based inspect (chunks are not kept in RAM across the
+#' scan).
+#'
+#' Relecture uses `rio::import()` — not arrow — to preserve strict
+#' semantic non-regression with the in_memory engine. Rationale: the
+#' in_memory engine calls `inspect()` on the pre-export tibble whose
+#' types come from `rio::import()` (e.g. `data.table::fread` for CSV
+#' returns `class = c("IDate", "Date")` on date columns, which makes
+#' `inspect()` emit two rows per column via its `class`-vectorisation).
+#' A prior implementation using `arrow::read_parquet` /
+#' `arrow::read_csv_arrow` produced different `class()` tuples and
+#' broke the baseline `compare_inspect()` comparison on 11 cases.
+#' Reloading via `rio::import()` on the freshly written output
+#' reproduces the historical type vector on both readers.
+#'
+#' Layout (identical to the in_memory engine):
+#'   row 1 — writexl header artefact (column names),
+#'   row 2 — `"Obs = "` + total row count,
+#'   row 3 — `"Nvars = "` + inspect() row count,
+#'   rows 4+ — inspect() output indexed by row number.
+#'
+#' @param output_file_path Full path to the encrypted output file.
+#' @param output_path Directory where the xlsx will be written.
+#' @param encrypted_file Base name of the encrypted file (with
+#'   extension) — used to build the `inspect_*.xlsx` filename.
+#' @return Invisible `NULL`. No-op if the output file is absent.
+#' @noRd
+.write_stream_inspect <- function(output_file_path,
+                                  output_path, encrypted_file) {
+  if (!file.exists(output_file_path)) return(invisible(NULL))
+
+  out_df <- as.data.frame(rio::import(output_file_path, trust = TRUE))
+  i <- inspect(out_df)
+  # NB. The `1:nrow(i)` spelling (not `seq_len(nrow(i))`) is load-bearing:
+  # `cbind()` names the new column from the *expression* passed to it, so
+  # the historical in_memory engine emits a data.frame whose first column
+  # is named "1:nrow(i)". writexl writes this name as the header row, which
+  # readxl::read_xlsx(col_names = FALSE) then surfaces as the value of
+  # row 1, column 1 in the compared xlsx. Using any other expression
+  # (seq_len(), seq.int()…) breaks baseline on this single cell.
+  layout <- rbind(
+    c("Obs = ",   nrow(out_df), rep("", ncol(i) - 1)),
+    c("Nvars = ", nrow(i),      rep("", ncol(i) - 1)),
+    cbind(1:nrow(i), i))
+  writexl::write_xlsx(
+    layout,
+    file.path(output_path,
+              paste0("inspect_", encrypted_file, ".xlsx")))
+  invisible(NULL)
+}
+
 #' Process one row of the encryption mask — streaming engine (parquet).
 #'
-#' Introduced in Phase 1.D.4.b. Streams the input parquet file through
-#' an arrow Scanner by chunks of `chunk_size` rows, encrypts each chunk
-#' in memory, writes the result incrementally to the output parquet
-#' file via `arrow::ParquetFileWriter`, and builds the correspondence
-#' table by accumulating per-chunk `distinct()` rows.
+#' Introduced in Phase 1.D.4.b, refactored in 1.D.4.d to delegate
+#' chunk transformation, TC finalisation and inspect reporting to
+#' shared helpers (`.transform_stream_chunk()`, `.finalize_stream_tc()`,
+#' `.write_stream_inspect()`).
 #'
-#' This engine handles **parquet-in / parquet-out only**. The
-#' dispatcher enforces this precondition and falls back to the
-#' in-memory engine otherwise, so this function does not need to
-#' re-check it.
+#' Streams the input parquet file through an arrow Scanner by chunks
+#' of `chunk_size` rows, encrypts each chunk in memory, writes the
+#' result incrementally to the output parquet file via
+#' `arrow::ParquetFileWriter`, and builds the correspondence table by
+#' accumulating per-chunk `distinct()` rows.
 #'
-#' Behavioural guarantees (vs. the in-memory engine on the same input):
-#'   - Output rows are identical (same values, same types, same order).
-#'   - Output column order is identical: `<var>_crypt` columns first
-#'     in `vars_to_encrypt` order, then the remaining input columns in
-#'     input order (`vars_to_remove` applied last).
-#'   - Character cleanup is identical: `str_trim()` + empty strings → NA.
-#'   - Correspondence table contents are identical (modulo row order,
-#'     which was already non-deterministic in the in-memory engine
-#'     through `dplyr::distinct()`).
-#'   - The `inspect_*.xlsx` report has the same structure as the
-#'     in-memory engine: header row from writexl, then `Obs = `,
-#'     `Nvars = `, then indexed inspect rows.
+#' Handles **parquet-in / parquet-out only** (dispatcher precondition).
 #'
-#' Deliberate differences with the in-memory engine (Option B, validated
-#' with the user on 2026-04-22):
-#'   - **No pollution of `globalenv()`**. Neither the per-var `<var>_crypt`
-#'     vectors, the final `<encrypted_stem>` dataset nor the
-#'     `tc_<encrypted_stem>` table are assigned anywhere visible outside
-#'     the package. The correspondence table is stored in
-#'     `.cryptRopen_env` (retrievable via `get_correspondence_tables()`)
-#'     and on disk; the encrypted dataset is only on disk.
+#' Behavioural guarantees (vs. the in-memory engine on matching input):
+#'   - Output rows identical (same values, same types, same order).
+#'   - Output column order identical: `<var>_crypt` first in
+#'     `vars_to_encrypt` order, then remaining input columns in input
+#'     order (`vars_to_remove` applied last).
+#'   - Character cleanup identical: `str_trim()` + empty → NA.
+#'   - Correspondence table contents identical (modulo row order, also
+#'     non-deterministic in the in-memory engine).
+#'   - `inspect_*.xlsx` layout identical.
+#'
+#' Deliberate differences (Option B, validated 2026-04-22):
+#'   - **No pollution of `globalenv()`**. TC lives in `.cryptRopen_env`
+#'     (retrievable via `get_correspondence_tables()`) and on disk.
 #'   - `assign_to_global()` + `eval(parse(text = ...))` are not used.
 #'
 #' @param sm,input_path,output_path,intermediate_path,encryption_key,algorithm,correspondence_table
@@ -497,63 +663,31 @@ crypt_r <- function (mask_folder_path, mask_file,
       if (is.null(batch)) break
 
       chunk <- dplyr::as_tibble(as.data.frame(batch))
+      tf    <- .transform_stream_chunk(
+        chunk                = chunk,
+        vars_to_encrypt      = vars_to_encrypt,
+        vars_to_remove       = vars_to_remove,
+        encryption_key       = encryption_key,
+        algorithm            = algorithm,
+        correspondence_table = correspondence_table)
 
-      # Character cleanup — byte-for-byte identical to the in_memory engine:
-      # trim whitespace, turn empty strings into NA.
-      chunk <- dplyr::mutate(
-        chunk,
-        dplyr::across(dplyr::where(is.character), \(x0) {
-          x0[nchar(stringr::str_trim(x0)) == 0] <- NA
-          stringr::str_trim(x0)
-        })
-      )
-
-      # Encrypt each requested variable.
-      crypted <- purrr::map(vars_to_encrypt, \(v) {
-        crypt_vector(vector = chunk[[v]], key = encryption_key,
-                     algo = algorithm)
-      })
-      names(crypted) <- paste0(vars_to_encrypt, "_crypt")
-      crypted_df <- dplyr::as_tibble(crypted)
-
-      # Accumulate correspondence table (per-chunk distinct, then merge).
-      if (correspondence_table) {
-        tc_chunk <- dplyr::distinct(
-          dplyr::bind_cols(
-            dplyr::select(chunk, dplyr::all_of(vars_to_encrypt)),
-            crypted_df
-          )
-        )
-        tc_accum <- if (is.null(tc_accum)) tc_chunk
-                    else dplyr::distinct(dplyr::bind_rows(tc_accum, tc_chunk))
+      if (correspondence_table && !is.null(tf$tc_chunk)) {
+        tc_accum <- if (is.null(tc_accum)) tf$tc_chunk
+                    else dplyr::distinct(dplyr::bind_rows(tc_accum, tf$tc_chunk))
       }
 
-      # Assemble output chunk: encrypted columns first (in vars_to_encrypt
-      # order), then non-encrypted input columns in input order.
-      non_enc_cols <- setdiff(names(chunk), vars_to_encrypt)
-      out_chunk    <- dplyr::bind_cols(
-        crypted_df,
-        dplyr::select(chunk, dplyr::all_of(non_enc_cols)))
-
-      # Optional vars_to_remove.
-      if (!all(is.na(vars_to_remove))) {
-        to_drop <- intersect(vars_to_remove, names(out_chunk))
-        if (length(to_drop) > 0L) {
-          out_chunk <- dplyr::select(out_chunk, -dplyr::all_of(to_drop))
-        }
-      }
-
-      arrow_tbl <- arrow::as_arrow_table(out_chunk)
+      arrow_tbl <- arrow::as_arrow_table(tf$out_chunk)
 
       # First chunk fixes the output schema; subsequent chunks must
       # conform. Character cleanup + crypt_vector() are type-stable,
       # so the schema is stable across chunks by construction.
-      # Two arrow-R quirks:
+      # Arrow-R quirks (see 1.D.4.b commit 38d8151d):
       #   - `sink` must be an OutputStream (a character path is not
-      #     accepted, hence the FileOutputStream wrapper);
+      #     accepted — hence the FileOutputStream wrapper);
       #   - the default `properties` built by
       #     `ParquetWriterProperties$create()` fails unless
-      #     `column_names` is provided explicitly, so we pre-build it.
+      #     `column_names` is provided explicitly;
+      #   - `WriteTable()` also requires a non-default `chunk_size`.
       if (is.null(writer)) {
         sink   <- arrow::FileOutputStream$create(output_file_path)
         writer <- arrow::ParquetFileWriter$create(
@@ -562,9 +696,6 @@ crypt_r <- function (mask_folder_path, mask_file,
           properties = arrow::ParquetWriterProperties$create(
             column_names = names(arrow_tbl)))
       }
-      # Arrow-R quirk: `WriteTable` also requires a non-default
-      # `chunk_size`. Use the batch size as the parquet row-group size
-      # — one row group per input chunk.
       writer$WriteTable(arrow_tbl, chunk_size = arrow_tbl$num_rows)
     }
 
@@ -572,37 +703,15 @@ crypt_r <- function (mask_folder_path, mask_file,
     if (!is.null(sink))   sink$close()
   })
 
-  # --- Correspondence table: store + export -----------------------------
+  # --- Correspondence table (shared finaliser) --------------------------
   try({
-    if (correspondence_table && !is.null(tc_accum)) {
-      tc_name <- paste0("tc_", encrypted_stem)
-      .store_correspondence_table(name = tc_name, df = tc_accum)
-      arrow::write_parquet(
-        tc_accum,
-        file.path(intermediate_path,
-                  paste0(tc_name, ".parquet")))
-    }
+    .finalize_stream_tc(tc_accum, intermediate_path, encrypted_stem,
+                        correspondence_table)
   })
 
-  # --- Inspect: re-read output, apply inspect(), write xlsx -------------
-  # The double I/O (write then re-read) is acceptable because inspect()
-  # needs the full data frame. The xlsx layout mirrors the in-memory
-  # engine line-for-line so that non-regression on the sheet structure
-  # holds across engines.
+  # --- Inspect (shared; rio::import for type fidelity) ------------------
   try({
-    if (file.exists(output_file_path)) {
-      out_df <- as.data.frame(arrow::read_parquet(output_file_path))
-      i <- inspect(out_df)
-      layout <- rbind(
-        c("Obs = ",   nrow(out_df), rep("", ncol(i) - 1)),
-        c("Nvars = ", nrow(i),      rep("", ncol(i) - 1)),
-        cbind(seq_len(nrow(i)), i))
-      writexl::write_xlsx(
-        layout,
-        file.path(output_path,
-                  paste0("inspect_", encrypted_file, ".xlsx"))
-      )
-    }
+    .write_stream_inspect(output_file_path, output_path, encrypted_file)
   })
 
   invisible(NULL)
@@ -610,35 +719,30 @@ crypt_r <- function (mask_folder_path, mask_file,
 
 #' Process one row of the encryption mask — streaming engine (CSV).
 #'
-#' Introduced in Phase 1.D.4.c. CSV counterpart to
-#' `.process_mask_row_streaming()`. Streams the input CSV via
-#' `arrow::open_csv_dataset()` + Scanner, encrypts each chunk in
-#' memory, appends each chunk to the output CSV via
-#' `utils::write.table(append = TRUE)` (we do not use
-#' `arrow::CsvWriter` — not exported in every installed version),
-#' and accumulates the correspondence table the same way as the
-#' parquet engine.
+#' Introduced in Phase 1.D.4.c, refactored in 1.D.4.d to share chunk
+#' transformation / TC finalisation / inspect reporting with the
+#' parquet streaming engine.
 #'
-#' Handles **csv-in / csv-out only**. The dispatcher enforces this
-#' precondition. The correspondence table is still written as parquet
-#' (same behaviour as in_memory and parquet streaming): only the
-#' main encrypted dataset is CSV.
+#' Streams the input CSV via `arrow::open_csv_dataset()` + Scanner,
+#' encrypts each chunk in memory, appends each chunk to the output CSV
+#' via `utils::write.table(append = TRUE)`. `arrow::CsvWriter` is
+#' intentionally not used: it is not exported in every installed
+#' `arrow` version. `utils::write.table` preserves the streaming
+#' property on the read/transform side with no extra dependency.
 #'
-#' Semantic guarantees versus the in-memory engine: identical row
-#' set, identical output column order, identical character cleanup
-#' rules. **Byte-level equality is not guaranteed** — arrow's CSV
-#' writer applies its own quoting rules that may differ from
-#' `data.table::fwrite` / `utils::write.csv` used by rio. The tests
-#' therefore compare via re-read content (`rowset()`), not by file
-#' hash.
+#' Handles **csv-in / csv-out only** (dispatcher precondition). The
+#' correspondence table is still written as parquet (symmetric with
+#' in_memory + parquet streaming): only the main encrypted dataset is
+#' CSV.
 #'
-#' Like the parquet streaming engine, this engine does **not** pollute
-#' `globalenv()`; the correspondence table lives in `.cryptRopen_env`
-#' (retrievable via `get_correspondence_tables()`) and on disk.
+#' Semantic guarantees vs. the in-memory engine: identical row set,
+#' identical output column order, identical character cleanup rules.
+#' **Byte-level equality is not guaranteed** — base R's writer quoting
+#' rules differ from `rio::export()` / `data.table::fwrite`. Tests
+#' compare via re-read content (`rowset()`), not by file hash.
 #'
-#' In 1.D.4.c the two streaming engines duplicate ~80 lines of
-#' transformation code. Factorisation is deferred to 1.D.4.d where
-#' the `engine = "auto"` routing rule makes the abstraction natural.
+#' Like the parquet streaming engine: no globalenv pollution, TC in
+#' `.cryptRopen_env` + on disk.
 #'
 #' @inheritParams .process_mask_row_streaming
 #' @return Invisible `NULL`.
@@ -666,13 +770,6 @@ crypt_r <- function (mask_folder_path, mask_file,
   first_chunk <- TRUE
 
   # --- Read / transform / write by chunks -------------------------------
-  # Writer: we do not use `arrow::CsvWriter` because it is not exported
-  # in every installed `arrow` version (notably the one on the
-  # maintainer's Windows/RStudio). Falling back to base R
-  # `utils::write.table(append = TRUE)` keeps the streaming property
-  # on the read/transform side and stays dependency-free. Byte-level
-  # equality with rio::export() / fwrite() is not required (the plan
-  # explicitly allows semantic equality via re-read + rowset()).
   try({
     ds      <- arrow::open_csv_dataset(input_path)
     scanner <- arrow::Scanner$create(ds, batch_size = as.integer(chunk_size))
@@ -683,53 +780,23 @@ crypt_r <- function (mask_folder_path, mask_file,
       if (is.null(batch)) break
 
       chunk <- dplyr::as_tibble(as.data.frame(batch))
+      tf    <- .transform_stream_chunk(
+        chunk                = chunk,
+        vars_to_encrypt      = vars_to_encrypt,
+        vars_to_remove       = vars_to_remove,
+        encryption_key       = encryption_key,
+        algorithm            = algorithm,
+        correspondence_table = correspondence_table)
 
-      # Character cleanup — identical to in_memory / parquet streaming.
-      chunk <- dplyr::mutate(
-        chunk,
-        dplyr::across(dplyr::where(is.character), \(x0) {
-          x0[nchar(stringr::str_trim(x0)) == 0] <- NA
-          stringr::str_trim(x0)
-        })
-      )
-
-      # Encrypt each requested variable.
-      crypted <- purrr::map(vars_to_encrypt, \(v) {
-        crypt_vector(vector = chunk[[v]], key = encryption_key,
-                     algo = algorithm)
-      })
-      names(crypted) <- paste0(vars_to_encrypt, "_crypt")
-      crypted_df <- dplyr::as_tibble(crypted)
-
-      # Accumulate correspondence table.
-      if (correspondence_table) {
-        tc_chunk <- dplyr::distinct(
-          dplyr::bind_cols(
-            dplyr::select(chunk, dplyr::all_of(vars_to_encrypt)),
-            crypted_df
-          )
-        )
-        tc_accum <- if (is.null(tc_accum)) tc_chunk
-                    else dplyr::distinct(dplyr::bind_rows(tc_accum, tc_chunk))
-      }
-
-      # Assemble output chunk: encrypted first, then non-encrypted.
-      non_enc_cols <- setdiff(names(chunk), vars_to_encrypt)
-      out_chunk    <- dplyr::bind_cols(
-        crypted_df,
-        dplyr::select(chunk, dplyr::all_of(non_enc_cols)))
-
-      if (!all(is.na(vars_to_remove))) {
-        to_drop <- intersect(vars_to_remove, names(out_chunk))
-        if (length(to_drop) > 0L) {
-          out_chunk <- dplyr::select(out_chunk, -dplyr::all_of(to_drop))
-        }
+      if (correspondence_table && !is.null(tf$tc_chunk)) {
+        tc_accum <- if (is.null(tc_accum)) tf$tc_chunk
+                    else dplyr::distinct(dplyr::bind_rows(tc_accum, tf$tc_chunk))
       }
 
       # Append chunk to CSV output. First chunk writes the header and
       # creates the file; subsequent chunks append without header.
       utils::write.table(
-        as.data.frame(out_chunk),
+        as.data.frame(tf$out_chunk),
         file      = output_file_path,
         sep       = ",",
         dec       = ".",
@@ -741,33 +808,15 @@ crypt_r <- function (mask_folder_path, mask_file,
     }
   })
 
-  # --- Correspondence table: store + export (parquet, same as parquet engine)
+  # --- Correspondence table (shared finaliser) --------------------------
   try({
-    if (correspondence_table && !is.null(tc_accum)) {
-      tc_name <- paste0("tc_", encrypted_stem)
-      .store_correspondence_table(name = tc_name, df = tc_accum)
-      arrow::write_parquet(
-        tc_accum,
-        file.path(intermediate_path,
-                  paste0(tc_name, ".parquet")))
-    }
+    .finalize_stream_tc(tc_accum, intermediate_path, encrypted_stem,
+                        correspondence_table)
   })
 
-  # --- Inspect: re-read CSV output, apply inspect(), write xlsx ---------
+  # --- Inspect (shared; rio::import for type fidelity) ------------------
   try({
-    if (file.exists(output_file_path)) {
-      out_df <- as.data.frame(arrow::read_csv_arrow(output_file_path))
-      i <- inspect(out_df)
-      layout <- rbind(
-        c("Obs = ",   nrow(out_df), rep("", ncol(i) - 1)),
-        c("Nvars = ", nrow(i),      rep("", ncol(i) - 1)),
-        cbind(seq_len(nrow(i)), i))
-      writexl::write_xlsx(
-        layout,
-        file.path(output_path,
-                  paste0("inspect_", encrypted_file, ".xlsx"))
-      )
-    }
+    .write_stream_inspect(output_file_path, output_path, encrypted_file)
   })
 
   invisible(NULL)
