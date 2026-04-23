@@ -29,7 +29,6 @@ Suggests:
     testthat,
     tools,
     withr
-Config/fusen/version: 0.7.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
