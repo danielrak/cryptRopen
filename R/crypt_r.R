@@ -78,6 +78,38 @@ crypt_r <- function (mask_folder_path, mask_file,
     n_workers <- as.integer(n_workers)
   }
 
+  # --- Fast-fail on invalid output directories (Phase 2.B) -------------
+  # Both paths are *shared* by every worker. If either is missing, all
+  # dispatched tasks would fail silently (bubbling up as per-task errors
+  # only via cryptR_status()) and the user would only learn about it
+  # after the whole job has resolved. Validating up-front turns this
+  # into an actionable stop() at call time.
+  #
+  # Per-input paths (resolved from mask$folder_path + mask$file) are NOT
+  # validated here — per CLAUDE.md, a failing row must not interrupt the
+  # others, and the per-row tryCatch inside the engines already captures
+  # "file not found" errors.
+  .assert_writable_dir <- function(path, label) {
+    if (!is.character(path) || length(path) != 1L || is.na(path) ||
+        !nzchar(path)) {
+      stop(sprintf(
+        "`%s` must be a non-empty character(1) path. Got: %s",
+        label,
+        if (is.character(path)) paste(utils::capture.output(dput(path)),
+                                      collapse = " ") else class(path)[1]),
+        call. = FALSE)
+    }
+    if (!dir.exists(path)) {
+      stop(sprintf(
+        "`%s` directory does not exist: %s\nCreate it before calling crypt_r().",
+        label, path),
+        call. = FALSE)
+    }
+    invisible(NULL)
+  }
+  .assert_writable_dir(output_path,       "output_path")
+  .assert_writable_dir(intermediate_path, "intermediate_path")
+
   # The Excel mask:
   mask <-
     rio::import(file.path(mask_folder_path, mask_file)) %>%

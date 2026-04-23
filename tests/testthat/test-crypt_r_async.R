@@ -105,6 +105,92 @@ write_simple_csv <- function(path, n = 3L) {
 }
 
 
+# ---- Fast-fail on invalid output directories (Phase 2.B) --------------
+
+test_that("crypt_r() fast-fails when output_path does not exist", {
+  skip_if_async_unavailable()
+  skip_if_not_installed("readxl")
+
+  dirs <- setup_dirs_async()
+  on.exit(unlink(dirs$root, recursive = TRUE, force = TRUE), add = TRUE)
+
+  write_simple_csv(file.path(dirs$inp, "persons.csv"))
+  mk <- write_mask_xlsx(dirs, mask_row_async(
+    folder_path = dirs$inp, file = "persons.csv",
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+
+  bogus <- file.path(dirs$root, "does_not_exist")
+  err <- expect_error(crypt_r(
+    mask_folder_path  = mk$folder, mask_file = mk$file,
+    output_path       = bogus,     intermediate_path = dirs$int,
+    encryption_key    = "k", algorithm = "md5",
+    correspondence_table = TRUE, engine = "in_memory",
+    n_workers = 1L))
+  # Structural match — no regex on R base messages.
+  expect_true(grepl("output_path",   conditionMessage(err)))
+  expect_true(grepl("does_not_exist", conditionMessage(err), fixed = TRUE))
+})
+
+
+test_that("crypt_r() fast-fails when intermediate_path does not exist", {
+  skip_if_async_unavailable()
+  skip_if_not_installed("readxl")
+
+  dirs <- setup_dirs_async()
+  on.exit(unlink(dirs$root, recursive = TRUE, force = TRUE), add = TRUE)
+
+  write_simple_csv(file.path(dirs$inp, "persons.csv"))
+  mk <- write_mask_xlsx(dirs, mask_row_async(
+    folder_path = dirs$inp, file = "persons.csv",
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+
+  bogus <- file.path(dirs$root, "never_created")
+  err <- expect_error(crypt_r(
+    mask_folder_path  = mk$folder, mask_file = mk$file,
+    output_path       = dirs$out,  intermediate_path = bogus,
+    encryption_key    = "k", algorithm = "md5",
+    correspondence_table = TRUE, engine = "in_memory",
+    n_workers = 1L))
+  expect_true(grepl("intermediate_path", conditionMessage(err)))
+  expect_true(grepl("never_created",     conditionMessage(err), fixed = TRUE))
+})
+
+
+test_that("crypt_r() fast-fails when output_path is NA / empty / non-character", {
+  skip_if_async_unavailable()
+  skip_if_not_installed("readxl")
+
+  dirs <- setup_dirs_async()
+  on.exit(unlink(dirs$root, recursive = TRUE, force = TRUE), add = TRUE)
+
+  write_simple_csv(file.path(dirs$inp, "persons.csv"))
+  mk <- write_mask_xlsx(dirs, mask_row_async(
+    folder_path = dirs$inp, file = "persons.csv",
+    encrypted_file = "persons_crypt.csv", vars_to_encrypt = "id"))
+
+  expect_error(crypt_r(
+    mask_folder_path  = mk$folder, mask_file = mk$file,
+    output_path       = NA_character_, intermediate_path = dirs$int,
+    encryption_key    = "k", algorithm = "md5",
+    correspondence_table = TRUE, engine = "in_memory",
+    n_workers = 1L))
+
+  expect_error(crypt_r(
+    mask_folder_path  = mk$folder, mask_file = mk$file,
+    output_path       = "", intermediate_path = dirs$int,
+    encryption_key    = "k", algorithm = "md5",
+    correspondence_table = TRUE, engine = "in_memory",
+    n_workers = 1L))
+
+  expect_error(crypt_r(
+    mask_folder_path  = mk$folder, mask_file = mk$file,
+    output_path       = 42, intermediate_path = dirs$int,
+    encryption_key    = "k", algorithm = "md5",
+    correspondence_table = TRUE, engine = "in_memory",
+    n_workers = 1L))
+})
+
+
 # ---- Non-blocking return ----------------------------------------------
 
 test_that("crypt_r() returns a cryptR_job immediately (non-blocking)", {

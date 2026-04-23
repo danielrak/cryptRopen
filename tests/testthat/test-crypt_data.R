@@ -150,6 +150,90 @@ test_that("successive calls accumulate (stacking semantics)", {
   cryptRopen:::.clear_correspondence_tables()
 })
 
+# ---- get_correspondence_tables(names = ...) filter ---------------------
+# Phase 2.B — optional filter that preserves the requested order and
+# returns NULL entries for names absent from the store so callers can
+# detect the miss without catching errors.
+
+test_that("get_correspondence_tables(names = ...) returns the requested subset", {
+  cryptRopen:::.clear_correspondence_tables()
+
+  crypt_data(loaded_dataset = mtcars[1:5, ],
+             vars_to_encrypt = "mpg",
+             encryption_key = "k",
+             correspondence_table = TRUE,
+             correspondence_table_label = "A")
+  crypt_data(loaded_dataset = mtcars[1:5, ],
+             vars_to_encrypt = "hp",
+             encryption_key = "k",
+             correspondence_table = TRUE,
+             correspondence_table_label = "B")
+
+  res <- get_correspondence_tables(names = "tc_crypt_B")
+  expect_named(res, "tc_crypt_B")
+  expect_s3_class(res[["tc_crypt_B"]], "data.frame")
+
+  cryptRopen:::.clear_correspondence_tables()
+})
+
+test_that("get_correspondence_tables(names = ...) preserves the requested order", {
+  cryptRopen:::.clear_correspondence_tables()
+
+  crypt_data(loaded_dataset = mtcars[1:5, ],
+             vars_to_encrypt = "mpg",
+             encryption_key = "k",
+             correspondence_table = TRUE,
+             correspondence_table_label = "A")
+  crypt_data(loaded_dataset = mtcars[1:5, ],
+             vars_to_encrypt = "hp",
+             encryption_key = "k",
+             correspondence_table = TRUE,
+             correspondence_table_label = "B")
+
+  res <- get_correspondence_tables(names = c("tc_crypt_B", "tc_crypt_A"))
+  expect_equal(names(res), c("tc_crypt_B", "tc_crypt_A"))
+
+  cryptRopen:::.clear_correspondence_tables()
+})
+
+test_that("get_correspondence_tables(names = ...) returns NULL for missing keys", {
+  cryptRopen:::.clear_correspondence_tables()
+
+  crypt_data(loaded_dataset = mtcars[1:5, ],
+             vars_to_encrypt = "mpg",
+             encryption_key = "k",
+             correspondence_table = TRUE,
+             correspondence_table_label = "A")
+
+  res <- get_correspondence_tables(names = c("tc_crypt_A", "tc_crypt_ghost"))
+  expect_equal(names(res), c("tc_crypt_A", "tc_crypt_ghost"))
+  expect_s3_class(res[["tc_crypt_A"]], "data.frame")
+  expect_null(res[["tc_crypt_ghost"]])
+
+  cryptRopen:::.clear_correspondence_tables()
+})
+
+test_that("get_correspondence_tables(names = ...) validates input type", {
+  expect_error(get_correspondence_tables(names = 42))
+  expect_error(get_correspondence_tables(names = c("ok", NA_character_)))
+})
+
+test_that("get_correspondence_tables(names = character(0)) returns an empty named list", {
+  cryptRopen:::.clear_correspondence_tables()
+
+  crypt_data(loaded_dataset = mtcars[1:5, ],
+             vars_to_encrypt = "mpg",
+             encryption_key = "k",
+             correspondence_table = TRUE,
+             correspondence_table_label = "A")
+
+  res <- get_correspondence_tables(names = character(0))
+  expect_length(res, 0L)
+  expect_true(is.list(res))
+
+  cryptRopen:::.clear_correspondence_tables()
+})
+
 test_that(".clear_correspondence_tables() empties the env", {
   crypt_data(loaded_dataset = mtcars[1:5, ],
              vars_to_encrypt = "mpg",
