@@ -95,30 +95,36 @@
   # -----------------------------------------------------------------------
   message("Capturing crypt_data outputs ...")
   capture_one_crypt_data <- function(case) {
+    # Phase 1.C aligned: crypt_data() no longer pollutes globalenv() — TCs
+    # live in the package-private env `.cryptRopen_env`, retrieved via
+    # `get_correspondence_tables()`. Clear the env case-to-case so each
+    # capture only records this case's TCs. A belt-and-braces globalenv
+    # cleanup remains in case an older (pre-1.C) code path ever slips
+    # back in; it should be a no-op post-1.C.
+    cryptRopen:::.clear_correspondence_tables()
     pre <- ls(envir = globalenv())
+
     args <- case$args_factory()
     res  <- do.call(cryptRopen::crypt_data, args)
 
+    tcs <- cryptRopen::get_correspondence_tables()
+
     new_names <- setdiff(ls(envir = globalenv()), pre)
-    tcs <- if (length(new_names) > 0L) {
-      mget(new_names, envir = globalenv())
-    } else {
-      list()
+    if (length(new_names) > 0L) {
+      rm(list = new_names, envir = globalenv())
     }
 
     payload <- list(result = res, tcs = tcs)
     out_path <- file.path(cd_out_dir, paste0(case$name, ".rds"))
     saveRDS(payload, out_path)
 
-    if (length(new_names) > 0L) {
-      rm(list = new_names, envir = globalenv())
-    }
+    cryptRopen:::.clear_correspondence_tables()
 
     list(
       name     = case$name,
       output   = file.path("crypt_data", paste0(case$name, ".rds")),
       sha256   = sha256_file(out_path),
-      tc_names = as.list(new_names)
+      tc_names = as.list(names(tcs))
     )
   }
   cd_manifest <- lapply(crypt_data_cases, capture_one_crypt_data)

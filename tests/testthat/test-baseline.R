@@ -185,7 +185,11 @@ run_crypt_r_case <- function(case, masks_dir, output_dir, intermediate_dir) {
   # Explicit cryptRopen:: prefix forces namespace lookup, so the body rewrite
   # installed by install_sync_crypt_r_patch() (which only updates the namespace
   # binding reliably) is always picked up.
-  result <- cryptRopen::crypt_r(
+  #
+  # chunk_size is case-optional (introduced Phase 1.D.5). When NULL, rely on
+  # crypt_r()'s default (1e6); when set (e.g. large_parquet_multichunk), it is
+  # forwarded explicitly so the baseline exercises real multi-chunk streaming.
+  args <- list(
     mask_folder_path     = masks_dir,
     mask_file            = case$mask,
     output_path          = output_dir,
@@ -194,6 +198,10 @@ run_crypt_r_case <- function(case, masks_dir, output_dir, intermediate_dir) {
     algorithm            = CRYPT_R_ALGO,
     correspondence_table = case$correspondence_table
   )
+  if (!is.null(case$chunk_size)) {
+    args$chunk_size <- case$chunk_size
+  }
+  result <- do.call(cryptRopen::crypt_r, args)
 
   # Post-refactor: result will be a cryptR_job — wait for completion.
   if (inherits(result, "cryptR_job") &&

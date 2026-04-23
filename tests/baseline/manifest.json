@@ -1,6 +1,6 @@
 {
   "package_version": "0.0.0.9000",
-  "generated_at": "2026-04-21T15:45:14Z",
+  "generated_at": "2026-04-23T06:23:58Z",
   "crypt_vector": [
     {
       "name": "ascii_simple",
@@ -114,17 +114,17 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "86dbc49c99df8d968fce1b06724c15589d1f08013b61f16174cfa53e1adc98e9"
+          "sha256": "c65d09da8e3b479df695db309e008587976514c5e85147939475ba29f01d4eed"
         },
         {
           "dir": "output",
           "relpath": "persons_simple_crypt.csv",
-          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+          "sha256": "79a61ab477fc42efd944888f5bf3620af5d02b4faf1ae2c9f617117ff8a36c10"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_persons_simple_crypt.parquet",
-          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+          "sha256": "07aa8d315d51b008c04966f39ee313390c4a56b689e6841b4656b7bce63e3379"
         }
       ]
     },
@@ -138,12 +138,12 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "d0228e9361a4eaf593b2c3ae84a0bceb0a8726a0b9cca825e969925c9180c726"
+          "sha256": "c65d09da8e3b479df695db309e008587976514c5e85147939475ba29f01d4eed"
         },
         {
           "dir": "output",
           "relpath": "persons_simple_crypt.csv",
-          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+          "sha256": "79a61ab477fc42efd944888f5bf3620af5d02b4faf1ae2c9f617117ff8a36c10"
         }
       ]
     },
@@ -157,27 +157,27 @@
         {
           "dir": "output",
           "relpath": "inspect_orders_crypt.parquet.xlsx",
-          "sha256": "48589722a297aea00e764c240ce36c4f7c556180bd6ad481b339a393b45bd6cb"
+          "sha256": "309b36c94b90e41300db96ceca489b490e637f926af28d19c0f5aa81098a3086"
         },
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "d0228e9361a4eaf593b2c3ae84a0bceb0a8726a0b9cca825e969925c9180c726"
+          "sha256": "c65d09da8e3b479df695db309e008587976514c5e85147939475ba29f01d4eed"
         },
         {
           "dir": "output",
           "relpath": "inspect_products_crypt.rds.xlsx",
-          "sha256": "b013c4963d54a43813f8527de39e0500578d65360f6c352fb2ec99ce8f4556c3"
+          "sha256": "25ef869763048c21dd5c38cac23d18ede9a175ccb56e58fa5565eabc6d46a51d"
         },
         {
           "dir": "output",
           "relpath": "orders_crypt.parquet",
-          "sha256": "c475377b8669e06577af4f9f239c63765d012e201fe79f781f16f59680dd5c47"
+          "sha256": "d440cf39ce48131682c5424962a376de889ada9a46ec6ae82893fac0080b5a75"
         },
         {
           "dir": "output",
           "relpath": "persons_simple_crypt.csv",
-          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+          "sha256": "79a61ab477fc42efd944888f5bf3620af5d02b4faf1ae2c9f617117ff8a36c10"
         },
         {
           "dir": "output",
@@ -187,12 +187,12 @@
         {
           "dir": "intermediate",
           "relpath": "tc_orders_crypt.parquet",
-          "sha256": "0397b20553a215e34c8f8de1589c1155a8c99fd1207f27a525bf55d438a8ef87"
+          "sha256": "4fcfe084fc2f9549a33d8c4f17aa7ffc835907bad3f309dc6e21aa2ccbe9d63d"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_persons_simple_crypt.parquet",
-          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+          "sha256": "07aa8d315d51b008c04966f39ee313390c4a56b689e6841b4656b7bce63e3379"
         },
         {
           "dir": "intermediate",
@@ -211,32 +211,32 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "a09ea5bb54f3e4bac43bd2c295b8ed2617a7e131043d89e440df783011f7240b"
+          "sha256": "bbf2e43c9b668b55c6bd8cd209722ac6c66b3af22aa37d00ba215293f6a2e0dd"
         },
         {
           "dir": "output",
           "relpath": "inspect_persons_with_na_crypt.csv.xlsx",
-          "sha256": "f50ec52de8ff67cc2150b823a21d7b0b27827798a9c11239abb525286683485a"
+          "sha256": "078b44bd705c952a3ef99637cacd2290d941425360fe8127bad0403bfd8d514f"
         },
         {
           "dir": "output",
           "relpath": "persons_simple_crypt.csv",
-          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+          "sha256": "79a61ab477fc42efd944888f5bf3620af5d02b4faf1ae2c9f617117ff8a36c10"
         },
         {
           "dir": "output",
           "relpath": "persons_with_na_crypt.csv",
-          "sha256": "2a1cb62faa8c219b2b2ee2e7a8554d0e469f02609a64672387af29b598af98bc"
+          "sha256": "500d97bf1a83b57df1cafc352e8c94e5a1da2857126fc9dadcba1300bc8f15b7"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_persons_simple_crypt.parquet",
-          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+          "sha256": "07aa8d315d51b008c04966f39ee313390c4a56b689e6841b4656b7bce63e3379"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_persons_with_na_crypt.parquet",
-          "sha256": "90154bac8712df73aa7179a31211df3dd92f21aa6e0bdb4f9b6d0c5740c8053a"
+          "sha256": "c1e5771bc977b07984e00ce20e62452d58816283dbb646a6568d1b27774fd02f"
         }
       ]
     },
@@ -250,32 +250,32 @@
         {
           "dir": "output",
           "relpath": "DUPL1_out_crypt.csv",
-          "sha256": "2a1cb62faa8c219b2b2ee2e7a8554d0e469f02609a64672387af29b598af98bc"
+          "sha256": "500d97bf1a83b57df1cafc352e8c94e5a1da2857126fc9dadcba1300bc8f15b7"
         },
         {
           "dir": "output",
           "relpath": "inspect_DUPL1_out_crypt.csv.xlsx",
-          "sha256": "e7e7d72e3fdcf6c7464984a8d2d16f831f181dc24a582fa03915b4ead0169c06"
+          "sha256": "078b44bd705c952a3ef99637cacd2290d941425360fe8127bad0403bfd8d514f"
         },
         {
           "dir": "output",
           "relpath": "inspect_out_crypt.csv.xlsx",
-          "sha256": "c00748820d2d078d13f5895eebc1d87d14124a48c9c3ed5e2f33539ccd7b3513"
+          "sha256": "bbf2e43c9b668b55c6bd8cd209722ac6c66b3af22aa37d00ba215293f6a2e0dd"
         },
         {
           "dir": "output",
           "relpath": "out_crypt.csv",
-          "sha256": "68dcba76ef2347ad634d8e975c18c37261f0f28be20b87b87f399a95745db7d6"
+          "sha256": "79a61ab477fc42efd944888f5bf3620af5d02b4faf1ae2c9f617117ff8a36c10"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_DUPL1_out_crypt.parquet",
-          "sha256": "90154bac8712df73aa7179a31211df3dd92f21aa6e0bdb4f9b6d0c5740c8053a"
+          "sha256": "c1e5771bc977b07984e00ce20e62452d58816283dbb646a6568d1b27774fd02f"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_out_crypt.parquet",
-          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+          "sha256": "07aa8d315d51b008c04966f39ee313390c4a56b689e6841b4656b7bce63e3379"
         }
       ]
     },
@@ -289,17 +289,17 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "f0865bd15a560b2448b7e07971392abb18afa603283954e14a2bb8ce8f22642d"
+          "sha256": "b3177667f185f914ece0ad6af60b055a63d900bb26e2d6f37de3888e8f8176bb"
         },
         {
           "dir": "output",
           "relpath": "persons_simple_crypt.csv",
-          "sha256": "f86d0b3f7699a3a8758998342f638bac0fc63332d71e37df89ad819fca446fe6"
+          "sha256": "8342b449e4b61ecc2b0ff6e4cd04dc113cccff2a3c407a1dab44db19c91a07b2"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_persons_simple_crypt.parquet",
-          "sha256": "5b38976ead6a91eb3f384b11522e554848a009e1cd20662f33a30b97fbc76af2"
+          "sha256": "a3b6bbe184892ebaddcf0537025490259a29e7c339b1a0ffc26280dc88bee71a"
         }
       ]
     },
@@ -313,17 +313,17 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "d2ab47b3f40bde526eca674d7f89eea53f6e77143bc032344355df65998826db"
+          "sha256": "cf983ff8a308075b6033bb1b853065966e6cc301bdc96ba8402cfe4172c8cc2c"
         },
         {
           "dir": "output",
           "relpath": "inspect_products_crypt.rds.xlsx",
-          "sha256": "4684c637ab01831b0b482ade59e0b75a4501cdea06b9ad43a4a0f2fa86b2921e"
+          "sha256": "5ee733fc159f27ee8971ccf25778a910d9766545e07f9a73f45d90a305f23954"
         },
         {
           "dir": "output",
           "relpath": "persons_simple_crypt.csv",
-          "sha256": "47571591b08e2d86ee75dca85db74181abdc675dd77c2dbc423e9ca71bd0af97"
+          "sha256": "811366f7674cdfcb9038b0903fed7c16261ec82e51ea9d9ee2b8f4b68021a0b8"
         },
         {
           "dir": "output",
@@ -333,7 +333,7 @@
         {
           "dir": "intermediate",
           "relpath": "tc_persons_simple_crypt.parquet",
-          "sha256": "c994c3cb4e16bf33e5ef305b017af8ca6d9bc599a4a01f24a8b5c82a60a5a18e"
+          "sha256": "07aa8d315d51b008c04966f39ee313390c4a56b689e6841b4656b7bce63e3379"
         },
         {
           "dir": "intermediate",
@@ -352,12 +352,12 @@
         {
           "dir": "output",
           "relpath": "employees_crypt.xlsx",
-          "sha256": "ffc93e9fa77b9694c56b783b883a50ceb1bcf05c804ec5a0789d2b3ab7904b8c"
+          "sha256": "4dda91a2ea8c4375b512fb80c272be54aed0eba21f34b0c86c1b84cdbf2430ec"
         },
         {
           "dir": "output",
           "relpath": "inspect_employees_crypt.xlsx.xlsx",
-          "sha256": "ce275c0e36988c422e736ceefce8853f281b679ea1c8926caee34666c9bed360"
+          "sha256": "6389785e5a8db8d9f72a2edc881dee358a5ecbfda87ea3ae0c12d65165309c75"
         },
         {
           "dir": "intermediate",
@@ -376,17 +376,17 @@
         {
           "dir": "output",
           "relpath": "inspect_orders_crypt.parquet.xlsx",
-          "sha256": "fc641cd86f14bf795e68169a5d5f79dc2a25d02a246f35d632cfcd3dd199b541"
+          "sha256": "2d5d6ddd37584fb905ee77ccb59607b05f168a22cb6be5d44275ac2f89d0d4d9"
         },
         {
           "dir": "output",
           "relpath": "orders_crypt.parquet",
-          "sha256": "c475377b8669e06577af4f9f239c63765d012e201fe79f781f16f59680dd5c47"
+          "sha256": "d440cf39ce48131682c5424962a376de889ada9a46ec6ae82893fac0080b5a75"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_orders_crypt.parquet",
-          "sha256": "0397b20553a215e34c8f8de1589c1155a8c99fd1207f27a525bf55d438a8ef87"
+          "sha256": "4fcfe084fc2f9549a33d8c4f17aa7ffc835907bad3f309dc6e21aa2ccbe9d63d"
         }
       ]
     },
@@ -400,7 +400,7 @@
         {
           "dir": "output",
           "relpath": "inspect_products_crypt.rds.xlsx",
-          "sha256": "c6e55a7ba3b20022d0579f50a23610e5d98ea5e5d64409526ea143588fd0c2ae"
+          "sha256": "ca8a3dfd65a0b2a552ec95dc869825f2952e21618d92d43d0ee587898e20b41f"
         },
         {
           "dir": "output",
@@ -424,17 +424,41 @@
         {
           "dir": "output",
           "relpath": "inspect_special_chars_crypt.xlsx.xlsx",
-          "sha256": "fb40a78bd9a5e224f8f7e9c52b001807e2fab81966e2eb84825cb5ad8bc144f9"
+          "sha256": "2636a99e4e24fd1578ca4866155027cd5a27e2904c5c13a31af8441c00072fac"
         },
         {
           "dir": "output",
           "relpath": "special_chars_crypt.xlsx",
-          "sha256": "306f750c671c56ec09320ffec9373911c2e8a69de0ca9c411bc0a189cb6e1146"
+          "sha256": "7531626c1fb8810a03f79c6873c2553cd023778eff882f02e5347c5232cad7d1"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_special_chars_crypt.parquet",
           "sha256": "477d5a217ac68161b06b90e7b340ae8f5298a7e00b228ff9420e952811b1ff52"
+        }
+      ]
+    },
+    {
+      "name": "large_parquet_multichunk",
+      "mask": "mask_large_parquet.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_orders_large_crypt.parquet.xlsx",
+          "sha256": "b89882c1d377215ae55fd4899d093849dac6dab36859342f965f01e3332a7053"
+        },
+        {
+          "dir": "output",
+          "relpath": "orders_large_crypt.parquet",
+          "sha256": "2a949434fd305f517883ae7031ff625e47e443e22b45a8c4f0963d1ba91d4f89"
+        },
+        {
+          "dir": "intermediate",
+          "relpath": "tc_orders_large_crypt.parquet",
+          "sha256": "5651d311b3418376dc0f60675c92a743c55b3480821cd3c32818341a46988ac8"
         }
       ]
     }
