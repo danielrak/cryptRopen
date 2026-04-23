@@ -16,28 +16,39 @@ On expiration, an error of class \code{cryptR_timeout} is raised.}
 }
 \value{
 \code{invisible(job)} — with \code{log_written = TRUE} and, when
-applicable, \code{daemons_torn_down = TRUE}.
+applicable, \code{daemons_torn_down = TRUE}. The modifications are
+applied to the returned object only; S3 objects are not mutable
+in place in R, so callers who want the updated flags must capture
+the return value (\code{job <- cryptR_collect(job)}).
 }
 \description{
-Waits for all tasks to resolve (see \code{\link[=cryptR_wait]{cryptR_wait()}}), triggers the
-recap log writer, and — when \code{crypt_r()} created the mirai daemons
-itself (\code{daemons_owned_by_job = TRUE}) — tears them down.
+Waits for all tasks to resolve (see \code{\link[=cryptR_wait]{cryptR_wait()}}), extracts the
+per-row results, re-publishes the correspondence tables into the
+parent's \code{.cryptRopen_env} (so \code{get_correspondence_tables()} sees them
+after an async run), writes the recap log
+\verb{log_crypt_r_<timestamp>.xlsx} under \code{job$output_path}, and — when
+\code{crypt_r()} created the mirai daemons itself
+(\code{daemons_owned_by_job = TRUE}) — tears them down.
 }
 \details{
-Phase 1.D.6.a shipped a stub log writer (flips \code{job$log_written});
-Phase 1.D.6.b added the daemons teardown; Phase 1.D.6.c will implement
-the full \verb{log_crypt_r_<timestamp>.xlsx} output.
+Idempotent on two independent axes:
+\itemize{
+\item \code{job$log_written} guards the log-writing + TC re-injection block,
+so a manual \code{cryptR_collect()} called \emph{after} the auto watcher
+(1.D.6.c) has already run is a no-op — no duplicate xlsx, no TCs
+stored twice.
+\item \code{job$daemons_torn_down} guards the \code{mirai::daemons(0)} call so
+a second collect does not attempt a double teardown.
+}
 
-Idempotent: calling \code{cryptR_collect()} twice on the same job does not
-double-teardown the daemons (the \code{daemons_torn_down} slot guards this).
-If the user set up daemons externally before calling \code{crypt_r()},
+When daemons were set up externally before \code{crypt_r()} was called,
 \code{daemons_owned_by_job} is \code{FALSE} and teardown is never attempted —
 the user retains control of their own daemons.
 }
 \examples{
 \dontrun{
 job <- crypt_r(...)
-cryptR_collect(job)
+job <- cryptR_collect(job)
 }
 }
 \seealso{

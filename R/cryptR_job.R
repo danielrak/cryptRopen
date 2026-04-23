@@ -4,8 +4,12 @@
 # functions (`cryptR_status()`, `cryptR_wait()`, `cryptR_collect()`,
 # `print.cryptR_job()`) *in isolation* — without touching `crypt_r()`. Phase
 # 1.D.6.b wires the orchestrator: `crypt_r()` now dispatches per-row tasks
-# via `mirai::mirai()` and returns a `cryptR_job`. The recap log
-# (`log_crypt_r_<timestamp>.xlsx`) lands in 1.D.6.c.
+# via `mirai::mirai()` and returns a `cryptR_job`. Phase 1.D.6.c fleshes out
+# `cryptR_collect()`: it now (a) extracts typed per-row results, (b) re-injects
+# the correspondence tables into the parent's `.cryptRopen_env` so that
+# `get_correspondence_tables()` works after an async run, and (c) writes
+# `log_crypt_r_<timestamp>.xlsx` in `job$output_path`. The log-writing
+# helpers live in `R/cryptR_log.R`.
 #
 # A `cryptR_job` is a thin S3 list carrying:
 #   tasks                : named list of `mirai` handles (one per filtered
@@ -177,42 +181,57 @@ cryptR_wait <- function(job, timeout = Inf, poll_interval = 0.1) {
 
 #' Finalize an asynchronous `crypt_r()` job
 #'
-#' Waits for all tasks to resolve (see [cryptR_wait()]), triggers the
-#' recap log writer, and — when `crypt_r()` created the mirai daemons
-#' itself (`daemons_owned_by_job = TRUE`) — tears them down.
+#' Waits for all tasks to resolve (see [cryptR_wait()]), extracts the
+#' per-row results, re-publishes the correspondence tables into the
+#' parent's `.cryptRopen_env` (so `get_correspondence_tables()` sees them
+#' after an async run), writes the recap log
+#' `log_crypt_r_<timestamp>.xlsx` under `job$output_path`, and — when
+#' `crypt_r()` created the mirai daemons itself
+#' (`daemons_owned_by_job = TRUE`) — tears them down.
 #'
-#' Phase 1.D.6.a shipped a stub log writer (flips `job$log_written`);
-#' Phase 1.D.6.b added the daemons teardown; Phase 1.D.6.c will implement
-#' the full `log_crypt_r_<timestamp>.xlsx` output.
+#' Idempotent on two independent axes:
+#'   * `job$log_written` guards the log-writing + TC re-injection block,
+#'     so a manual `cryptR_collect()` called *after* the auto watcher
+#'     (1.D.6.c) has already run is a no-op — no duplicate xlsx, no TCs
+#'     stored twice.
+#'   * `job$daemons_torn_down` guards the `mirai::daemons(0)` call so
+#'     a second collect does not attempt a double teardown.
 #'
-#' Idempotent: calling `cryptR_collect()` twice on the same job does not
-#' double-teardown the daemons (the `daemons_torn_down` slot guards this).
-#' If the user set up daemons externally before calling `crypt_r()`,
+#' When daemons were set up externally before `crypt_r()` was called,
 #' `daemons_owned_by_job` is `FALSE` and teardown is never attempted —
 #' the user retains control of their own daemons.
 #'
 #' @inheritParams cryptR_wait
 #' @return `invisible(job)` — with `log_written = TRUE` and, when
-#'   applicable, `daemons_torn_down = TRUE`.
+#'   applicable, `daemons_torn_down = TRUE`. The modifications are
+#'   applied to the returned object only; S3 objects are not mutable
+#'   in place in R, so callers who want the updated flags must capture
+#'   the return value (`job <- cryptR_collect(job)`).
 #' @seealso [cryptR_status()], [cryptR_wait()].
 #' @export
 #' @examples
 #' \dontrun{
 #' job <- crypt_r(...)
-#' cryptR_collect(job)
+#' job <- cryptR_collect(job)
 #' }
 cryptR_collect <- function(job, timeout = Inf, poll_interval = 0.1) {
   if (!inherits(job, "cryptR_job")) {
     stop("cryptR_collect() expects a 'cryptR_job' object.")
   }
   cryptR_wait(job, timeout = timeout, poll_interval = poll_interval)
-  # Phase 1.D.6.a: stub log writer. The real implementation (1.D.6.c) will:
-  #   1. Call cryptR_status(job) for final states.
-  #   2. Join on job$mask_rows.
-  #   3. Add start_time/end_time/duration_sec/n_rows_processed/file stats.
-  #   4. writexl::write_xlsx(..., file.path(job$output_path,
-  #        paste0("log_crypt_r_", format(Sys.time(), ...), ".xlsx")))
-  job$log_written <- TRUE
+
+  # Idempotence guard: if this specific cryptR_job value has already
+  # gone through collect, skip. The watcher may also have run — its
+  # side-effects (log file, TCs) are checked/deduped *inside*
+  # `.finalize_job_side_effects()` via `.log_already_written()`, so
+  # repeating the call after a watcher-driven finalize is safe either
+  # way. The local `job$log_written` flag mirrors the return contract
+  # documented in Phase 1.D.6.a tests (input value stays unchanged;
+  # the returned copy has the flag flipped).
+  if (!isTRUE(job$log_written)) {
+    .finalize_job_side_effects(job)
+    job$log_written <- TRUE
+  }
 
   # Phase 1.D.6.b: tear down the daemons we own. Silently tolerate any
   # failure (e.g. daemons already gone) — the flag below makes the

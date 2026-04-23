@@ -538,6 +538,15 @@ install_sync_crypt_r_patch <- function() {
           identical(as.character(fn), ".new_cryptR_job")) {
         return(quote(invisible(NULL)))
       }
+      # Phase 1.D.6.c added `.start_watcher(job)` right after
+      # `.new_cryptR_job(...)`. In the synchronous shim, `job` is NULL
+      # (the `.new_cryptR_job` rewrite above returns `invisible(NULL)`),
+      # which would blow up the watcher's `stopifnot(inherits(...))`.
+      # Strip the whole call — baseline tests do not need the auto-log.
+      if (is.symbol(fn) &&
+          identical(as.character(fn), ".start_watcher")) {
+        return(quote(invisible(NULL)))
+      }
       for (i in seq_along(expr)) {
         expr[[i]] <- rewrite(expr[[i]])
       }
