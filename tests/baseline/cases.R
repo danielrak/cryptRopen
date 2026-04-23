@@ -73,6 +73,38 @@ build_employees <- function() {
   )
 }
 
+build_orders_large <- function() {
+  # 50k-row parquet fixture introduced in Phase 1.D.5 to exercise the
+  # streaming engine beyond a single scanner chunk.
+  #
+  # Case definition pairs this dataset with `chunk_size = 15000L`, giving
+  # 4 iterations of the arrow Scanner (~3 full chunks + 1 partial),
+  # so the multi-chunk paths are genuinely covered:
+  #   - .transform_stream_chunk() called N times, tc_accum merged via
+  #     bind_rows + distinct across iterations;
+  #   - arrow::ParquetFileWriter initialised on chunk 1, WriteTable()
+  #     called N times (schema conformance across chunks);
+  #   - .finalize_stream_tc() + .write_stream_inspect() invoked exactly
+  #     once on the accumulated state.
+  #
+  # Columns span the type variety that `inspect()` reports differently
+  # under arrow vs rio — confirming the rio::import() relecture fix
+  # from Phase 1.D.4.d holds at scale.
+  set.seed(2029)
+  n <- 50000L
+  data.frame(
+    order_id    = sprintf("ORD%08d", seq_len(n)),
+    customer_id = sprintf("CUST%05d", sample(1:5000, n, replace = TRUE)),
+    amount      = round(stats::runif(n, 1, 10000), 2),
+    order_date  = as.character(as.Date("2020-01-01") +
+                                 sample(0:1825, n, replace = TRUE)),
+    city        = sample(c("Paris", "Lyon", "Marseille", "Nice",
+                           "Toulouse", "Bordeaux"),
+                         n, replace = TRUE),
+    stringsAsFactors = FALSE
+  )
+}
+
 build_special_chars <- function() {
   df <- data.frame(
     a = sprintf("X%02d", 1:20),
@@ -98,6 +130,8 @@ write_all_datasets <- function(datasets_dir) {
                    row.names = FALSE, na = "")
   arrow::write_parquet(build_orders(),
                        file.path(datasets_dir, "orders.parquet"))
+  arrow::write_parquet(build_orders_large(),
+                       file.path(datasets_dir, "orders_large.parquet"))
   saveRDS(build_products(),
           file.path(datasets_dir, "products.rds"))
   writexl::write_xlsx(build_employees(),
@@ -199,6 +233,11 @@ make_mask_special_chars <- function(datasets_dir) {
            "special_chars_crypt.xlsx", "id number")
 }
 
+make_mask_large_parquet <- function(datasets_dir) {
+  mask_row(datasets_dir, "orders_large.parquet", "X",
+           "orders_large_crypt.parquet", "customer_id")
+}
+
 
 write_all_masks <- function(masks_dir, datasets_dir) {
   dir.create(masks_dir, recursive = TRUE, showWarnings = FALSE)
@@ -212,7 +251,8 @@ write_all_masks <- function(masks_dir, datasets_dir) {
     mask_xlsx_input     = make_mask_xlsx_input,
     mask_parquet_input  = make_mask_parquet_input,
     mask_rds_input      = make_mask_rds_input,
-    mask_special_chars  = make_mask_special_chars
+    mask_special_chars  = make_mask_special_chars,
+    mask_large_parquet  = make_mask_large_parquet
   )
   for (nm in names(builders)) {
     writexl::write_xlsx(builders[[nm]](datasets_dir),
@@ -402,7 +442,15 @@ crypt_r_cases <- list(
   list(name = "rds_input",
        mask = "mask_rds_input.xlsx",         correspondence_table = TRUE),
   list(name = "special_chars_cols",
-       mask = "mask_special_chars.xlsx",     correspondence_table = TRUE)
+       mask = "mask_special_chars.xlsx",     correspondence_table = TRUE),
+
+  # Phase 1.D.5 — large parquet case exercising multi-chunk streaming.
+  # chunk_size = 15000 on a 50k-row input triggers ~4 scanner iterations,
+  # forcing real accumulation in .transform_stream_chunk() / tc_accum and
+  # repeated WriteTable() calls on the same ParquetFileWriter.
+  list(name = "large_parquet_multichunk",
+       mask = "mask_large_parquet.xlsx",     correspondence_table = TRUE,
+       chunk_size = 15000L)
 )
 
 CRYPT_R_KEY <- "baseline_key_2026"
