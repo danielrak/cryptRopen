@@ -1,0 +1,238 @@
+---
+title: "Industrialized workflow with crypt_r()"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Industrialized workflow with crypt_r()}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+`crypt_r()` is the industrialised counterpart of `crypt_data()`. It is
+designed for production pipelines that must pseudonymise several input
+files at once, write their encrypted versions to disk, and produce a
+recap log — all in parallel, without blocking the main R session.
+
+This vignette walks through a complete happy-path example and then
+summarises the main options.
+
+```{r setup}
+library(cryptRopen)
+```
+
+## When to use `crypt_r()` vs. `crypt_data()`
+
+| Need                                                                 | Use              |
+| -------------------------------------------------------------------- | ---------------- |
+| Pseudonymise one data frame already in memory                        | `crypt_data()`   |
+| Pseudonymise N files on disk, described by an Excel mask             | `crypt_r()`      |
+| Parallel execution across rows of the mask                           | `crypt_r()`      |
+| Streaming read/write for files too large for RAM (parquet, CSV)      | `crypt_r()`      |
+| Auto-written xlsx recap log (success, duration, sha256 per row)      | `crypt_r()`      |
+
+## The Excel mask
+
+`crypt_r()` is driven by a single Excel mask that describes what to
+encrypt and where. Required columns:
+
+| Column            | Content                                                                   |
+| ----------------- | ------------------------------------------------------------------------- |
+| `folder_path`     | Directory holding the input file.                                         |
+| `file`            | Input file name (with extension). `rio`-readable formats supported.       |
+| `encrypted_file`  | Output file name (with extension). Parquet or CSV recommended.            |
+| `vars_to_encrypt` | Comma-separated list of columns in the input file to hash.                |
+| `vars_to_remove` | Comma-separated list of columns to drop from the output (may be empty).    |
+| `to_encrypt`      | `"X"` to include the row in the run, anything else to skip it.            |
+
+Duplicated `encrypted_file` values are automatically disambiguated with
+a `DUPL<n>_` prefix, so the output paths stay unique.
+
+## A complete example
+
+The example below uses a 10-row CSV fixture shipped with the package
+(`inst/extdata/persons.csv`). Every write happens inside
+`tempdir()`, so the example leaves nothing behind on your machine.
+
+```{r paths-setup}
+input_file    <- system.file("extdata", "persons.csv", package = "cryptRopen")
+input_folder  <- dirname(input_file)
+
+work_dir           <- tempfile("cryptR_vignette_")
+dir.create(work_dir)
+mask_dir           <- file.path(work_dir, "mask")
+output_dir         <- file.path(work_dir, "output")
+intermediate_dir   <- file.path(work_dir, "intermediate")
+dir.create(mask_dir)
+dir.create(output_dir)
+dir.create(intermediate_dir)
+```
+
+Build a minimal mask: one row, pseudonymising `email` and dropping
+`joined_date`.
+
+```{r build-mask}
+mask <- data.frame(
+  folder_path     = input_folder,
+  file            = basename(input_file),
+  encrypted_file  = "persons_crypt.csv",
+  vars_to_encrypt = "email",
+  vars_to_remove  = "joined_date",
+  to_encrypt      = "X",
+  stringsAsFactors = FALSE
+)
+writexl::write_xlsx(mask, file.path(mask_dir, "mask.xlsx"))
+```
+
+Dispatch the job. `crypt_r()` returns immediately, before the workers
+have finished; the value is a `cryptR_job` handle.
+
+```{r crypt-r-dispatch, results = "hide"}
+job <- crypt_r(
+  mask_folder_path  = mask_dir,
+  mask_file         = "mask.xlsx",
+  output_path       = output_dir,
+  intermediate_path = intermediate_dir,
+  encryption_key    = "vignette-key",
+  algorithm         = "md5",
+  n_workers         = 1L
+)
+```
+
+```{r job-class}
+class(job)
+```
+
+## Inspecting the job
+
+Three orthogonal views are available at any time during or after the
+run.
+
+### `cryptR_status()` — per-task lifecycle
+
+```{r status}
+cryptR_wait(job)
+cryptR_status(job)
+```
+
+Columns: `encrypted_file`, `state` (`running` / `done` / `failed`),
+`error_message`, plus `start_time`, `end_time`, `duration_sec`,
+`n_rows_processed`. `NA` until the task resolves.
+
+### `summary(job)` — dashboard
+
+```{r summary}
+summary(job)
+```
+
+Returns a compact object with task counts by state, elapsed seconds,
+active workers, total rows processed, output path, and the full
+status data frame under `$status`.
+
+### `cryptR_results()` — disk-oriented view
+
+```{r results}
+cryptR_results(job)
+```
+
+One row per filtered mask row with the expected `output_file_path`, a
+live `exists` flag, and the `size_bytes` / `sha256` the worker
+recorded right after writing the output. Joins cleanly with
+`cryptR_status()` on `encrypted_file`.
+
+## Finalising the job
+
+`cryptR_collect()` waits for the tasks to resolve (if you have not
+called `cryptR_wait()` already), re-publishes the correspondence
+tables produced inside the mirai daemons back into your session's
+environment, writes the recap log, and tears down any daemons
+`crypt_r()` created for the run.
+
+```{r collect}
+job <- cryptR_collect(job)
+```
+
+The correspondence table is now visible in the parent session:
+
+```{r get-tc}
+tcs <- get_correspondence_tables()
+names(tcs)
+head(tcs$tc_persons_crypt)
+```
+
+The recap log is an xlsx file whose name embeds the run timestamp:
+
+```{r log-file}
+list.files(output_dir, pattern = "^log_crypt_r_.*\\.xlsx$")
+```
+
+An auto-watcher (based on `later::later()`) writes the same log as soon
+as the last mirai task resolves, so a manual `cryptR_collect()` call
+is not strictly required for the log to appear — it just becomes a
+reliable synchronisation point.
+
+## Options recap
+
+| Parameter              | Default            | Purpose                                                                 |
+| ---------------------- | ------------------ | ----------------------------------------------------------------------- |
+| `algorithm`            | `"md5"`            | Hashing algorithm. Anything `digest::digest()` accepts.                 |
+| `correspondence_table` | `TRUE`             | Produce the TC on disk (parquet) and in `.cryptRopen_env`.              |
+| `engine`               | `"auto"`           | `"auto"`, `"in_memory"`, or `"streaming"`. See routing table below.     |
+| `chunk_size`           | `1e6`              | Rows per chunk when the selected engine is streaming. Ignored otherwise. |
+| `n_workers`            | `NULL`             | Mirai daemons to spawn. Default heuristic: `min(detectCores()-1, n_rows, 8L)`. |
+
+### Engine routing
+
+| `engine`       | Input / output combination        | Effective engine                     |
+| -------------- | --------------------------------- | ------------------------------------ |
+| `"in_memory"`  | any                               | `.process_mask_row_in_memory()`      |
+| `"auto"` / `"streaming"` | parquet-in + parquet-out | `.process_mask_row_streaming()`      |
+| `"auto"` / `"streaming"` | csv-in + csv-out         | `.process_mask_row_csv_streaming()`  |
+| `"auto"` / `"streaming"` | mixed, rds, xlsx, …      | fallback to `in_memory`              |
+
+The streaming engines read with an `arrow` Scanner by chunks and write
+incrementally, keeping memory usage bounded regardless of input size.
+
+### Daemons ownership
+
+If no mirai daemons are active on the default profile when `crypt_r()`
+is called, it spawns `n_workers` of its own and flags the job for
+automatic teardown by `cryptR_collect()`. If daemons are already
+running, `crypt_r()` reuses them and `cryptR_collect()` leaves them
+alone — useful when you wrap several `crypt_r()` calls inside a
+broader parallel session you manage yourself.
+
+### Error handling
+
+A failure on one mask row never interrupts the others. The failure is
+captured on the corresponding mirai task and surfaces as:
+
+* `state == "failed"` in `cryptR_status()`,
+* a non-`NA` `error_message` column,
+* `success = FALSE` in the xlsx recap log.
+
+Invalid `output_path` or `intermediate_path` — paths that don't exist,
+or aren't scalar non-empty character — are caught before any task is
+dispatched, with a clear error.
+
+## Cleanup
+
+Nothing was written outside `tempdir()`, so the example cleans itself
+up when the R session ends. You can also drop the folder explicitly:
+
+```{r cleanup}
+unlink(work_dir, recursive = TRUE)
+```
+
+## See also
+
+* `?crypt_r`, `?cryptR_status`, `?cryptR_wait`, `?cryptR_collect`,
+  `?cryptR_results`, `?summary.cryptR_job`.
+* `vignette("cryptRopen")` for the in-session workflow with
+  `crypt_data()`.
+* `NEWS.md` for the full change history.

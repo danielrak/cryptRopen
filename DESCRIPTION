@@ -1,6 +1,6 @@
 Package: cryptRopen
 Title: Industrialized Datasets Encryption (Open-Source Version)
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: 
     person("Daniel", "Rakotomalala", , "rakdanielh@gmail.com", role = c("aut", "cre"))
 Description: This package provides a framework to encrypt variables from
@@ -25,10 +25,14 @@ Imports:
 Suggests:
     devtools,
     jsonlite,
+    knitr,
     readxl,
+    rmarkdown,
     testthat,
     tools,
     withr
+VignetteBuilder: 
+    knitr
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3

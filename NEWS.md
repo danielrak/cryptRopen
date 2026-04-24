@@ -1,4 +1,11 @@
-# cryptRopen (development version)
+# cryptRopen 0.1.0
+
+First public release milestone — closes the `refactor-v1` branch. No
+public API change vs. the historical `0.0.0.9000`; under the hood,
+`crypt_r()` is now non-blocking with mirai orchestration, a streaming
+engine handles large parquet / CSV inputs, correspondence tables live
+in a package-private environment, and the codebase has been
+restructured for readability.
 
 ## Readability audit (refactor-v1)
 
