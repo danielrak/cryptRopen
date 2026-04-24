@@ -11,8 +11,7 @@
 #'   returned. When a vector is passed, the result is a subset
 #'   preserving the requested order; names absent from the store are
 #'   returned as missing entries (the output is still named so the
-#'   caller can detect the miss via `is.null(result[[name]])`). Added
-#'   in Phase 2.B.
+#'   caller can detect the miss via `is.null(result[[name]])`).
 #'
 #' @return A named list of data frames / tibbles. Names follow the
 #'   convention `tc_crypt_<label>` for `crypt_data()` and

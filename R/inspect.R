@@ -1,6 +1,6 @@
 #' Inspect a data frame
 #'
-#' Given a data frame as an input, this function outputs an broad view
+#' Given a data frame as an input, this function outputs a broad view
 #' of this data frame contents:
 #' dimensions, list of variables and
 #' systematic corresponding information (type,

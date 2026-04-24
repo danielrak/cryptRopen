@@ -1,12 +1,11 @@
 # Recap log + correspondence-table re-injection helpers.
 #
-# Phase 1.D.6.c splits the log-writing machinery out of cryptR_job.R so the
-# watcher (R/cryptR_watcher.R, same phase) and the synchronous manual
-# cryptR_collect() path share the same code: both end up calling
-# `.finalize_job_side_effects()` which drives result extraction, TC
-# re-injection and log writing. The file-existence idempotence check
-# (`.log_already_written()`) is what keeps watcher + manual collect from
-# producing two xlsx logs for the same run.
+# The log-writing machinery lives here so the watcher (R/cryptR_watcher.R)
+# and the synchronous manual cryptR_collect() path can share the same code:
+# both end up calling `.finalize_job_side_effects()` which drives result
+# extraction, TC re-injection and log writing. The file-existence
+# idempotence check (`.log_already_written()`) is what keeps watcher +
+# manual collect from producing two xlsx logs for the same run.
 #
 # Data flow:
 #   .process_mask_row_*() (in worker / daemon)

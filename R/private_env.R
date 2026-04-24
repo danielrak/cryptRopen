@@ -1,7 +1,6 @@
 # Private package environment — holds correspondence tables produced by
-# crypt_data() (and, after Phase 1.D, crypt_r()). Replaces the historical
-# assignments into globalenv(). Accessed by users via
-# get_correspondence_tables().
+# crypt_data() and crypt_r(). Replaces the historical assignments into
+# globalenv(). Accessed by users via get_correspondence_tables().
 
 .cryptRopen_env <- new.env(parent = emptyenv())
 

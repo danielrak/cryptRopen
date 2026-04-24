@@ -43,9 +43,7 @@ to the streaming engines (arrow Scanner by chunks, progressive
 write); mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
 csv→parquet) silently fall back to \code{"in_memory"} to preserve
 non-regression. \code{"in_memory"} always reads the full input into
-RAM (historical behaviour). Introduced in Phase 1.D.4.a
-(plumbing), streaming engines in 1.D.4.b/c, auto-routing rule in
-1.D.4.d.}
+RAM (historical behaviour).}
 
 \item{chunk_size}{Integer. Number of rows per chunk when the
 effective engine is streaming. Ignored by \code{"in_memory"} (and by
@@ -58,7 +56,7 @@ spawn for the dispatch. When \code{NULL} (default), \code{crypt_r()} picks
 If daemons are already running on the default profile when
 \code{crypt_r()} is called, \code{n_workers} is ignored and the existing
 daemons are reused — the user retains control and
-\code{\link[=cryptR_collect]{cryptR_collect()}} will not tear them down. Added in Phase 1.D.6.b.}
+\code{\link[=cryptR_collect]{cryptR_collect()}} will not tear them down.}
 }
 \value{
 A \code{\link[=cryptR_status]{cryptR_job}} object carrying one \code{mirai}
@@ -72,14 +70,22 @@ variables from datasets. Variables to encrypt and input datasets can
 be in any number, following user's needs.
 }
 \details{
-Since Phase 1.D.6.b, \code{crypt_r()} is \strong{non-blocking}: it builds a
-\code{cryptR_job} (one \code{mirai} task per filtered mask row) and returns
-immediately. The caller inspects / waits / finalises the job through
-the companion API (see \emph{Value} and \emph{See Also}). A per-row failure
-does not interrupt the other rows — the failure is captured on the
+\code{crypt_r()} is \strong{non-blocking}: it builds a \code{cryptR_job} (one
+\code{mirai} task per filtered mask row) and returns immediately. The
+caller inspects / waits / finalises the job through the companion
+API (see \emph{Value} and \emph{See Also}). A per-row failure does not
+interrupt the other rows — the failure is captured on the
 corresponding task and surfaces via \code{\link[=cryptR_status]{cryptR_status()}}.
 }
 \seealso{
 \code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=cryptR_wait]{cryptR_wait()}}, \code{\link[=cryptR_collect]{cryptR_collect()}},
 \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+
+Other async_job: 
+\code{\link{cryptR_collect}()},
+\code{\link{cryptR_results}()},
+\code{\link{cryptR_status}()},
+\code{\link{cryptR_wait}()},
+\code{\link{summary.cryptR_job}()}
 }
+\concept{async_job}

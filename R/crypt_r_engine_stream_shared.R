@@ -1,7 +1,6 @@
 #' Transform a single stream chunk: cleanup + crypt + column assembly.
 #'
-#' Introduced in Phase 1.D.4.d to factorise the ~80 lines previously
-#' duplicated between `.process_mask_row_streaming()` (parquet) and
+#' Shared by `.process_mask_row_streaming()` (parquet) and
 #' `.process_mask_row_csv_streaming()` (csv). Pure function — no I/O,
 #' no globalenv / .cryptRopen_env side effect.
 #'
@@ -80,10 +79,9 @@
 #' Finalise the accumulated correspondence table: store in the package
 #' private env + export to parquet on disk.
 #'
-#' Introduced in Phase 1.D.4.d. Extracted from the two streaming
-#' engines whose post-loop finalisation was identical. Idempotent — a
-#' no-op when `correspondence_table` is `FALSE` or when no rows were
-#' accumulated.
+#' Shared by the two streaming engines whose post-loop finalisation
+#' is identical. Idempotent — a no-op when `correspondence_table` is
+#' `FALSE` or when no rows were accumulated.
 #'
 #' @param tc_accum The accumulated correspondence tibble, or `NULL`.
 #' @param intermediate_path Directory for the parquet output.
@@ -112,9 +110,8 @@
 #' Re-read a freshly written streamed output and emit the companion
 #' `inspect_*.xlsx` report.
 #'
-#' Introduced in Phase 1.D.4.d. Both streaming engines rely on a
-#' relecture-based inspect (chunks are not kept in RAM across the
-#' scan).
+#' Both streaming engines rely on a relecture-based inspect (chunks
+#' are not kept in RAM across the scan).
 #'
 #' Relecture uses `rio::import()` — not arrow — to preserve strict
 #' semantic non-regression with the in_memory engine. Rationale: the

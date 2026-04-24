@@ -12,8 +12,8 @@
 # Rationale for the 3-state model (not 4): pending vs running requires visibility
 # into the dispatcher queue (number of daemons vs number of tasks). That is an
 # orchestration-level concern that doesn't belong on an individual `mirai`
-# handle. Phase 1.D.6.b may surface "pending" later via the job-level orchestrator;
-# until then, the state vocabulary is kept small and unambiguous.
+# handle. A future job-level orchestrator could surface "pending"; until then,
+# the state vocabulary is kept small and unambiguous.
 
 
 #' @noRd
@@ -53,11 +53,11 @@
 
 #' Extract per-row metrics from a resolved mirai task payload.
 #'
-#' Companion to `.mirai_task_state()` / `.mirai_task_error()`. Introduced
-#' in Phase 2.A so `cryptR_status()` can surface timing + row counts for
-#' resolved tasks without requiring the caller to call `cryptR_collect()`
-#' first. Returns four NA scalars when the task is still unresolved, is
-#' a mirai error value, is not a `mirai` handle at all, or carries a
+#' Companion to `.mirai_task_state()` / `.mirai_task_error()`. Lets
+#' `cryptR_status()` surface timing + row counts for resolved tasks
+#' without requiring the caller to call `cryptR_collect()` first.
+#' Returns four NA scalars when the task is still unresolved, is a
+#' mirai error value, is not a `mirai` handle at all, or carries a
 #' payload that does not match the `.make_row_result()` shape.
 #'
 #' The scalars mirror — in type — the corresponding fields of the
@@ -125,8 +125,7 @@
 #' on its default profile. Shared helper used by `crypt_r()` (to decide
 #' whether to spawn daemons itself or reuse existing ones), and by
 #' `print.cryptR_job()` / `summary.cryptR_job()` (to display worker
-#' count). Introduced in Phase 2.A to de-duplicate the `mirai::status()`
-#' call site that was open-coded in three places.
+#' count).
 #'
 #' Return semantics:
 #'   - `0L` when no daemons are active.

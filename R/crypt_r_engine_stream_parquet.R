@@ -1,9 +1,8 @@
 #' Process one row of the encryption mask — streaming engine (parquet).
 #'
-#' Introduced in Phase 1.D.4.b, refactored in 1.D.4.d to delegate
-#' chunk transformation, TC finalisation and inspect reporting to
-#' shared helpers (`.transform_stream_chunk()`, `.finalize_stream_tc()`,
-#' `.write_stream_inspect()`).
+#' Delegates chunk transformation, TC finalisation and inspect
+#' reporting to shared helpers (`.transform_stream_chunk()`,
+#' `.finalize_stream_tc()`, `.write_stream_inspect()`).
 #'
 #' Streams the input parquet file through an arrow Scanner by chunks
 #' of `chunk_size` rows, encrypts each chunk in memory, writes the
@@ -23,7 +22,7 @@
 #'     non-deterministic in the in-memory engine).
 #'   - `inspect_*.xlsx` layout identical.
 #'
-#' Deliberate differences (Option B, validated 2026-04-22):
+#' Deliberate differences vs. the in-memory engine:
 #'   - **No pollution of `globalenv()`**. TC lives in `.cryptRopen_env`
 #'     (retrievable via `get_correspondence_tables()`) and on disk.
 #'   - `assign_to_global()` + `eval(parse(text = ...))` are not used.
@@ -33,8 +32,9 @@
 #' @param chunk_size Integer(1). Arrow Scanner `batch_size`. Only
 #'   affects memory usage and performance; results are invariant.
 #' @return Invisible list (see `.make_row_result()`). Disk side
-#'   effects + `.cryptRopen_env` population unchanged; return value
-#'   added in Phase 1.D.6.c for the mirai collect path.
+#'   effects + `.cryptRopen_env` population are the primary contract;
+#'   the return value packages additional metadata for the mirai
+#'   collect path.
 #' @noRd
 .process_mask_row_streaming <- function(mask_row, input_path, output_path, intermediate_path,
                                         encryption_key, algorithm, correspondence_table,
@@ -98,7 +98,7 @@
         # First chunk fixes the output schema; subsequent chunks must
         # conform. Character cleanup + crypt_vector() are type-stable,
         # so the schema is stable across chunks by construction.
-        # Arrow-R quirks (see 1.D.4.b commit 38d8151d):
+        # Arrow-R quirks:
         #   - `sink` must be an OutputStream (a character path is not
         #     accepted — hence the FileOutputStream wrapper);
         #   - the default `properties` built by

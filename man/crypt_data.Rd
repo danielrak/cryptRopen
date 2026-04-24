@@ -33,6 +33,14 @@ between initial and encrypted values.}
 
 \item{correspondence_table_label}{Character 1L. Label of the correspondence table.}
 }
+\value{
+A data frame identical to \code{loaded_dataset} with the
+\code{vars_to_encrypt} columns replaced by their hashed counterparts
+(suffix \verb{_crypt}) and \code{vars_to_remove} columns dropped. Side
+effect: when \code{correspondence_table = TRUE}, a table
+\verb{tc_crypt_<correspondence_table_label>} is stored in the package-
+private environment — see \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+}
 \description{
 This function corresponds to the
 in-session version of the encryption process.
@@ -55,5 +63,5 @@ crypt_data(
 )
 }
 \seealso{
-cryptR::crypt_r(), digest::digest(), \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+\code{\link[=crypt_r]{crypt_r()}}, \code{\link[digest:digest]{digest::digest()}}, \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
 }

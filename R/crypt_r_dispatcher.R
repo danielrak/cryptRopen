@@ -16,8 +16,8 @@
 
 #' Does the given path have a `.csv` extension?
 #'
-#' Symmetric helper to `.is_parquet()`, introduced in Phase 1.D.4.c
-#' so the dispatcher can enable the CSV streaming engine.
+#' Symmetric helper to `.is_parquet()` — lets the dispatcher enable
+#' the CSV streaming engine.
 #'
 #' @param path Character(1).
 #' @return Logical(1).
@@ -31,11 +31,10 @@
 
 #' Process one row of the encryption mask (dispatcher).
 #'
-#' Thin dispatcher introduced in Phase 1.D.2 and progressively extended:
-#' 1.D.4.b (parquet streaming), 1.D.4.c (csv streaming), 1.D.4.d
-#' (auto-routing rule + streaming helpers factorised).
+#' Thin dispatcher that selects an engine based on `engine` + file
+#' extensions.
 #'
-#' Routing rule (Phase 1.D.4.d):
+#' Routing rule:
 #'   - `engine == "in_memory"` → always routes to
 #'     `.process_mask_row_in_memory()` (historical code path).
 #'   - `engine %in% c("auto", "streaming")` → tries streaming:
@@ -45,12 +44,12 @@
 #'         csv→parquet, …) → silent fallback to
 #'         `.process_mask_row_in_memory()` to preserve non-regression.
 #'
-#' `"auto"` and `"streaming"` are functionally equivalent after
-#' 1.D.4.d. The distinction is kept for clarity: `"auto"` is the
-#' default promising smart routing; `"streaming"` is an explicit
-#' opt-in. We deliberately do **not** make `"streaming"` strict
-#' (i.e. erroring on non-streamable inputs) — that would be an API
-#' change not authorised by CLAUDE.md.
+#' `"auto"` and `"streaming"` are functionally equivalent. The
+#' distinction is kept for clarity: `"auto"` is the default promising
+#' smart routing; `"streaming"` is an explicit opt-in. We deliberately
+#' do **not** make `"streaming"` strict (i.e. erroring on non-
+#' streamable inputs) — that would be an API change not authorised by
+#' CLAUDE.md.
 #'
 #' Keeping the dispatcher separate from the engines guarantees that
 #' the historical code path stays untouched while the streaming
@@ -62,8 +61,7 @@
 #' @param chunk_size Integer. Forwarded to the streaming engines only;
 #'   ignored by in_memory.
 #' @return Invisible list from the selected engine — see
-#'   `.make_row_result()`. Before Phase 1.D.6.c this was
-#'   `invisible(NULL)`; callers who discarded the return value (most
+#'   `.make_row_result()`. Callers who discard the return value (most
 #'   unit tests, the AST-patched baseline `cases.R`) continue to work
 #'   unchanged.
 #' @noRd

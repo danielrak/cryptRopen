@@ -29,9 +29,9 @@ success.
 \description{
 Returns one row per filtered mask row with (a) the expected output
 file path, (b) whether it currently exists on disk, and (c) the
-size/hash the worker captured right after writing it. Introduced in
-Phase 2.B as a companion to \code{\link[=cryptR_status]{cryptR_status()}} — the two views are
-orthogonal and join cleanly on \code{encrypted_file}.
+size/hash the worker captured right after writing it. Companion to
+\code{\link[=cryptR_status]{cryptR_status()}} — the two views are orthogonal and join cleanly
+on \code{encrypted_file}.
 }
 \details{
 Running tasks contribute a row with \code{exists = FALSE} and NA for
@@ -56,4 +56,12 @@ cryptR_results(job)
 }
 \seealso{
 \code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=summary.cryptR_job]{summary.cryptR_job()}}.
+
+Other async_job: 
+\code{\link{cryptR_collect}()},
+\code{\link{cryptR_status}()},
+\code{\link{cryptR_wait}()},
+\code{\link{crypt_r}()},
+\code{\link{summary.cryptR_job}()}
 }
+\concept{async_job}

@@ -35,8 +35,8 @@ Idempotent on two independent axes:
 \itemize{
 \item \code{job$log_written} guards the log-writing + TC re-injection block,
 so a manual \code{cryptR_collect()} called \emph{after} the auto watcher
-(1.D.6.c) has already run is a no-op — no duplicate xlsx, no TCs
-stored twice.
+has already run is a no-op — no duplicate xlsx, no TCs stored
+twice.
 \item \code{job$daemons_torn_down} guards the \code{mirai::daemons(0)} call so
 a second collect does not attempt a double teardown.
 }
@@ -53,4 +53,12 @@ job <- cryptR_collect(job)
 }
 \seealso{
 \code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=cryptR_wait]{cryptR_wait()}}.
+
+Other async_job: 
+\code{\link{cryptR_results}()},
+\code{\link{cryptR_status}()},
+\code{\link{cryptR_wait}()},
+\code{\link{crypt_r}()},
+\code{\link{summary.cryptR_job}()}
 }
+\concept{async_job}
