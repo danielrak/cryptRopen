@@ -11,7 +11,10 @@ crypt_r(
   intermediate_path,
   encryption_key,
   algorithm = "md5",
-  correspondence_table = TRUE
+  correspondence_table = TRUE,
+  engine = c("auto", "in_memory", "streaming"),
+  chunk_size = 1000000L,
+  n_workers = NULL
 )
 }
 \arguments{
@@ -32,11 +35,57 @@ From digest::digest()'s algo argument.}
 
 \item{correspondence_table}{Logical vector. If TRUE, the correspondence tables will computed
 and stored in the indicated intermediate_path.}
+
+\item{engine}{One of \code{"auto"}, \code{"in_memory"}, \code{"streaming"}.
+Selects the per-row processing engine. \code{"auto"} (default) and
+\code{"streaming"} both route parquet-in/parquet-out and csv-in/csv-out
+to the streaming engines (arrow Scanner by chunks, progressive
+write); mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
+csv→parquet) silently fall back to \code{"in_memory"} to preserve
+non-regression. \code{"in_memory"} always reads the full input into
+RAM (historical behaviour).}
+
+\item{chunk_size}{Integer. Number of rows per chunk when the
+effective engine is streaming. Ignored by \code{"in_memory"} (and by
+\code{"auto"} / \code{"streaming"} when falling back to in_memory). Default
+\code{1e6}.}
+
+\item{n_workers}{Integer or \code{NULL}. Number of \code{mirai} daemons to
+spawn for the dispatch. When \code{NULL} (default), \code{crypt_r()} picks
+\code{min(parallel::detectCores() - 1, n_rows, 8L)} (floored at 1).
+If daemons are already running on the default profile when
+\code{crypt_r()} is called, \code{n_workers} is ignored and the existing
+daemons are reused — the user retains control and
+\code{\link[=cryptR_collect]{cryptR_collect()}} will not tear them down.}
+}
+\value{
+A \code{\link[=cryptR_status]{cryptR_job}} object carrying one \code{mirai}
+task per filtered mask row. Inspect with \code{\link[=cryptR_status]{cryptR_status()}}; block
+with \code{\link[=cryptR_wait]{cryptR_wait()}}; finalise (write the recap log and, when
+applicable, tear down the daemons) with \code{\link[=cryptR_collect]{cryptR_collect()}}.
 }
 \description{
-This function consolidates a set of procedures
-made to encrypt variables from datasets.
-Variables to encrypt and input datasets can be in any number,
-following user's needs.
-The design tries to approach parallel processing.
+This function consolidates a set of procedures made to encrypt
+variables from datasets. Variables to encrypt and input datasets can
+be in any number, following user's needs.
 }
+\details{
+\code{crypt_r()} is \strong{non-blocking}: it builds a \code{cryptR_job} (one
+\code{mirai} task per filtered mask row) and returns immediately. The
+caller inspects / waits / finalises the job through the companion
+API (see \emph{Value} and \emph{See Also}). A per-row failure does not
+interrupt the other rows — the failure is captured on the
+corresponding task and surfaces via \code{\link[=cryptR_status]{cryptR_status()}}.
+}
+\seealso{
+\code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=cryptR_wait]{cryptR_wait()}}, \code{\link[=cryptR_collect]{cryptR_collect()}},
+\code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+
+Other async_job: 
+\code{\link{cryptR_collect}()},
+\code{\link{cryptR_results}()},
+\code{\link{cryptR_status}()},
+\code{\link{cryptR_wait}()},
+\code{\link{summary.cryptR_job}()}
+}
+\concept{async_job}

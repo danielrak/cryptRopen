@@ -5,3 +5,6 @@
 .httr-oauth
 .Rdata
 .quarto
+.positai
+/doc/
+/Meta/

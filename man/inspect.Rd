@@ -11,14 +11,15 @@ inspect(data_frame, nrow = FALSE)
 Need to exist in the Global Environment.}
 
 \item{nrow}{Logical. If TRUE, the number of observations of
-the dataset is rendered in addition.}
+the dataset is printed on stdout in addition to the returned tibble.}
 }
 \value{
-Variable list of the dataset and
-systematic informations for each variable.
+A tibble with one row per column of \code{data_frame} (or several
+rows when \code{class(column)} has length > 1, e.g. ordered factors),
+holding systematic inspection metrics.
 }
 \description{
-Given a data frame as an input, this function outputs an broad view
+Given a data frame as an input, this function outputs a broad view
 of this data frame contents:
 dimensions, list of variables and
 systematic corresponding information (type,
@@ -26,6 +27,5 @@ frequence and proportion of unique values, missing and 0-length values;
 and up to the 10 first unique values).
 }
 \examples{
-requireNamespace("magrittr")
 inspect(CO2)
 }

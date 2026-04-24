@@ -1,0 +1,157 @@
+---
+title: "Getting started with cryptRopen"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with cryptRopen}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## What cryptRopen is for
+
+`cryptRopen` pseudonymises variables inside data frames so that sensitive
+values (identifiers, emails, names) can be shared or stored in a
+derivative form without exposing the originals. The pseudonymisation is
+**deterministic**: the same input value paired with the same key always
+produces the same output, so joins across tables remain possible on the
+pseudonymised columns. A side table — the *correspondence table* —
+keeps the mapping between original and pseudonymised values for the
+party that holds the key.
+
+Typical use cases: preparing an extract for an analytics team that
+should not see customer identifiers; sharing a dataset with an external
+partner; feeding a downstream pipeline while keeping the original
+identifiers under control.
+
+## Pseudonymisation, not encryption
+
+The `crypt` in the package name is historical. The underlying
+transformation is a **salted hash**, not reversible encryption:
+
+* A normalised version of each input value is concatenated with a
+  user-provided salt (`key`) and hashed with `digest::digest()`.
+* The default algorithm is `"md5"`. Any algorithm supported by
+  `digest::digest()` (`"sha1"`, `"sha256"`, `"sha512"`, …) is accepted
+  via the `algorithm` parameter. MD5 collisions are theoretically
+  possible but have negligible impact at typical dataset scales; pick a
+  stronger algorithm if your threat model calls for it.
+* Holding the output does **not** let anyone recover the input. Only
+  the correspondence table (or a rainbow-table-style attack on a weak
+  key) does.
+
+Consequence: cryptRopen is suitable for pseudonymisation under
+regulations such as GDPR, not for confidentiality-bearing encryption.
+
+## Installation
+
+```{r install, eval = FALSE}
+# install.packages("pak")
+pak::pak("danielrak/cryptRopen")
+```
+
+```{r setup}
+library(cryptRopen)
+```
+
+## Hashing a single vector
+
+`crypt_vector()` is the lowest-level entry point. It takes a vector, a
+key, and a hash algorithm, and returns a character vector of the same
+length. `NA` and empty strings stay `NA`. Input is uppercased, trimmed,
+and stripped of internal spaces before hashing, so `"Alice"`,
+`"alice "` and `" ALICE "` collapse to the same hash.
+
+```{r crypt-vector-basic}
+crypt_vector(
+  vector = c("Alice", "Bob", "Charlie"),
+  key = "my-secret-salt",
+  algo = "md5"
+)
+```
+
+Determinism and the NA / empty-string rules:
+
+```{r crypt-vector-properties}
+# Same value + same key => same hash, every time.
+identical(
+  crypt_vector("Alice", key = "k", algo = "md5"),
+  crypt_vector("alice ", key = "k", algo = "md5")
+)
+
+# NAs and empty strings are preserved.
+crypt_vector(c("Alice", NA, "", "  "), key = "k", algo = "md5")
+```
+
+## Hashing one or several columns of a data frame
+
+`crypt_data()` operates on a data frame and returns a new data frame
+with the requested columns replaced by their hashed counterparts
+(suffix `_crypt`). Original columns can optionally be dropped
+(`vars_to_remove`).
+
+```{r crypt-data-basic}
+head(mtcars, 3)
+
+encrypted <- crypt_data(
+  loaded_dataset            = head(mtcars, 3),
+  vars_to_encrypt           = "mpg",
+  vars_to_remove            = "cyl",
+  encryption_key            = "demo-key",
+  algorithm                 = "md5",
+  correspondence_table      = TRUE,
+  correspondence_table_label = "demo"
+)
+encrypted
+```
+
+The correspondence table is **not** returned alongside the data frame;
+it is stored inside a package-private environment and retrieved via
+`get_correspondence_tables()`:
+
+```{r get-tc}
+tcs <- get_correspondence_tables()
+names(tcs)
+tcs$tc_crypt_demo
+```
+
+Tables accumulate across calls in the same session. Pass a character
+vector to `names` to pull only the ones you need:
+
+```{r get-tc-filter}
+get_correspondence_tables(names = "tc_crypt_demo")
+```
+
+Pseudonymising multiple columns at once is a matter of extending
+`vars_to_encrypt`:
+
+```{r crypt-data-multi}
+crypt_data(
+  loaded_dataset            = head(mtcars, 3),
+  vars_to_encrypt           = c("mpg", "hp"),
+  encryption_key            = "demo-key",
+  correspondence_table      = TRUE,
+  correspondence_table_label = "demo_multi"
+)
+```
+
+## When you need to batch multiple files
+
+`crypt_data()` is the right tool when you hold one data frame in memory
+and want an encrypted version of it. For an industrialised workflow —
+several input files specified in an Excel mask, outputs written to
+disk, parallel execution, a recap log — see `vignette("crypt_r-workflow")`.
+
+## Related resources
+
+* `?crypt_vector`, `?crypt_data`, `?crypt_r` — the three public
+  entry points.
+* `?get_correspondence_tables` — retrieval of the correspondence
+  tables stored in the package-private environment.
+* `NEWS.md` — full change history.
