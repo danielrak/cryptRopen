@@ -1,20 +1,18 @@
 #' Build the typed per-row result list returned by the engines.
 #'
-#' Introduced in Phase 1.D.6.c. The three engines
-#' (`.process_mask_row_in_memory()`, `.process_mask_row_streaming()`,
-#' `.process_mask_row_csv_streaming()`) previously returned
-#' `invisible(NULL)` and communicated results only through disk side
-#' effects (+ `.cryptRopen_env` stored TC). That was sufficient for the
-#' in-process use (tests calling the engine directly on the same R
-#' session), but when a worker runs inside a `mirai` daemon its private
-#' env is unreachable from the client; the recap log also needs
-#' per-row metrics that are only cheap to compute inside the worker.
+#' Disk side effects (`.cryptRopen_env` stored TC + output file)
+#' would be enough when every worker runs in the same R session, but
+#' when a worker runs inside a `mirai` daemon its private env is
+#' unreachable from the client; the recap log also needs per-row
+#' metrics that are only cheap to compute inside the worker.
 #'
-#' The engines now assemble a structured list via this helper; the
-#' mirai dispatcher ships it back to the parent as `task$data`, which
-#' `cryptR_collect()` consumes to (a) re-populate `.cryptRopen_env`
-#' with the correspondence tables captured inside the workers and
-#' (b) write the `log_crypt_r_<timestamp>.xlsx` recap.
+#' The three engines (`.process_mask_row_in_memory()`,
+#' `.process_mask_row_streaming()`, `.process_mask_row_csv_streaming()`)
+#' assemble a structured list via this helper; the mirai dispatcher
+#' ships it back to the parent as `task$data`, which `cryptR_collect()`
+#' consumes to (a) re-populate `.cryptRopen_env` with the
+#' correspondence tables captured inside the workers and (b) write
+#' the `log_crypt_r_<timestamp>.xlsx` recap.
 #'
 #' Disk outputs and `.cryptRopen_env` side effects are *unchanged* —
 #' this helper only packages additional metadata for the parent. Tests

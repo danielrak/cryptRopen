@@ -1,11 +1,11 @@
 # Output-oriented companion view of a cryptR_job.
 #
-# Phase 2.B introduces `cryptR_results()` to complement the process-oriented
-# `cryptR_status()` / `summary.cryptR_job()` pair. Whereas status answers
-# "where is each task in its lifecycle?", results answers "what file did
-# each task produce, and is it still on disk?". The two views are
-# deliberately orthogonal — joining them on `encrypted_file` gives the
-# full picture without one function mixing concerns.
+# `cryptR_results()` complements the process-oriented `cryptR_status()` /
+# `summary.cryptR_job()` pair. Whereas status answers "where is each
+# task in its lifecycle?", results answers "what file did each task
+# produce, and is it still on disk?". The two views are deliberately
+# orthogonal — joining them on `encrypted_file` gives the full picture
+# without one function mixing concerns.
 #
 # Source of truth:
 #   * `output_file_path` is derived from `job$output_path` + `encrypted_file`
@@ -25,9 +25,9 @@
 #'
 #' Returns one row per filtered mask row with (a) the expected output
 #' file path, (b) whether it currently exists on disk, and (c) the
-#' size/hash the worker captured right after writing it. Introduced in
-#' Phase 2.B as a companion to [cryptR_status()] — the two views are
-#' orthogonal and join cleanly on `encrypted_file`.
+#' size/hash the worker captured right after writing it. Companion to
+#' [cryptR_status()] — the two views are orthogonal and join cleanly
+#' on `encrypted_file`.
 #'
 #' Running tasks contribute a row with `exists = FALSE` and NA for
 #' `size_bytes` / `sha256`. Tasks that failed before reaching the final
@@ -56,6 +56,7 @@
 #'   * `success` (logical): whether the engine reported a clean end.
 #'   * `error_message` (character): concatenated engine errors, `NA` on
 #'     success.
+#' @family async_job
 #' @seealso [cryptR_status()], [summary.cryptR_job()].
 #' @export
 #' @examples

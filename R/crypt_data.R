@@ -20,7 +20,13 @@
 #' @param correspondence_table Logical 1L. TRUE if user wants a correspondence table
 #' between initial and encrypted values.
 #' @param correspondence_table_label Character 1L. Label of the correspondence table.
-#' @seealso cryptR::crypt_r(), digest::digest(), [get_correspondence_tables()].
+#' @return A data frame identical to `loaded_dataset` with the
+#'   `vars_to_encrypt` columns replaced by their hashed counterparts
+#'   (suffix `_crypt`) and `vars_to_remove` columns dropped. Side
+#'   effect: when `correspondence_table = TRUE`, a table
+#'   `tc_crypt_<correspondence_table_label>` is stored in the package-
+#'   private environment — see [get_correspondence_tables()].
+#' @seealso [crypt_r()], [digest::digest()], [get_correspondence_tables()].
 #' @export
 #'
 #' @examples

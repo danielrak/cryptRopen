@@ -33,7 +33,6 @@ crypt_vector <- function(vector, key, algo) {
 #'
 #' @param x Atomic vector.
 #' @return Character vector of same length as `x`.
-#' @keywords internal
 #' @noRd
 .normalize_crypt_input <- function(x) {
   x <- stringr::str_to_upper(x)

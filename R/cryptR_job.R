@@ -1,42 +1,41 @@
 # Asynchronous job scaffolding for crypt_r().
 #
-# Phase 1.D.6.a introduced the `cryptR_job` S3 class and the four companion
-# functions (`cryptR_status()`, `cryptR_wait()`, `cryptR_collect()`,
-# `print.cryptR_job()`) *in isolation* — without touching `crypt_r()`. Phase
-# 1.D.6.b wires the orchestrator: `crypt_r()` now dispatches per-row tasks
-# via `mirai::mirai()` and returns a `cryptR_job`. Phase 1.D.6.c fleshes out
-# `cryptR_collect()`: it now (a) extracts typed per-row results, (b) re-injects
-# the correspondence tables into the parent's `.cryptRopen_env` so that
-# `get_correspondence_tables()` works after an async run, and (c) writes
-# `log_crypt_r_<timestamp>.xlsx` in `job$output_path`. The log-writing
-# helpers live in `R/cryptR_log.R`.
+# `crypt_r()` dispatches one `mirai::mirai()` task per filtered mask row
+# and wraps the handles in a `cryptR_job`. The four companion functions
+# (`cryptR_status()`, `cryptR_wait()`, `cryptR_collect()`,
+# `summary.cryptR_job()`) let the caller inspect / block / finalise
+# without touching the raw mirai handles. `cryptR_collect()` (a) extracts
+# typed per-row results, (b) re-injects the correspondence tables into
+# the parent's `.cryptRopen_env` so that `get_correspondence_tables()`
+# works after an async run, and (c) writes `log_crypt_r_<timestamp>.xlsx`
+# in `job$output_path`. The log-writing helpers live in `R/cryptR_log.R`.
 #
 # A `cryptR_job` is a thin S3 list carrying:
 #   tasks                : named list of `mirai` handles (one per filtered
 #                          mask row; names are the dedup'd `encrypted_file`
 #                          stems).
 #   mask_rows            : data.frame of filtered mask rows, in 1:1
-#                          correspondence with `tasks` (used by the 1.D.6.c
-#                          log writer).
+#                          correspondence with `tasks` (used by the log
+#                          writer).
 #   output_path          : absolute path where outputs + the final log land.
 #   intermediate_path    : absolute path where TCs (parquet) land.
 #   started_at           : Sys.time() at dispatch.
 #   log_written          : logical flag, toggled by cryptR_collect().
-#   watcher              : reserved slot for the mirai watcher that will
-#                          write the log automatically in 1.D.6.c; NULL
-#                          in 1.D.6.a / 1.D.6.b.
+#   watcher              : reserved slot for the mirai watcher that writes
+#                          the log automatically (see R/cryptR_watcher.R).
 #   daemons_owned_by_job : logical(1). TRUE when crypt_r() set up the mirai
 #                          daemons itself (no pre-existing daemons detected)
 #                          — cryptR_collect() then tears them down on exit.
 #                          FALSE when the user is managing the daemons
 #                          externally, in which case cryptR_collect() leaves
-#                          them alone. Added in 1.D.6.b.
+#                          them alone.
 #   daemons_torn_down    : logical(1). Set to TRUE by cryptR_collect() after
 #                          a successful `mirai::daemons(0)` teardown; keeps
 #                          the teardown idempotent across repeated collect
-#                          calls. Added in 1.D.6.b.
+#                          calls.
 
 
+#' Construct a `cryptR_job` object.
 #' @noRd
 .new_cryptR_job <- function(tasks,
                             mask_rows,
@@ -85,13 +84,13 @@
 #' calls will flip from `running` to `done`/`failed`, but the function itself
 #' has no side effects (no log writing, no waiting).
 #'
-#' Since Phase 2.A the snapshot also carries per-row metrics
-#' (`start_time`, `end_time`, `duration_sec`, `n_rows_processed`) for
-#' resolved tasks — populated from the task payload shipped back by the
-#' engines (`.make_row_result()`). Metrics are `NA` for tasks still
-#' `running` or that errored before producing a payload; this lets you
-#' monitor a run in-flight without reading the `log_crypt_r_*.xlsx`
-#' file from disk.
+#' The snapshot also carries per-row metrics (`start_time`, `end_time`,
+#' `duration_sec`, `n_rows_processed`) for resolved tasks — populated
+#' from the task payload shipped back by the engines
+#' (`.make_row_result()`). Metrics are `NA` for tasks still `running`
+#' or that errored before producing a payload; this lets you monitor a
+#' run in-flight without reading the `log_crypt_r_*.xlsx` file from
+#' disk.
 #'
 #' @param job A `cryptR_job` object, as returned by [crypt_r()].
 #' @return A data.frame with columns
@@ -102,6 +101,7 @@
 #'   `duration_sec` (numeric seconds, `NA` until the task resolves),
 #'   `n_rows_processed` (integer, `NA` until the task resolves and the
 #'   engine reports a row count).
+#' @family async_job
 #' @seealso [cryptR_wait()], [cryptR_collect()], [summary.cryptR_job()].
 #' @export
 #' @examples
@@ -166,6 +166,7 @@ cryptR_status <- function(job) {
 #'   On expiration, an error of class `cryptR_timeout` is raised.
 #' @param poll_interval Numeric. Polling period in seconds. Defaults to 0.1.
 #' @return `invisible(job)`.
+#' @family async_job
 #' @seealso [cryptR_status()], [cryptR_collect()].
 #' @export
 #' @examples
@@ -223,8 +224,8 @@ cryptR_wait <- function(job, timeout = Inf, poll_interval = 0.1) {
 #' Idempotent on two independent axes:
 #'   * `job$log_written` guards the log-writing + TC re-injection block,
 #'     so a manual `cryptR_collect()` called *after* the auto watcher
-#'     (1.D.6.c) has already run is a no-op — no duplicate xlsx, no TCs
-#'     stored twice.
+#'     has already run is a no-op — no duplicate xlsx, no TCs stored
+#'     twice.
 #'   * `job$daemons_torn_down` guards the `mirai::daemons(0)` call so
 #'     a second collect does not attempt a double teardown.
 #'
@@ -238,6 +239,7 @@ cryptR_wait <- function(job, timeout = Inf, poll_interval = 0.1) {
 #'   applied to the returned object only; S3 objects are not mutable
 #'   in place in R, so callers who want the updated flags must capture
 #'   the return value (`job <- cryptR_collect(job)`).
+#' @family async_job
 #' @seealso [cryptR_status()], [cryptR_wait()].
 #' @export
 #' @examples
@@ -256,17 +258,17 @@ cryptR_collect <- function(job, timeout = Inf, poll_interval = 0.1) {
   # side-effects (log file, TCs) are checked/deduped *inside*
   # `.finalize_job_side_effects()` via `.log_already_written()`, so
   # repeating the call after a watcher-driven finalize is safe either
-  # way. The local `job$log_written` flag mirrors the return contract
-  # documented in Phase 1.D.6.a tests (input value stays unchanged;
-  # the returned copy has the flag flipped).
+  # way. The local `job$log_written` flag mirrors the contract
+  # covered by test-cryptR_job.R: the input value stays unchanged,
+  # the returned copy has the flag flipped.
   if (!isTRUE(job$log_written)) {
     .finalize_job_side_effects(job)
     job$log_written <- TRUE
   }
 
-  # Phase 1.D.6.b: tear down the daemons we own. Silently tolerate any
-  # failure (e.g. daemons already gone) — the flag below makes the
-  # operation idempotent across repeated collect calls.
+  # Tear down the daemons we own. Silently tolerate any failure
+  # (e.g. daemons already gone) — the flag below makes the operation
+  # idempotent across repeated collect calls.
   if (isTRUE(job$daemons_owned_by_job) && !isTRUE(job$daemons_torn_down)) {
     try(mirai::daemons(0), silent = TRUE)
     job$daemons_torn_down <- TRUE
@@ -275,6 +277,11 @@ cryptR_collect <- function(job, timeout = Inf, poll_interval = 0.1) {
 }
 
 
+#' Compact print method for `cryptR_job`.
+#'
+#' @param x A `cryptR_job` object.
+#' @param ... Ignored.
+#' @return `invisible(x)`.
 #' @export
 print.cryptR_job <- function(x, ...) {
   status <- cryptR_status(x)
@@ -306,12 +313,12 @@ print.cryptR_job <- function(x, ...) {
 
 #' Dashboard summary of an asynchronous `crypt_r()` job
 #'
-#' Companion to `print()`, introduced in Phase 2.A. Returns a structured
-#' list (class `summary.cryptR_job`) carrying the aggregates a
-#' monitoring script typically needs: total task count, per-state
-#' counts, elapsed seconds, active workers, total rows processed (sum
-#' over resolved tasks — excludes NA), output path, and the full
-#' per-task status dataframe.
+#' Companion to `print()`. Returns a structured list (class
+#' `summary.cryptR_job`) carrying the aggregates a monitoring script
+#' typically needs: total task count, per-state counts, elapsed
+#' seconds, active workers, total rows processed (sum over resolved
+#' tasks — excludes NA), output path, and the full per-task status
+#' dataframe.
 #'
 #' The object has its own `print()` method that renders a compact
 #' dashboard.
@@ -322,6 +329,7 @@ print.cryptR_job <- function(x, ...) {
 #'   with elements `n_tasks`, `counts`, `elapsed_sec`, `n_workers`,
 #'   `total_rows`, `output_path`, `log_written`, `status` (the full
 #'   [cryptR_status()] dataframe).
+#' @family async_job
 #' @seealso [cryptR_status()], [cryptR_collect()].
 #' @export
 #' @examples
@@ -363,6 +371,11 @@ summary.cryptR_job <- function(object, ...) {
 }
 
 
+#' Compact print method for `summary.cryptR_job`.
+#'
+#' @param x A `summary.cryptR_job` object.
+#' @param ... Ignored.
+#' @return `invisible(x)`.
 #' @export
 print.summary.cryptR_job <- function(x, ...) {
   cat("<cryptR_job summary>\n")

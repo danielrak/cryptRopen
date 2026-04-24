@@ -30,4 +30,12 @@ cryptR_wait(job, timeout = 60)
 }
 \seealso{
 \code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=cryptR_collect]{cryptR_collect()}}.
+
+Other async_job: 
+\code{\link{cryptR_collect}()},
+\code{\link{cryptR_results}()},
+\code{\link{cryptR_status}()},
+\code{\link{crypt_r}()},
+\code{\link{summary.cryptR_job}()}
 }
+\concept{async_job}

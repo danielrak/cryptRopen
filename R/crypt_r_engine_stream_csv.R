@@ -1,8 +1,8 @@
 #' Process one row of the encryption mask — streaming engine (CSV).
 #'
-#' Introduced in Phase 1.D.4.c, refactored in 1.D.4.d to share chunk
-#' transformation / TC finalisation / inspect reporting with the
-#' parquet streaming engine.
+#' Shares chunk transformation, TC finalisation and inspect reporting
+#' with the parquet streaming engine via the `.transform_stream_chunk()`
+#' / `.finalize_stream_tc()` / `.write_stream_inspect()` helpers.
 #'
 #' Streams the input CSV via `arrow::open_csv_dataset()` + Scanner,
 #' encrypts each chunk in memory, appends each chunk to the output CSV
@@ -27,7 +27,8 @@
 #'
 #' @inheritParams .process_mask_row_streaming
 #' @return Invisible list (see `.make_row_result()`). Disk side
-#'   effects unchanged; typed return added in Phase 1.D.6.c.
+#'   effects are the primary contract; the return value packages
+#'   additional metadata for the mirai collect path.
 #' @noRd
 .process_mask_row_csv_streaming <- function(mask_row, input_path, output_path, intermediate_path,
                                             encryption_key, algorithm, correspondence_table,

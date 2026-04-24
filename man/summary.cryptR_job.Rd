@@ -18,12 +18,12 @@ with elements \code{n_tasks}, \code{counts}, \code{elapsed_sec}, \code{n_workers
 \code{\link[=cryptR_status]{cryptR_status()}} dataframe).
 }
 \description{
-Companion to \code{print()}, introduced in Phase 2.A. Returns a structured
-list (class \code{summary.cryptR_job}) carrying the aggregates a
-monitoring script typically needs: total task count, per-state
-counts, elapsed seconds, active workers, total rows processed (sum
-over resolved tasks — excludes NA), output path, and the full
-per-task status dataframe.
+Companion to \code{print()}. Returns a structured list (class
+\code{summary.cryptR_job}) carrying the aggregates a monitoring script
+typically needs: total task count, per-state counts, elapsed
+seconds, active workers, total rows processed (sum over resolved
+tasks — excludes NA), output path, and the full per-task status
+dataframe.
 }
 \details{
 The object has its own \code{print()} method that renders a compact
@@ -37,4 +37,12 @@ summary(job)
 }
 \seealso{
 \code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=cryptR_collect]{cryptR_collect()}}.
+
+Other async_job: 
+\code{\link{cryptR_collect}()},
+\code{\link{cryptR_results}()},
+\code{\link{cryptR_status}()},
+\code{\link{cryptR_wait}()},
+\code{\link{crypt_r}()}
 }
+\concept{async_job}

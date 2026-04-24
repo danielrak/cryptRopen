@@ -26,13 +26,13 @@ calls will flip from \code{running} to \code{done}/\code{failed}, but the functi
 has no side effects (no log writing, no waiting).
 }
 \details{
-Since Phase 2.A the snapshot also carries per-row metrics
-(\code{start_time}, \code{end_time}, \code{duration_sec}, \code{n_rows_processed}) for
-resolved tasks — populated from the task payload shipped back by the
-engines (\code{.make_row_result()}). Metrics are \code{NA} for tasks still
-\code{running} or that errored before producing a payload; this lets you
-monitor a run in-flight without reading the \code{log_crypt_r_*.xlsx}
-file from disk.
+The snapshot also carries per-row metrics (\code{start_time}, \code{end_time},
+\code{duration_sec}, \code{n_rows_processed}) for resolved tasks — populated
+from the task payload shipped back by the engines
+(\code{.make_row_result()}). Metrics are \code{NA} for tasks still \code{running}
+or that errored before producing a payload; this lets you monitor a
+run in-flight without reading the \code{log_crypt_r_*.xlsx} file from
+disk.
 }
 \examples{
 \dontrun{
@@ -42,4 +42,12 @@ cryptR_status(job)
 }
 \seealso{
 \code{\link[=cryptR_wait]{cryptR_wait()}}, \code{\link[=cryptR_collect]{cryptR_collect()}}, \code{\link[=summary.cryptR_job]{summary.cryptR_job()}}.
+
+Other async_job: 
+\code{\link{cryptR_collect}()},
+\code{\link{cryptR_results}()},
+\code{\link{cryptR_wait}()},
+\code{\link{crypt_r}()},
+\code{\link{summary.cryptR_job}()}
 }
+\concept{async_job}

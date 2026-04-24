@@ -4,11 +4,11 @@
 #' variables from datasets. Variables to encrypt and input datasets can
 #' be in any number, following user's needs.
 #'
-#' Since Phase 1.D.6.b, `crypt_r()` is **non-blocking**: it builds a
-#' `cryptR_job` (one `mirai` task per filtered mask row) and returns
-#' immediately. The caller inspects / waits / finalises the job through
-#' the companion API (see *Value* and *See Also*). A per-row failure
-#' does not interrupt the other rows — the failure is captured on the
+#' `crypt_r()` is **non-blocking**: it builds a `cryptR_job` (one
+#' `mirai` task per filtered mask row) and returns immediately. The
+#' caller inspects / waits / finalises the job through the companion
+#' API (see *Value* and *See Also*). A per-row failure does not
+#' interrupt the other rows — the failure is captured on the
 #' corresponding task and surfaces via [cryptR_status()].
 #'
 #' @param mask_folder_path Folder path of the excel mask.
@@ -29,9 +29,7 @@
 #'   write); mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
 #'   csv→parquet) silently fall back to `"in_memory"` to preserve
 #'   non-regression. `"in_memory"` always reads the full input into
-#'   RAM (historical behaviour). Introduced in Phase 1.D.4.a
-#'   (plumbing), streaming engines in 1.D.4.b/c, auto-routing rule in
-#'   1.D.4.d.
+#'   RAM (historical behaviour).
 #' @param chunk_size Integer. Number of rows per chunk when the
 #'   effective engine is streaming. Ignored by `"in_memory"` (and by
 #'   `"auto"` / `"streaming"` when falling back to in_memory). Default
@@ -42,11 +40,12 @@
 #'   If daemons are already running on the default profile when
 #'   `crypt_r()` is called, `n_workers` is ignored and the existing
 #'   daemons are reused — the user retains control and
-#'   [cryptR_collect()] will not tear them down. Added in Phase 1.D.6.b.
+#'   [cryptR_collect()] will not tear them down.
 #' @return A [`cryptR_job`][cryptR_status] object carrying one `mirai`
 #'   task per filtered mask row. Inspect with [cryptR_status()]; block
 #'   with [cryptR_wait()]; finalise (write the recap log and, when
 #'   applicable, tear down the daemons) with [cryptR_collect()].
+#' @family async_job
 #' @seealso [cryptR_status()], [cryptR_wait()], [cryptR_collect()],
 #'   [get_correspondence_tables()].
 #' @export
@@ -74,7 +73,7 @@ crypt_r <- function(mask_folder_path, mask_file,
     n_workers <- as.integer(n_workers)
   }
 
-  # --- Fast-fail on invalid output directories (Phase 2.B) -------------
+  # --- Fast-fail on invalid output directories ------------------------
   # Both paths are *shared* by every worker. If either is missing, all
   # dispatched tasks would fail silently (bubbling up as per-task errors
   # only via cryptR_status()) and the user would only learn about it
@@ -254,9 +253,9 @@ crypt_r <- function(mask_folder_path, mask_file,
     daemons_owned_by_job = daemons_owned_by_job
   )
 
-  # Phase 1.D.6.c: register the auto-watcher so the recap xlsx log is
-  # written as soon as the last mirai task resolves, without the user
-  # having to call cryptR_collect() manually. Idempotent wrt a manual
-  # collect — see R/cryptR_watcher.R + `.log_already_written()`.
+  # Register the auto-watcher so the recap xlsx log is written as soon
+  # as the last mirai task resolves, without the user having to call
+  # cryptR_collect() manually. Idempotent wrt a manual collect — see
+  # R/cryptR_watcher.R + `.log_already_written()`.
   .start_watcher(job)
 }

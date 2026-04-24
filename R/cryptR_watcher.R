@@ -2,8 +2,8 @@
 # soon as the last mirai task resolves, without the user having to call
 # cryptR_collect() manually.
 #
-# Design notes (Phase 1.D.6.c)
-# ----------------------------
+# Design notes
+# ------------
 # mirai (as of 2.x) does not ship a native on-completion callback. The
 # official integration path is via `as.promise.mirai()`, which itself
 # relies on the `later` event loop being pumped — either implicitly in

@@ -19,7 +19,7 @@ rows when \code{class(column)} has length > 1, e.g. ordered factors),
 holding systematic inspection metrics.
 }
 \description{
-Given a data frame as an input, this function outputs an broad view
+Given a data frame as an input, this function outputs a broad view
 of this data frame contents:
 dimensions, list of variables and
 systematic corresponding information (type,
