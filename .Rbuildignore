@@ -13,3 +13,5 @@
 # when the directory is absent (see skip_if_no_baseline()), so excluding
 # them from the tarball is safe and avoids the CRAN NOTE on file size.
 ^tests/baseline$
+^doc$
+^Meta$
