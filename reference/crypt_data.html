@@ -20,13 +20,29 @@ in any number, following users's needs."><!-- mathjax --><script src="https://cd
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">cryptRopen</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.0.0.9000</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.0</span>
       </span>
     </div>
 
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav"><li>
+  <a href="../articles/cryptRopen.html">Get started</a>
+</li>
+<li>
   <a href="../reference/index.html">Reference</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Articles
+
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu"><li>
+      <a href="../articles/crypt_r-workflow.html">Industrialized workflow with crypt_r()</a>
+    </li>
+  </ul></li>
+<li>
+  <a href="../news/index.html">Changelog</a>
 </li>
       </ul><ul class="nav navbar-nav navbar-right"></ul></div><!--/.nav-collapse -->
   </div><!--/.container -->
@@ -97,19 +113,34 @@ between initial and encrypted values.</p></dd>
 <dd><p>Character 1L. Label of the correspondence table.</p></dd>
 
 </dl></div>
+    <div id="value">
+    <h2>Value</h2>
+    <p>A data frame identical to <code>loaded_dataset</code> with the
+<code>vars_to_encrypt</code> columns replaced by their hashed counterparts
+(suffix <code>_crypt</code>) and <code>vars_to_remove</code> columns dropped. Side
+effect: when <code>correspondence_table = TRUE</code>, a table
+<code>tc_crypt_&lt;correspondence_table_label&gt;</code> is stored in the package-
+private environment — see <code><a href="get_correspondence_tables.html">get_correspondence_tables()</a></code>.</p>
+    </div>
+    <div id="details">
+    <h2>Details</h2>
+    <p>Side-effect note: when <code>correspondence_table = TRUE</code>, the resulting
+table is stored in a package-private environment (no more pollution
+of <code><a href="https://rdrr.io/r/base/environment.html" class="external-link">globalenv()</a></code>). Retrieve it with <code><a href="get_correspondence_tables.html">get_correspondence_tables()</a></code>.</p>
+    </div>
     <div id="see-also">
     <h2>See also</h2>
-    <div class="dont-index"><p>cryptR::crypt_r(), digest::digest().</p></div>
+    <div class="dont-index"><p><code><a href="crypt_r.html">crypt_r()</a></code>, <code><a href="https://eddelbuettel.github.io/digest/man/digest.html" class="external-link">digest::digest()</a></code>, <code><a href="get_correspondence_tables.html">get_correspondence_tables()</a></code>.</p></div>
     </div>
 
     <div id="ref-examples">
     <h2>Examples</h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">crypt_data</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  loaded_dataset <span class="op">=</span> <span class="va">mtcars</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, <span class="op">]</span>, </span></span>
-<span class="r-in"><span>  vars_to_encrypt <span class="op">=</span> <span class="st">"mpg"</span>, </span></span>
-<span class="r-in"><span>  vars_to_remove <span class="op">=</span> <span class="st">"cyl"</span>, </span></span>
-<span class="r-in"><span>  encryption_key <span class="op">=</span> <span class="st">"1234567"</span>, </span></span>
-<span class="r-in"><span>  algorithm <span class="op">=</span> <span class="st">"md5"</span>, </span></span>
+<span class="r-in"><span>  loaded_dataset <span class="op">=</span> <span class="va">mtcars</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>, <span class="op">]</span>,</span></span>
+<span class="r-in"><span>  vars_to_encrypt <span class="op">=</span> <span class="st">"mpg"</span>,</span></span>
+<span class="r-in"><span>  vars_to_remove <span class="op">=</span> <span class="st">"cyl"</span>,</span></span>
+<span class="r-in"><span>  encryption_key <span class="op">=</span> <span class="st">"1234567"</span>,</span></span>
+<span class="r-in"><span>  algorithm <span class="op">=</span> <span class="st">"md5"</span>,</span></span>
 <span class="r-in"><span>  correspondence_table <span class="op">=</span> <span class="cn">FALSE</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                                          mpg_crypt disp  hp drat    wt  qsec vs</span>
@@ -138,7 +169,7 @@ between initial and encrypted values.</p></dd>
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
       </footer></div>

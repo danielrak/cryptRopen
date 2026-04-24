@@ -33,14 +33,32 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="index.html">cryptRopen</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.0.0.9000</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.0</span>
       </span>
     </div>
 
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
 <li>
+  <a href="articles/cryptRopen.html">Get started</a>
+</li>
+<li>
   <a href="reference/index.html">Reference</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Articles
+
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+<li>
+      <a href="articles/crypt_r-workflow.html">Industrialized workflow with crypt_r()</a>
+    </li>
+  </ul>
+</li>
+<li>
+  <a href="news/index.html">Changelog</a>
 </li>
       </ul>
 <ul class="nav navbar-nav navbar-right"></ul>
@@ -60,14 +78,82 @@
 </h1></div>
 <!-- badges: start -->
 
-<p>The goal of cryptRopen is to allow industrialized datasets encryption, i.e. user wants to encrypt any number of variables within any number of datasets. The design mimics parallel processing, meaning that encryption of all datasets are run independently and at the same time.</p>
+<p><code>cryptRopen</code> provides deterministic pseudonymisation of data frame variables, driven by an Excel mask for industrialised runs. The underlying transformation is a <strong>salted hash</strong> (MD5 by default; any algorithm supported by <code><a href="https://eddelbuettel.github.io/digest/man/digest.html" class="external-link">digest::digest()</a></code> works): same input paired with same key always yields the same output, joins across tables on the pseudonymised columns stay possible, and the hash itself is not reversible. Suitable for GDPR-style pseudonymisation, not for confidentiality-bearing encryption.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install the development version of cryptRopen from <a href="https://github.com/" class="external-link">GitHub</a> with:</p>
+<p>Development version from GitHub:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"danielrak/cryptRopen"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="in-session-use-crypt_data">In-session use: <code>crypt_data()</code>
+<a class="anchor" aria-label="anchor" href="#in-session-use-crypt_data"></a>
+</h2>
+<p>Pseudonymise one data frame and keep the correspondence table in a package-private environment, retrievable via <code><a href="reference/get_correspondence_tables.html">get_correspondence_tables()</a></code>:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">cryptRopen</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">encrypted</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/crypt_data.html">crypt_data</a></span><span class="op">(</span></span>
+<span>  loaded_dataset            <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">mtcars</span>, <span class="fl">3</span><span class="op">)</span>,</span>
+<span>  vars_to_encrypt           <span class="op">=</span> <span class="st">"mpg"</span>,</span>
+<span>  vars_to_remove            <span class="op">=</span> <span class="st">"cyl"</span>,</span>
+<span>  encryption_key            <span class="op">=</span> <span class="st">"demo-key"</span>,</span>
+<span>  correspondence_table      <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  correspondence_table_label <span class="op">=</span> <span class="st">"demo"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">encrypted</span></span>
+<span><span class="co">#&gt;                                      mpg_crypt disp  hp drat    wt  qsec vs am</span></span>
+<span><span class="co">#&gt; Mazda RX4     C33FDD39F6EAADF6C5E135AD5083E3D6  160 110 3.90 2.620 16.46  0  1</span></span>
+<span><span class="co">#&gt; Mazda RX4 Wag C33FDD39F6EAADF6C5E135AD5083E3D6  160 110 3.90 2.875 17.02  0  1</span></span>
+<span><span class="co">#&gt; Datsun 710    7E7E52C52B1C3686F553D1E4AC6A8207  108  93 3.85 2.320 18.61  1  1</span></span>
+<span><span class="co">#&gt;               gear carb</span></span>
+<span><span class="co">#&gt; Mazda RX4        4    4</span></span>
+<span><span class="co">#&gt; Mazda RX4 Wag    4    4</span></span>
+<span><span class="co">#&gt; Datsun 710       4    1</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/get_correspondence_tables.html">get_correspondence_tables</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">tc_crypt_demo</span></span>
+<span><span class="co">#&gt;                mpg                        mpg_crypt</span></span>
+<span><span class="co">#&gt; Mazda RX4     21.0 C33FDD39F6EAADF6C5E135AD5083E3D6</span></span>
+<span><span class="co">#&gt; Mazda RX4 Wag 21.0 C33FDD39F6EAADF6C5E135AD5083E3D6</span></span>
+<span><span class="co">#&gt; Datsun 710    22.8 7E7E52C52B1C3686F553D1E4AC6A8207</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="industrialised-use-crypt_r">Industrialised use: <code>crypt_r()</code>
+<a class="anchor" aria-label="anchor" href="#industrialised-use-crypt_r"></a>
+</h2>
+<p><code><a href="reference/crypt_r.html">crypt_r()</a></code> reads an Excel mask describing N input files, dispatches one <code><a href="https://mirai.r-lib.org/reference/mirai.html" class="external-link">mirai::mirai()</a></code> task per row (parallel, non-blocking), writes the encrypted files and a recap xlsx log to disk, and returns a <code>cryptR_job</code> handle you can inspect with <code><a href="reference/cryptR_status.html">cryptR_status()</a></code> / <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> / <code><a href="reference/cryptR_results.html">cryptR_results()</a></code> and finalise with <code><a href="reference/cryptR_collect.html">cryptR_collect()</a></code>.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/crypt_r.html">crypt_r</a></span><span class="op">(</span></span>
+<span>  mask_folder_path  <span class="op">=</span> <span class="st">"path/to/mask"</span>,</span>
+<span>  mask_file         <span class="op">=</span> <span class="st">"mask.xlsx"</span>,</span>
+<span>  output_path       <span class="op">=</span> <span class="st">"path/to/output"</span>,</span>
+<span>  intermediate_path <span class="op">=</span> <span class="st">"path/to/intermediate"</span>,</span>
+<span>  encryption_key    <span class="op">=</span> <span class="st">"your-salt"</span>,</span>
+<span>  algorithm         <span class="op">=</span> <span class="st">"md5"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/cryptR_status.html">cryptR_status</a></span><span class="op">(</span><span class="va">job</span><span class="op">)</span></span>
+<span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/cryptR_collect.html">cryptR_collect</a></span><span class="op">(</span><span class="va">job</span><span class="op">)</span></span></code></pre></div>
+<p>Large parquet / CSV inputs are automatically routed to a streaming engine (<code><a href="https://arrow.apache.org/docs/r/reference/open_dataset.html" class="external-link">arrow::open_dataset()</a></code> + chunked write) so memory usage stays bounded regardless of input size.</p>
+</div>
+<div class="section level2">
+<h2 id="learn-more">Learn more<a class="anchor" aria-label="anchor" href="#learn-more"></a>
+</h2>
+<ul>
+<li>
+<code><a href="articles/cryptRopen.html">vignette("cryptRopen")</a></code> — getting started with <code><a href="reference/crypt_vector.html">crypt_vector()</a></code> and <code><a href="reference/crypt_data.html">crypt_data()</a></code>.</li>
+<li>
+<code><a href="articles/crypt_r-workflow.html">vignette("crypt_r-workflow")</a></code> — complete walkthrough of the industrialised <code><a href="reference/crypt_r.html">crypt_r()</a></code> workflow (Excel mask, async inspection, streaming engines, daemons ownership, recap log).</li>
+<li>
+<code>NEWS.md</code> — full change history.</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
+</h2>
+<p>MIT © Daniel Rakotomalala.</p>
 </div>
 </div>
   </div>
@@ -115,7 +201,7 @@
 
 <div class="pkgdown">
   <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
       </footer>

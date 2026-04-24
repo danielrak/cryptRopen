@@ -17,13 +17,29 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">cryptRopen</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.0.0.9000</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.0</span>
       </span>
     </div>
 
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav"><li>
+  <a href="../articles/cryptRopen.html">Get started</a>
+</li>
+<li>
   <a href="../reference/index.html">Reference</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Articles
+
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu"><li>
+      <a href="../articles/crypt_r-workflow.html">Industrialized workflow with crypt_r()</a>
+    </li>
+  </ul></li>
+<li>
+  <a href="../news/index.html">Changelog</a>
 </li>
       </ul><ul class="nav navbar-nav navbar-right"></ul></div><!--/.nav-collapse -->
   </div><!--/.container -->
@@ -42,9 +58,21 @@
           <p class="section-desc"></p>
         </th>
       </tr></tbody><tbody><tr><td>
-          <p><code><a href="assign_to_global.html">assign_to_global()</a></code> </p>
+          <p><code><a href="cryptR_collect.html">cryptR_collect()</a></code> </p>
         </td>
-        <td><p>Assign to global environment</p></td>
+        <td><p>Finalize an asynchronous <code><a href="../reference/crypt_r.html">crypt_r()</a></code> job</p></td>
+      </tr><tr><td>
+          <p><code><a href="cryptR_results.html">cryptR_results()</a></code> </p>
+        </td>
+        <td><p>Per-output disk-oriented view of an async <code><a href="../reference/crypt_r.html">crypt_r()</a></code> job</p></td>
+      </tr><tr><td>
+          <p><code><a href="cryptR_status.html">cryptR_status()</a></code> </p>
+        </td>
+        <td><p>Inspect the state of an asynchronous <code><a href="../reference/crypt_r.html">crypt_r()</a></code> job</p></td>
+      </tr><tr><td>
+          <p><code><a href="cryptR_wait.html">cryptR_wait()</a></code> </p>
+        </td>
+        <td><p>Block until an asynchronous <code><a href="../reference/crypt_r.html">crypt_r()</a></code> job finishes</p></td>
       </tr><tr><td>
           <p><code><a href="crypt_data.html">crypt_data()</a></code> </p>
         </td>
@@ -58,9 +86,25 @@
         </td>
         <td><p>Encrypt a vector</p></td>
       </tr><tr><td>
+          <p><code><a href="get_correspondence_tables.html">get_correspondence_tables()</a></code> </p>
+        </td>
+        <td><p>Retrieve correspondence tables produced by the last calls of <code><a href="../reference/crypt_data.html">crypt_data()</a></code> or <code><a href="../reference/crypt_r.html">crypt_r()</a></code>.</p></td>
+      </tr><tr><td>
           <p><code><a href="inspect.html">inspect()</a></code> </p>
         </td>
         <td><p>Inspect a data frame</p></td>
+      </tr><tr><td>
+          <p><code><a href="print.cryptR_job.html">print(<i>&lt;cryptR_job&gt;</i>)</a></code> </p>
+        </td>
+        <td><p>Compact print method for <code>cryptR_job</code>.</p></td>
+      </tr><tr><td>
+          <p><code><a href="print.summary.cryptR_job.html">print(<i>&lt;summary.cryptR_job&gt;</i>)</a></code> </p>
+        </td>
+        <td><p>Compact print method for <code>summary.cryptR_job</code>.</p></td>
+      </tr><tr><td>
+          <p><code><a href="summary.cryptR_job.html">summary(<i>&lt;cryptR_job&gt;</i>)</a></code> </p>
+        </td>
+        <td><p>Dashboard summary of an asynchronous <code><a href="../reference/crypt_r.html">crypt_r()</a></code> job</p></td>
       </tr></tbody></table></div>
 
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
@@ -74,7 +118,7 @@
 </div>
 
 <div class="pkgdown">
-  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p></p><p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
       </footer></div>
