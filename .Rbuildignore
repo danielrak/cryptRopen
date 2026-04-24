@@ -6,3 +6,12 @@
 ^codecov\.yml$
 ^README\.Rmd$
 ^\.covrignore$
+^\.positai$
+^\.claude$
+# Baseline non-regression fixtures: multi-MB binary outputs and generator
+# script used locally / on contributor machines. test-baseline.R auto-skips
+# when the directory is absent (see skip_if_no_baseline()), so excluding
+# them from the tarball is safe and avoids the CRAN NOTE on file size.
+^tests/baseline$
+^doc$
+^Meta$

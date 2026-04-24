@@ -33,22 +33,35 @@ between initial and encrypted values.}
 
 \item{correspondence_table_label}{Character 1L. Label of the correspondence table.}
 }
+\value{
+A data frame identical to \code{loaded_dataset} with the
+\code{vars_to_encrypt} columns replaced by their hashed counterparts
+(suffix \verb{_crypt}) and \code{vars_to_remove} columns dropped. Side
+effect: when \code{correspondence_table = TRUE}, a table
+\verb{tc_crypt_<correspondence_table_label>} is stored in the package-
+private environment — see \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+}
 \description{
 This function corresponds to the
 in-session version of the encryption process.
 For the considered loaded dataset, variables to encrypt can be
 in any number, following users's needs.
 }
+\details{
+Side-effect note: when \code{correspondence_table = TRUE}, the resulting
+table is stored in a package-private environment (no more pollution
+of \code{globalenv()}). Retrieve it with \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+}
 \examples{
 crypt_data(
-  loaded_dataset = mtcars[1:5, ], 
-  vars_to_encrypt = "mpg", 
-  vars_to_remove = "cyl", 
-  encryption_key = "1234567", 
-  algorithm = "md5", 
+  loaded_dataset = mtcars[1:5, ],
+  vars_to_encrypt = "mpg",
+  vars_to_remove = "cyl",
+  encryption_key = "1234567",
+  algorithm = "md5",
   correspondence_table = FALSE
 )
 }
 \seealso{
-cryptR::crypt_r(), digest::digest().
+\code{\link[=crypt_r]{crypt_r()}}, \code{\link[digest:digest]{digest::digest()}}, \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
 }

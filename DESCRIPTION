@@ -1,25 +1,38 @@
 Package: cryptRopen
 Title: Industrialized Datasets Encryption (Open-Source Version)
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: 
     person("Daniel", "Rakotomalala", , "rakdanielh@gmail.com", role = c("aut", "cre"))
 Description: This package provides a framework to encrypt variables from
     datasets. Variables to encrypt and datasets can be in any number.
 License: MIT + file LICENSE
-Imports: 
+Imports:
+    arrow,
     digest,
     dplyr,
-    job,
+    later,
     lubridate,
     magrittr,
+    mirai (>= 1.0.0),
+    nanoparquet,
+    parallel,
     purrr,
     rio,
     stats,
     stringr,
+    utils,
     writexl
-Suggests: 
-    testthat
-Config/fusen/version: 0.7.0
+Suggests:
+    devtools,
+    jsonlite,
+    knitr,
+    readxl,
+    rmarkdown,
+    testthat,
+    tools,
+    withr
+VignetteBuilder: 
+    knitr
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
