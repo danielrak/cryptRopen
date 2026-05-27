@@ -19,7 +19,7 @@ be in any number, following user's needs."><!-- mathjax --><script src="https://
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">cryptRopen</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.0</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.1</span>
       </span>
     </div>
 
@@ -157,6 +157,14 @@ caller inspects / waits / finalises the job through the companion
 API (see <em>Value</em> and <em>See Also</em>). A per-row failure does not
 interrupt the other rows — the failure is captured on the
 corresponding task and surfaces via <code><a href="cryptR_status.html">cryptR_status()</a></code>.</p>
+<p><strong>Empty <code>vars_to_encrypt</code> cell.</strong> A mask row whose <code>vars_to_encrypt</code>
+cell is blank (empty, <code>NA</code>, or whitespace-only) is legitimate and
+means "copy / convert this file, applying <code>vars_to_remove</code> if any,
+encrypting nothing." The output file is written under <code>output_path</code>
+(re-encoded to the requested output format), no <code>_crypt</code> columns are
+emitted, and <strong>no <code>tc_*.parquet</code></strong> is produced. The recap log
+records <code>success = TRUE</code> and <code>tc_name = NA</code> for such rows.
+<code><a href="crypt_data.html">crypt_data()</a></code> does <strong>not</strong> support this — see its documentation.</p>
     </div>
     <div id="see-also">
     <h2>See also</h2>

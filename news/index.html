@@ -17,7 +17,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">cryptRopen</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.0</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.1</span>
       </span>
     </div>
 
@@ -54,6 +54,33 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="page-header" data-toc-text="0.1.1" id="cryptropen-011">cryptRopen 0.1.1<a class="anchor" aria-label="anchor" href="#cryptropen-011"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-0-1-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-1"></a></h3>
+<ul><li>
+<code><a href="../reference/crypt_r.html">crypt_r()</a></code> no longer crashes on mask rows with an <strong>empty</strong> <code>vars_to_encrypt</code> cell. Such rows are now treated as legitimate “copy / convert only” instructions: the input file is written to <code>output_path</code> as-is (re-encoded to the requested output format), <code>vars_to_remove</code> is applied if non-empty, no <code>_crypt</code> columns are emitted, and no <code>tc_*.parquet</code> is produced. The recap log records <code>success = TRUE</code> and <code>tc_name = NA</code> for such rows. Previously the three engines tried to build a zero-length <code>_crypt</code> data frame and failed at the assembly step with “Can’t recycle <code>..1</code> (size 0) to match <code>..2</code>” (more visible at CSV streaming scale).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="improvements-0-1-1">Improvements<a class="anchor" aria-label="anchor" href="#improvements-0-1-1"></a></h3>
+<ul><li>New private helper <code>.parse_mask_vars()</code> centralises the <code>str_split(",") %&gt;% unlist() %&gt;% str_trim()</code> idiom that the three engines duplicated. It also normalises <code>NA</code> / <code>""</code> / whitespace-only / list-internal blanks (<code>"a,,b"</code>) to <code>character(0)</code> / clean items, fixing a latent edge case in <code>vars_to_remove</code> as well.</li>
+<li>
+<code>.transform_stream_chunk()</code> and <code>.process_mask_row_in_memory()</code> now short-circuit encryption + correspondence-table construction when <code>vars_to_encrypt</code> is empty, while still applying <code>vars_to_remove</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="breaking-ish-change-0-1-1">Breaking-ish change<a class="anchor" aria-label="anchor" href="#breaking-ish-change-0-1-1"></a></h3>
+<ul><li>
+<code><a href="../reference/crypt_data.html">crypt_data()</a></code> is now <strong>fail-fast</strong> on an empty <code>vars_to_encrypt</code>: it raises an explicit error pointing the user to <code>dplyr</code> / <code>rio</code> for plain column dropping or format conversion. Previously it errored too, but later and with a misleading message (“All indicated <code>vars_to_encrypt</code> must be effectively a variable name”). The asymmetry with <code><a href="../reference/crypt_r.html">crypt_r()</a></code> is intentional: <code><a href="../reference/crypt_r.html">crypt_r()</a></code> is driven by a hand-filled spreadsheet describing a heterogeneous batch, where a “copy / purge only” row is a reasonable use case; <code><a href="../reference/crypt_data.html">crypt_data()</a></code> is a direct call on a loaded object, where calling it with nothing to encrypt is a misuse and silently succeeding would hide a mistake.</li>
+<li>Side effect: <code><a href="../reference/crypt_data.html">crypt_data()</a></code> now trims <code>vars_to_encrypt</code> <strong>before</strong> the membership check, so a typo like <code>" mpg "</code> (with surrounding whitespace) is now silently accepted instead of producing the “All indicated <code>vars_to_encrypt</code>…” error. The historical trim happening later in the function already absorbed those whitespace cases on successful runs, so this aligns the membership check with the rest of the pipeline.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="tests-0-1-1">Tests<a class="anchor" aria-label="anchor" href="#tests-0-1-1"></a></h3>
+<ul><li>Two new baseline cases lock the new <code><a href="../reference/crypt_r.html">crypt_r()</a></code> empty-vars behaviour: <code>empty_vars_remove_csv</code> (purge-only CSV) and <code>empty_vars_copy_rds</code> (verbatim copy of an RDS). Their <code>intermediate/</code> directories are empty by contract, asserted by <code>expect_setequal()</code> in <code>test-baseline.R</code>.</li>
+<li>New <code>test-parse_mask_vars.R</code> covers the helper’s edge cases (12 assertions).</li>
+<li>
+<code>test-crypt_data.R</code> adds three <code>expect_error()</code> for the fail-fast on <code>character(0)</code>, <code>""</code>, <code>c(NA_character_, "  ")</code>.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="page-header" data-toc-text="0.1.0" id="cryptropen-010">cryptRopen 0.1.0<a class="anchor" aria-label="anchor" href="#cryptropen-010"></a></h2>
 <p>First public release milestone — closes the <code>refactor-v1</code> branch. No public API change vs. the historical <code>0.0.0.9000</code>; under the hood, <code><a href="../reference/crypt_r.html">crypt_r()</a></code> is now non-blocking with mirai orchestration, a streaming engine handles large parquet / CSV inputs, correspondence tables live in a package-private environment, and the codebase has been restructured for readability.</p>
@@ -119,7 +146,7 @@
 <h3 id="phased--crypt_r-refactor-and-mirai-orchestration-0-0-0-9000">Phase 1.D — <code>crypt_r()</code> refactor and mirai orchestration<a class="anchor" aria-label="anchor" href="#phased--crypt_r-refactor-and-mirai-orchestration-0-0-0-9000"></a></h3>
 <div class="section level4">
 <h4 id="phased6c--log-xlsx-tc-round-trip-auto-watcher-0-0-0-9000">Phase 1.D.6.c — log xlsx, TC round-trip, auto-watcher<a class="anchor" aria-label="anchor" href="#phased6c--log-xlsx-tc-round-trip-auto-watcher-0-0-0-9000"></a></h4>
-<ul><li>Engines return a typed <code>list(success, error_message, tc_name, tc_df,   metrics)</code> via new helper <code>.make_row_result()</code>.</li>
+<ul><li>Engines return a typed <code>list(success, error_message, tc_name, tc_df, metrics)</code> via new helper <code>.make_row_result()</code>.</li>
 <li>New file <code>R/cryptR_log.R</code> with the log-writing and correspondence- table re-injection helpers.</li>
 <li>New file <code>R/cryptR_watcher.R</code> with a <code><a href="https://later.r-lib.org/reference/later.html" class="external-link">later::later()</a></code> self- rescheduling watcher so the recap log is written automatically when the last mirai task resolves. Graceful fallback when <a href="https://later.r-lib.org" class="external-link">later</a> is unavailable.</li>
 <li>
@@ -148,7 +175,7 @@
 </ul></div>
 <div class="section level4">
 <h4 id="phased5--baseline-covers-large-parquet--multi-chunk-streaming-0-0-0-9000">Phase 1.D.5 — baseline covers large parquet + multi-chunk streaming<a class="anchor" aria-label="anchor" href="#phased5--baseline-covers-large-parquet--multi-chunk-streaming-0-0-0-9000"></a></h4>
-<ul><li>New case <code>large_parquet_multichunk</code> (50 000 rows, <code>chunk_size =   15000</code>) in <code>tests/baseline/cases.R</code>; exercises multi-iteration scanner reads.</li>
+<ul><li>New case <code>large_parquet_multichunk</code> (50 000 rows, <code>chunk_size = 15000</code>) in <code>tests/baseline/cases.R</code>; exercises multi-iteration scanner reads.</li>
 <li>
 <code>tests/baseline/generate_baseline.R</code>: <code>capture_one_crypt_data()</code> now reads correspondence tables via <code><a href="../reference/get_correspondence_tables.html">cryptRopen::get_correspondence_tables()</a></code> — fixes a latent regression from Phase 1.C where TC names were captured empty.</li>
 </ul></div>
@@ -161,7 +188,7 @@
 <ul><li>Scanner + <code>ParquetFileWriter</code>. Correspondence table built incrementally with <code>distinct()</code>.</li>
 </ul></li>
 <li>
-<strong>1.D.4.c</strong> — CSV streaming engine via <code><a href="https://arrow.apache.org/docs/r/reference/open_delim_dataset.html" class="external-link">arrow::open_csv_dataset()</a></code> for reads; <code>utils::write.table(append   = TRUE)</code> for writes (<code>arrow::CsvWriter</code> not universally exported).</li>
+<strong>1.D.4.c</strong> — CSV streaming engine via <code><a href="https://arrow.apache.org/docs/r/reference/open_delim_dataset.html" class="external-link">arrow::open_csv_dataset()</a></code> for reads; <code>utils::write.table(append = TRUE)</code> for writes (<code>arrow::CsvWriter</code> not universally exported).</li>
 <li>
 <strong>1.D.4.d</strong> — shared helpers factored out (<code>.transform_stream_chunk()</code>, <code>.finalize_stream_tc()</code>, <code>.write_stream_inspect()</code>); dispatcher routes parquet-in/parquet-out and csv-in/csv-out to streaming, mixed or non-streamable endpoints to in-memory. <code><a href="http://gesistsa.github.io/rio/reference/import.html" class="external-link">rio::import()</a></code> kept on the inspect relecture to preserve baseline <code><a href="https://rdrr.io/r/base/class.html" class="external-link">class()</a></code> tuples on CSV date columns.</li>
 </ul></div>

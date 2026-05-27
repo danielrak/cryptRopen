@@ -32,7 +32,7 @@
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">cryptRopen</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.0</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.1</span>
       </span>
     </div>
 
@@ -159,7 +159,8 @@ supported.</td>
 </tr>
 <tr class="even">
 <td><code>vars_to_encrypt</code></td>
-<td>Comma-separated list of columns in the input file to hash.</td>
+<td>Comma-separated list of columns in the input file to hash. May be
+empty — see <em>Copy-only rows</em> below.</td>
 </tr>
 <tr class="odd">
 <td><code>vars_to_remove</code></td>
@@ -177,6 +178,30 @@ skip it.</td>
 <p>Duplicated <code>encrypted_file</code> values are automatically
 disambiguated with a <code>DUPL&lt;n&gt;_</code> prefix, so the output
 paths stay unique.</p>
+<div class="section level3">
+<h3 id="copy-only-rows">Copy-only rows<a class="anchor" aria-label="anchor" href="#copy-only-rows"></a>
+</h3>
+<p>A mask row whose <code>vars_to_encrypt</code> cell is
+<strong>empty</strong> (blank, <code>NA</code>, or whitespace-only) is
+legitimate. It means “process this file, encrypting nothing”:</p>
+<ul>
+<li>the input file is written to <code>output_path</code> re-encoded to
+the output format implied by <code>encrypted_file</code> (e.g. csv →
+csv, parquet → parquet);</li>
+<li>
+<code>vars_to_remove</code> is still applied, so an empty-vars row
+with a non-empty <code>vars_to_remove</code> is a clean “purge these
+columns and copy” instruction;</li>
+<li>no <code>_crypt</code> columns are emitted, no
+<code>tc_*.parquet</code> is written to <code>intermediate_path</code>,
+and the recap log records <code>success = TRUE</code> with
+<code>tc_name = NA</code> for the row.</li>
+</ul>
+<p><code><a href="../reference/crypt_data.html">crypt_data()</a></code> does <strong>not</strong> support this:
+calling it without anything to encrypt is treated as misuse and raises
+an explicit error pointing to <code>dplyr</code> / <code>rio</code> for
+plain column dropping or format conversion.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="a-complete-example">A complete example<a class="anchor" aria-label="anchor" href="#a-complete-example"></a>
@@ -240,9 +265,9 @@ run.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/cryptR_wait.html">cryptR_wait</a></span><span class="op">(</span><span class="va">job</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/cryptR_status.html">cryptR_status</a></span><span class="op">(</span><span class="va">job</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                      encrypted_file state error_message          start_time</span></span>
-<span><span class="co">#&gt; persons_crypt.csv persons_crypt.csv  done          &lt;NA&gt; 2026-04-24 20:25:11</span></span>
+<span><span class="co">#&gt; persons_crypt.csv persons_crypt.csv  done          &lt;NA&gt; 2026-05-27 19:48:55</span></span>
 <span><span class="co">#&gt;                              end_time duration_sec n_rows_processed</span></span>
-<span><span class="co">#&gt; persons_crypt.csv 2026-04-24 20:25:12    0.6994402               10</span></span></code></pre></div>
+<span><span class="co">#&gt; persons_crypt.csv 2026-05-27 19:48:56    0.7378647               10</span></span></code></pre></div>
 <p>Columns: <code>encrypted_file</code>, <code>state</code>
 (<code>running</code> / <code>done</code> / <code>failed</code>),
 <code>error_message</code>, plus <code>start_time</code>,
@@ -264,7 +289,7 @@ resolves.</p>
 <span><span class="co">#&gt;   workers      : 1</span></span>
 <span><span class="co">#&gt;   elapsed      : 1.19 s</span></span>
 <span><span class="co">#&gt;   rows total   : 10</span></span>
-<span><span class="co">#&gt;   output_path  : /tmp/Rtmp1zrb18/cryptR_vignette_1c625f349c8b/output</span></span>
+<span><span class="co">#&gt;   output_path  : /tmp/RtmpmRAW4Q/cryptR_vignette_1b3f51ce5811/output</span></span>
 <span><span class="co">#&gt;   log_written  : FALSE</span></span></code></pre></div>
 <p>Returns a compact object with task counts by state, elapsed seconds,
 active workers, total rows processed, output path, and the full status
@@ -279,7 +304,7 @@ data frame under <code>$status</code>.</p>
 <span><span class="co">#&gt;      encrypted_file</span></span>
 <span><span class="co">#&gt; 1 persons_crypt.csv</span></span>
 <span><span class="co">#&gt;                                                        output_file_path exists</span></span>
-<span><span class="co">#&gt; 1 /tmp/Rtmp1zrb18/cryptR_vignette_1c625f349c8b/output/persons_crypt.csv   TRUE</span></span>
+<span><span class="co">#&gt; 1 /tmp/RtmpmRAW4Q/cryptR_vignette_1b3f51ce5811/output/persons_crypt.csv   TRUE</span></span>
 <span><span class="co">#&gt;   size_bytes                                                           sha256</span></span>
 <span><span class="co">#&gt; 1        614 b486135ce0e87616e4b447ce9bc8185acdc8c286dc310c8de5a98026701037e9</span></span>
 <span><span class="co">#&gt;   success error_message</span></span>
@@ -320,7 +345,7 @@ session’s environment, writes the recap log, and tears down any daemons
 timestamp:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="va">output_dir</span>, pattern <span class="op">=</span> <span class="st">"^log_crypt_r_.*\\.xlsx$"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "log_crypt_r_20260424_202512.xlsx"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "log_crypt_r_20260527_194856.xlsx"</span></span></code></pre></div>
 <p>An auto-watcher (based on <code><a href="https://later.r-lib.org/reference/later.html" class="external-link">later::later()</a></code>) writes the
 same log as soon as the last mirai task resolves, so a manual
 <code><a href="../reference/cryptR_collect.html">cryptR_collect()</a></code> call is not strictly required for the log

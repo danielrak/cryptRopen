@@ -20,7 +20,7 @@ in any number, following users's needs."><!-- mathjax --><script src="https://cd
       </button>
       <span class="navbar-brand">
         <a class="navbar-link" href="../index.html">cryptRopen</a>
-        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.0</span>
+        <span class="version label label-default" data-toggle="tooltip" data-placement="bottom" title="">0.1.1</span>
       </span>
     </div>
 
@@ -88,7 +88,9 @@ It must be an expression and not a character vector.</p></dd>
 
 
 <dt id="arg-vars-to-encrypt">vars_to_encrypt<a class="anchor" aria-label="anchor" href="#arg-vars-to-encrypt"></a></dt>
-<dd><p>Character vector of variables to encrypt.</p></dd>
+<dd><p>Character vector of variables to encrypt.
+Must resolve to at least one non-empty entry after trimming and
+dropping <code>NA</code> / blank values; an empty vector raises an error.</p></dd>
 
 
 <dt id="arg-vars-to-remove">vars_to_remove<a class="anchor" aria-label="anchor" href="#arg-vars-to-remove"></a></dt>
@@ -127,6 +129,12 @@ private environment — see <code><a href="get_correspondence_tables.html">get_c
     <p>Side-effect note: when <code>correspondence_table = TRUE</code>, the resulting
 table is stored in a package-private environment (no more pollution
 of <code><a href="https://rdrr.io/r/base/environment.html" class="external-link">globalenv()</a></code>). Retrieve it with <code><a href="get_correspondence_tables.html">get_correspondence_tables()</a></code>.</p>
+<p><code>crypt_data()</code> is <strong>fail-fast</strong> on an empty <code>vars_to_encrypt</code>: it
+raises an explicit error rather than silently returning the input
+unchanged. For a "drop columns / convert format" workflow on a
+batch of files described by an Excel mask, use <code><a href="crypt_r.html">crypt_r()</a></code> with a
+blank <code>vars_to_encrypt</code> cell — that path is legitimate. On a single
+in-memory object, use <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">dplyr::select()</a></code> / <code><a href="http://gesistsa.github.io/rio/reference/export.html" class="external-link">rio::export()</a></code> directly.</p>
     </div>
     <div id="see-also">
     <h2>See also</h2>
