@@ -52,15 +52,8 @@
   encrypted_stem <- stringr::str_remove(encrypted_file, "\\..*$")
   encrypted_file_path <- file.path(output_path, encrypted_file)
 
-  vars_to_encrypt <- mask_row[["vars_to_encrypt"]] %>%
-    stringr::str_split(",") %>%
-    unlist() %>%
-    stringr::str_trim()
-
-  vars_to_remove <- mask_row[["vars_to_remove"]] %>%
-    stringr::str_split(",") %>%
-    unlist() %>%
-    stringr::str_trim()
+  vars_to_encrypt <- .parse_mask_vars(mask_row[["vars_to_encrypt"]])
+  vars_to_remove  <- .parse_mask_vars(mask_row[["vars_to_remove"]])
 
   # Holds the final in-memory dataset (post-assemble, post-drop) so the
   # export and inspect blocks below can re-use it without reading the
@@ -140,7 +133,7 @@
 
       # Drop the original unencrypted columns, then user-specified removes.
       full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_encrypt))
-      if (!all(is.na(vars_to_remove))) {
+      if (length(vars_to_remove) > 0L) {
         full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_remove))
       }
 

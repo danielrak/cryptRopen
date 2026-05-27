@@ -66,7 +66,7 @@
     dplyr::select(chunk, dplyr::all_of(non_enc_cols))
   )
 
-  if (!all(is.na(vars_to_remove))) {
+  if (length(vars_to_remove) > 0L) {
     to_drop <- intersect(vars_to_remove, names(out_chunk))
     if (length(to_drop) > 0L) {
       out_chunk <- dplyr::select(out_chunk, -dplyr::all_of(to_drop))
