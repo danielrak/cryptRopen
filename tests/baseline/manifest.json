@@ -1,79 +1,79 @@
 {
-  "package_version": "0.0.0.9000",
-  "generated_at": "2026-04-23T06:23:58Z",
+  "package_version": "0.1.0",
+  "generated_at": "2026-05-27T11:30:50Z",
   "crypt_vector": [
     {
       "name": "ascii_simple",
       "output": "crypt_vector/ascii_simple.rds",
-      "sha256": "7d62112b8d8335b222cb537c30fc1b2cfeb3a82433b128de3f55cb309e524af2"
+      "sha256": "415933cbb9747ee9261690a51aaed1c5fc71b4edeb8acc31f4ee5688ceb0d60d"
     },
     {
       "name": "with_na_and_empty",
       "output": "crypt_vector/with_na_and_empty.rds",
-      "sha256": "c633a64c9a58b6d197f94e7132ba778db42424c8be4d0147eb16c1ad2e9b8044"
+      "sha256": "3b315f2477aab5ea62f04f01c644e463a7156e7811c555f7308bae71291909cf"
     },
     {
       "name": "leading_trailing_spaces",
       "output": "crypt_vector/leading_trailing_spaces.rds",
-      "sha256": "d23bd2ccc103ed6b1b7c5df004e2d66dc3cdb1bf6cabaa7a6fc37dda3ab1a0bc"
+      "sha256": "69676b7604bfbcbbfe97a305657f71bec1318b8d8f74c729fdcb19e5f0ddaaad"
     },
     {
       "name": "internal_spaces",
       "output": "crypt_vector/internal_spaces.rds",
-      "sha256": "bba7a06e62168cec3544e3785a88061d9dd451be092f328185cbbe59ef44b7db"
+      "sha256": "f747565ee18acbea49a355479cf6134c018adccb9e7221b763dbc9ef0ce937c3"
     },
     {
       "name": "mixed_case",
       "output": "crypt_vector/mixed_case.rds",
-      "sha256": "217709b3c7a098fadf16a9dd720d81cf174ee556021d0f351d6364d9007aecbc"
+      "sha256": "2c352ef1820529303a08cc65448097b44920fde55f0491423c1c58f470ab7893"
     },
     {
       "name": "unicode",
       "output": "crypt_vector/unicode.rds",
-      "sha256": "d5c5b62f6c0c3e63a1b956d60aa04f65e34401b5fde430145798b94bd1a8e769"
+      "sha256": "0a191cc1e81aa31ff72a90c22c45ef7de59b85ae8917138919f962ca18e5107f"
     },
     {
       "name": "numeric_vector",
       "output": "crypt_vector/numeric_vector.rds",
-      "sha256": "7d62112b8d8335b222cb537c30fc1b2cfeb3a82433b128de3f55cb309e524af2"
+      "sha256": "415933cbb9747ee9261690a51aaed1c5fc71b4edeb8acc31f4ee5688ceb0d60d"
     },
     {
       "name": "date_vector",
       "output": "crypt_vector/date_vector.rds",
-      "sha256": "4b1a41fea5dec9e9f876ddb3c81372642832feaff3a3f3a61b5a7913c1502af7"
+      "sha256": "42ecac64fe007519c82aa4f8cce778ce1750f4f9fe7f91a872b4c4a3c35ce535"
     },
     {
       "name": "length_one",
       "output": "crypt_vector/length_one.rds",
-      "sha256": "ca94b131312db5c63c1c987ab50b9db5f0d11206304e700dc27f38ae4725c8ab"
+      "sha256": "0ba2f7a6760c4f0255ce2c52f27578ea06ec44e3900776328fe815f46e1eb7cd"
     },
     {
       "name": "algo_sha1",
       "output": "crypt_vector/algo_sha1.rds",
-      "sha256": "4e6ef791315825cff2bcc64a8a8277447e98458bf1326d4d2c819191149c4e4c"
+      "sha256": "9fa45c8f1312328c5ccdff229770fc67e00b66f482a84444ae36f219b9585ac3"
     },
     {
       "name": "algo_sha256",
       "output": "crypt_vector/algo_sha256.rds",
-      "sha256": "477063500a0361327e68f44e17eb944a04e9f748fdbca27eafda970450873e08"
+      "sha256": "be488b02b6f248bd0129ab58424275f52d354ef0bc67d49e5ae4010d46f255cc"
     },
     {
       "name": "special_key",
       "output": "crypt_vector/special_key.rds",
-      "sha256": "024f569b2592bb70e29e91a87958114ea35406c246a0e25b496125cf28af9bda"
+      "sha256": "613cbf968425e893827dda6291d2497828df45784815bafc122b01c7edbb2931"
     }
   ],
   "crypt_data": [
     {
       "name": "readme_example_no_tc",
       "output": "crypt_data/readme_example_no_tc.rds",
-      "sha256": "2a43bfa0a2a0dd8aa07719bb4e43e05a875c6d48e49b09312812c324a69a0ad7",
+      "sha256": "45b26b38ca6559144db29a09b52c4438ec18d7d94b4028d9ff5c0bb344f6e7fe",
       "tc_names": []
     },
     {
       "name": "with_tc",
       "output": "crypt_data/with_tc.rds",
-      "sha256": "4650e5a24a234fc19e9b25dd9b4347261949cc2433a75b6467f9694b1e363f4f",
+      "sha256": "866381fa7f5b71972379b7b1bd50770fe85a57bca7bfd3b0a5357ab461c34c84",
       "tc_names": [
         "tc_crypt_readme_mtcars"
       ]
@@ -81,25 +81,25 @@
     {
       "name": "multi_vars",
       "output": "crypt_data/multi_vars.rds",
-      "sha256": "333adf5c12654ac5b3a8aa0ecc8c1303552686d708926ce227c9ec75ebb37bd7",
+      "sha256": "c1423c0a62a8359710de708f69de0b4465ddd9b3ed176329103a74a8f1e18774",
       "tc_names": []
     },
     {
       "name": "vars_to_remove_null",
       "output": "crypt_data/vars_to_remove_null.rds",
-      "sha256": "95a637f6040369653653ae5e5bc0622ee00192dbe010388b4a81495b592f11de",
+      "sha256": "60416a5c1ac8dc3741fd8f9bf60d6f0bf8fad21fce4120a13ddcaf97e942bbac",
       "tc_names": []
     },
     {
       "name": "dedup_name_collision",
       "output": "crypt_data/dedup_name_collision.rds",
-      "sha256": "6696419ab3c28def2ef94641054c0fd98ae958ba3a323518a787fa813d9adc67",
+      "sha256": "08a2907ec5c48d437e08aefe3963712a5a8a36775aa2b460ec4d5263fe2e3454",
       "tc_names": []
     },
     {
       "name": "trim_and_na_chars",
       "output": "crypt_data/trim_and_na_chars.rds",
-      "sha256": "d7e370aba7eabece4b2219359138633fc4b4d3785a202bd1144471bc74b0053c",
+      "sha256": "522c5e7e5a8abbf07db77b6ec084eaf6e2a89548791d1300d28595b9d0abce7f",
       "tc_names": []
     }
   ],
@@ -114,7 +114,7 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "c65d09da8e3b479df695db309e008587976514c5e85147939475ba29f01d4eed"
+          "sha256": "78f902133a7f2574e75ca25882a73dfa680e30f6bfad93c83e6810e77b801234"
         },
         {
           "dir": "output",
@@ -138,7 +138,7 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "c65d09da8e3b479df695db309e008587976514c5e85147939475ba29f01d4eed"
+          "sha256": "78f902133a7f2574e75ca25882a73dfa680e30f6bfad93c83e6810e77b801234"
         },
         {
           "dir": "output",
@@ -157,17 +157,17 @@
         {
           "dir": "output",
           "relpath": "inspect_orders_crypt.parquet.xlsx",
-          "sha256": "309b36c94b90e41300db96ceca489b490e637f926af28d19c0f5aa81098a3086"
+          "sha256": "9ff90c948f06a693202eee46c930560725ee4453131a8c077e9964d5d99fc886"
         },
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "c65d09da8e3b479df695db309e008587976514c5e85147939475ba29f01d4eed"
+          "sha256": "78f902133a7f2574e75ca25882a73dfa680e30f6bfad93c83e6810e77b801234"
         },
         {
           "dir": "output",
           "relpath": "inspect_products_crypt.rds.xlsx",
-          "sha256": "25ef869763048c21dd5c38cac23d18ede9a175ccb56e58fa5565eabc6d46a51d"
+          "sha256": "9ae1ce40eea6ca148232f57de4486e4a1e3a662642f8ed42f0c5e5fa60e0218c"
         },
         {
           "dir": "output",
@@ -182,7 +182,7 @@
         {
           "dir": "output",
           "relpath": "products_crypt.rds",
-          "sha256": "576244cf289c55b57c63cb32b72ad43d6d09160fa749a627a486e6cf0a457211"
+          "sha256": "9b95861a2e25a8637eb69027453a606df818b692362de60922f867a02932dc5e"
         },
         {
           "dir": "intermediate",
@@ -197,7 +197,7 @@
         {
           "dir": "intermediate",
           "relpath": "tc_products_crypt.parquet",
-          "sha256": "d389b7e44acbb02433405890fb160ff97666aef42a2f07eaa082555df2e3963e"
+          "sha256": "b6d9ef96ff769685c93da1a8911994b6c9fa0bffd41c5fac537d640c90c4ec5a"
         }
       ]
     },
@@ -211,12 +211,12 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "bbf2e43c9b668b55c6bd8cd209722ac6c66b3af22aa37d00ba215293f6a2e0dd"
+          "sha256": "fa401eae327e9157bea004041d598ba51a89f9a75a0de21fd78cdcfe167eb8b9"
         },
         {
           "dir": "output",
           "relpath": "inspect_persons_with_na_crypt.csv.xlsx",
-          "sha256": "078b44bd705c952a3ef99637cacd2290d941425360fe8127bad0403bfd8d514f"
+          "sha256": "48661abdc0e9219ba46a837e98048657aeb19f21223baaf8e929f48ca421f517"
         },
         {
           "dir": "output",
@@ -255,12 +255,12 @@
         {
           "dir": "output",
           "relpath": "inspect_DUPL1_out_crypt.csv.xlsx",
-          "sha256": "078b44bd705c952a3ef99637cacd2290d941425360fe8127bad0403bfd8d514f"
+          "sha256": "48661abdc0e9219ba46a837e98048657aeb19f21223baaf8e929f48ca421f517"
         },
         {
           "dir": "output",
           "relpath": "inspect_out_crypt.csv.xlsx",
-          "sha256": "bbf2e43c9b668b55c6bd8cd209722ac6c66b3af22aa37d00ba215293f6a2e0dd"
+          "sha256": "fa401eae327e9157bea004041d598ba51a89f9a75a0de21fd78cdcfe167eb8b9"
         },
         {
           "dir": "output",
@@ -289,7 +289,7 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "b3177667f185f914ece0ad6af60b055a63d900bb26e2d6f37de3888e8f8176bb"
+          "sha256": "bf3350b381c8183cf69557ec7f9b0955ddb7eefee0bec60304da96bc606b0033"
         },
         {
           "dir": "output",
@@ -313,12 +313,12 @@
         {
           "dir": "output",
           "relpath": "inspect_persons_simple_crypt.csv.xlsx",
-          "sha256": "cf983ff8a308075b6033bb1b853065966e6cc301bdc96ba8402cfe4172c8cc2c"
+          "sha256": "94be09f3f776ba4d58a2416c80c64fbfa5afc76bdc325e9847adcf713f2fc610"
         },
         {
           "dir": "output",
           "relpath": "inspect_products_crypt.rds.xlsx",
-          "sha256": "5ee733fc159f27ee8971ccf25778a910d9766545e07f9a73f45d90a305f23954"
+          "sha256": "d1393cd6b09c85898da55cd1db0bf4eee30a39c3c5d1b216d8873033f1d49ac7"
         },
         {
           "dir": "output",
@@ -328,7 +328,7 @@
         {
           "dir": "output",
           "relpath": "products_crypt.rds",
-          "sha256": "576244cf289c55b57c63cb32b72ad43d6d09160fa749a627a486e6cf0a457211"
+          "sha256": "9b95861a2e25a8637eb69027453a606df818b692362de60922f867a02932dc5e"
         },
         {
           "dir": "intermediate",
@@ -338,7 +338,7 @@
         {
           "dir": "intermediate",
           "relpath": "tc_products_crypt.parquet",
-          "sha256": "d389b7e44acbb02433405890fb160ff97666aef42a2f07eaa082555df2e3963e"
+          "sha256": "b6d9ef96ff769685c93da1a8911994b6c9fa0bffd41c5fac537d640c90c4ec5a"
         }
       ]
     },
@@ -352,17 +352,17 @@
         {
           "dir": "output",
           "relpath": "employees_crypt.xlsx",
-          "sha256": "4dda91a2ea8c4375b512fb80c272be54aed0eba21f34b0c86c1b84cdbf2430ec"
+          "sha256": "ac4c1fee1ac8ae7192c5312d3c74c3fca38ba13a22c138dff35f88b5fb29ac5c"
         },
         {
           "dir": "output",
           "relpath": "inspect_employees_crypt.xlsx.xlsx",
-          "sha256": "6389785e5a8db8d9f72a2edc881dee358a5ecbfda87ea3ae0c12d65165309c75"
+          "sha256": "2aa9cece20fd305ed48421af333f60b2ceb51846a3eb074dbe9cdad7a9ea4246"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_employees_crypt.parquet",
-          "sha256": "074db6849c0915ac51f1f94a70423e45670336e9751fcc6eb60e8ef797dbeb3d"
+          "sha256": "e34386577d95ca6702b3aada9dbbf9a665effc00da0c8ca961acb1a75928fe3f"
         }
       ]
     },
@@ -376,7 +376,7 @@
         {
           "dir": "output",
           "relpath": "inspect_orders_crypt.parquet.xlsx",
-          "sha256": "2d5d6ddd37584fb905ee77ccb59607b05f168a22cb6be5d44275ac2f89d0d4d9"
+          "sha256": "e763ecef2fa4bd5f0066e7be695c021886d01efb86241c7582a5e69f8f164fd8"
         },
         {
           "dir": "output",
@@ -400,17 +400,17 @@
         {
           "dir": "output",
           "relpath": "inspect_products_crypt.rds.xlsx",
-          "sha256": "ca8a3dfd65a0b2a552ec95dc869825f2952e21618d92d43d0ee587898e20b41f"
+          "sha256": "d1393cd6b09c85898da55cd1db0bf4eee30a39c3c5d1b216d8873033f1d49ac7"
         },
         {
           "dir": "output",
           "relpath": "products_crypt.rds",
-          "sha256": "576244cf289c55b57c63cb32b72ad43d6d09160fa749a627a486e6cf0a457211"
+          "sha256": "9b95861a2e25a8637eb69027453a606df818b692362de60922f867a02932dc5e"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_products_crypt.parquet",
-          "sha256": "d389b7e44acbb02433405890fb160ff97666aef42a2f07eaa082555df2e3963e"
+          "sha256": "b6d9ef96ff769685c93da1a8911994b6c9fa0bffd41c5fac537d640c90c4ec5a"
         }
       ]
     },
@@ -424,17 +424,17 @@
         {
           "dir": "output",
           "relpath": "inspect_special_chars_crypt.xlsx.xlsx",
-          "sha256": "2636a99e4e24fd1578ca4866155027cd5a27e2904c5c13a31af8441c00072fac"
+          "sha256": "d70d0b5ab384d79dd888066af7d6fae4c0498fa755409cc220f8e0bf68230402"
         },
         {
           "dir": "output",
           "relpath": "special_chars_crypt.xlsx",
-          "sha256": "7531626c1fb8810a03f79c6873c2553cd023778eff882f02e5347c5232cad7d1"
+          "sha256": "6e8d47d249ac1d2d55a58e4a6bdb0c89f9bd7626ef3fd0cfacce132bcb70ee15"
         },
         {
           "dir": "intermediate",
           "relpath": "tc_special_chars_crypt.parquet",
-          "sha256": "477d5a217ac68161b06b90e7b340ae8f5298a7e00b228ff9420e952811b1ff52"
+          "sha256": "e0d0307abc32579294b6c5fa10ab540adce818788deace2e6b6a97faae8bcf22"
         }
       ]
     },
@@ -448,7 +448,7 @@
         {
           "dir": "output",
           "relpath": "inspect_orders_large_crypt.parquet.xlsx",
-          "sha256": "b89882c1d377215ae55fd4899d093849dac6dab36859342f965f01e3332a7053"
+          "sha256": "e12438ac852db710bc05fa48d302224c2d384630a326529334513f5ab6b8955f"
         },
         {
           "dir": "output",
@@ -459,6 +459,44 @@
           "dir": "intermediate",
           "relpath": "tc_orders_large_crypt.parquet",
           "sha256": "5651d311b3418376dc0f60675c92a743c55b3480821cd3c32818341a46988ac8"
+        }
+      ]
+    },
+    {
+      "name": "empty_vars_remove_csv",
+      "mask": "mask_empty_vars_remove.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_persons_simple_purged.csv.xlsx",
+          "sha256": "5a8d40044bb9d17c4fac39905bef15052ba2ab48ac68345ef67c4cc30fc7fa71"
+        },
+        {
+          "dir": "output",
+          "relpath": "persons_simple_purged.csv",
+          "sha256": "7316b1f0a61ee4d90889f6be300bfa762b4a703e729d741924c0646a28e2c695"
+        }
+      ]
+    },
+    {
+      "name": "empty_vars_copy_rds",
+      "mask": "mask_empty_vars_copy.xlsx",
+      "correspondence_table": true,
+      "encryption_key": "baseline_key_2026",
+      "algorithm": "md5",
+      "files": [
+        {
+          "dir": "output",
+          "relpath": "inspect_products_copy.rds.xlsx",
+          "sha256": "d80f6971db96aacc038ffe80e5f808a39ebff8cd8d324344ddc42e574d9f9d88"
+        },
+        {
+          "dir": "output",
+          "relpath": "products_copy.rds",
+          "sha256": "74ea543e609d7f53e82760d6738c0f5fe123940bc7b2c71986ccca2711bf5549"
         }
       ]
     }

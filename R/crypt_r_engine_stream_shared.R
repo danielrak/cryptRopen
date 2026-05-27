@@ -37,36 +37,45 @@
     })
   )
 
-  # 2. Encrypt each requested variable.
-  crypted <- purrr::map(vars_to_encrypt, \(v) {
-    crypt_vector(
-      vector = chunk[[v]], key = encryption_key,
-      algo = algorithm
-    )
-  })
-  names(crypted) <- paste0(vars_to_encrypt, "_crypt")
-  crypted_df <- dplyr::as_tibble(crypted)
-
-  # 3. Per-chunk correspondence rows (if requested).
-  tc_chunk <- NULL
-  if (correspondence_table) {
-    tc_chunk <- dplyr::distinct(
-      dplyr::bind_cols(
-        dplyr::select(chunk, dplyr::all_of(vars_to_encrypt)),
-        crypted_df
+  # 2. Encrypt each requested variable. When none is requested
+  #    (empty vars_to_encrypt — a legitimate "copy / convert only"
+  #    row), skip encryption entirely: no _crypt columns, no TC.
+  crypted_df <- NULL
+  tc_chunk   <- NULL
+  if (length(vars_to_encrypt) > 0L) {
+    crypted <- purrr::map(vars_to_encrypt, \(v) {
+      crypt_vector(
+        vector = chunk[[v]], key = encryption_key,
+        algo = algorithm
       )
+    })
+    names(crypted) <- paste0(vars_to_encrypt, "_crypt")
+    crypted_df <- dplyr::as_tibble(crypted)
+
+    # 3. Per-chunk correspondence rows (if requested).
+    if (correspondence_table) {
+      tc_chunk <- dplyr::distinct(
+        dplyr::bind_cols(
+          dplyr::select(chunk, dplyr::all_of(vars_to_encrypt)),
+          crypted_df
+        )
+      )
+    }
+  }
+
+  # 4. Assemble output: <var>_crypt first (if any), then non-encrypted
+  #    columns in input order; finally drop vars_to_remove.
+  non_enc_cols <- setdiff(names(chunk), vars_to_encrypt)
+  out_chunk <- if (is.null(crypted_df)) {
+    dplyr::select(chunk, dplyr::all_of(non_enc_cols))
+  } else {
+    dplyr::bind_cols(
+      crypted_df,
+      dplyr::select(chunk, dplyr::all_of(non_enc_cols))
     )
   }
 
-  # 4. Assemble output: <var>_crypt first, non-encrypted in input order,
-  #    then vars_to_remove dropped.
-  non_enc_cols <- setdiff(names(chunk), vars_to_encrypt)
-  out_chunk <- dplyr::bind_cols(
-    crypted_df,
-    dplyr::select(chunk, dplyr::all_of(non_enc_cols))
-  )
-
-  if (!all(is.na(vars_to_remove))) {
+  if (length(vars_to_remove) > 0L) {
     to_drop <- intersect(vars_to_remove, names(out_chunk))
     if (length(to_drop) > 0L) {
       out_chunk <- dplyr::select(out_chunk, -dplyr::all_of(to_drop))
