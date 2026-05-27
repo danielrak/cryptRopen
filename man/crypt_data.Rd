@@ -19,7 +19,9 @@ crypt_data(
 to encrypt at least one variable.
 It must be an expression and not a character vector.}
 
-\item{vars_to_encrypt}{Character vector of variables to encrypt.}
+\item{vars_to_encrypt}{Character vector of variables to encrypt.
+Must resolve to at least one non-empty entry after trimming and
+dropping \code{NA} / blank values; an empty vector raises an error.}
 
 \item{vars_to_remove}{Character vector of variables to remove.}
 
@@ -51,6 +53,13 @@ in any number, following users's needs.
 Side-effect note: when \code{correspondence_table = TRUE}, the resulting
 table is stored in a package-private environment (no more pollution
 of \code{globalenv()}). Retrieve it with \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+
+\code{crypt_data()} is \strong{fail-fast} on an empty \code{vars_to_encrypt}: it
+raises an explicit error rather than silently returning the input
+unchanged. For a "drop columns / convert format" workflow on a
+batch of files described by an Excel mask, use \code{\link[=crypt_r]{crypt_r()}} with a
+blank \code{vars_to_encrypt} cell — that path is legitimate. On a single
+in-memory object, use \code{\link[dplyr:select]{dplyr::select()}} / \code{\link[rio:export]{rio::export()}} directly.
 }
 \examples{
 crypt_data(
