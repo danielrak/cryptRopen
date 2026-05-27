@@ -76,6 +76,15 @@ caller inspects / waits / finalises the job through the companion
 API (see \emph{Value} and \emph{See Also}). A per-row failure does not
 interrupt the other rows — the failure is captured on the
 corresponding task and surfaces via \code{\link[=cryptR_status]{cryptR_status()}}.
+
+\strong{Empty \code{vars_to_encrypt} cell.} A mask row whose \code{vars_to_encrypt}
+cell is blank (empty, \code{NA}, or whitespace-only) is legitimate and
+means "copy / convert this file, applying \code{vars_to_remove} if any,
+encrypting nothing." The output file is written under \code{output_path}
+(re-encoded to the requested output format), no \verb{_crypt} columns are
+emitted, and \strong{no \code{tc_*.parquet}} is produced. The recap log
+records \code{success = TRUE} and \code{tc_name = NA} for such rows.
+\code{crypt_data()} does \strong{not} support this — see its documentation.
 }
 \seealso{
 \code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=cryptR_wait]{cryptR_wait()}}, \code{\link[=cryptR_collect]{cryptR_collect()}},

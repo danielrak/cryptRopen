@@ -9,10 +9,19 @@
 #' table is stored in a package-private environment (no more pollution
 #' of `globalenv()`). Retrieve it with [get_correspondence_tables()].
 #'
+#' `crypt_data()` is **fail-fast** on an empty `vars_to_encrypt`: it
+#' raises an explicit error rather than silently returning the input
+#' unchanged. For a "drop columns / convert format" workflow on a
+#' batch of files described by an Excel mask, use [crypt_r()] with a
+#' blank `vars_to_encrypt` cell — that path is legitimate. On a single
+#' in-memory object, use [dplyr::select()] / [rio::export()] directly.
+#'
 #' @param loaded_dataset The dataset for which user wants
 #' to encrypt at least one variable.
 #' It must be an expression and not a character vector.
 #' @param vars_to_encrypt Character vector of variables to encrypt.
+#' Must resolve to at least one non-empty entry after trimming and
+#' dropping `NA` / blank values; an empty vector raises an error.
 #' @param vars_to_remove Character vector of variables to remove.
 #' @param encryption_key Character vector.
 #' @param algorithm Algorithm to use.
