@@ -11,6 +11,15 @@
 #' interrupt the other rows — the failure is captured on the
 #' corresponding task and surfaces via [cryptR_status()].
 #'
+#' **Empty `vars_to_encrypt` cell.** A mask row whose `vars_to_encrypt`
+#' cell is blank (empty, `NA`, or whitespace-only) is legitimate and
+#' means "copy / convert this file, applying `vars_to_remove` if any,
+#' encrypting nothing." The output file is written under `output_path`
+#' (re-encoded to the requested output format), no `_crypt` columns are
+#' emitted, and **no `tc_*.parquet`** is produced. The recap log
+#' records `success = TRUE` and `tc_name = NA` for such rows.
+#' `crypt_data()` does **not** support this — see its documentation.
+#'
 #' @param mask_folder_path Folder path of the excel mask.
 #' @param mask_file File name (with extension) of the excel mask.
 #' @param output_path Folder path where the encrypted datasets

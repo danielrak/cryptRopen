@@ -1,3 +1,61 @@
+# cryptRopen 0.1.1
+
+## Bug fixes
+
+* `crypt_r()` no longer crashes on mask rows with an **empty**
+  `vars_to_encrypt` cell. Such rows are now treated as legitimate
+  "copy / convert only" instructions: the input file is written to
+  `output_path` as-is (re-encoded to the requested output format),
+  `vars_to_remove` is applied if non-empty, no `_crypt` columns are
+  emitted, and no `tc_*.parquet` is produced. The recap log records
+  `success = TRUE` and `tc_name = NA` for such rows. Previously the
+  three engines tried to build a zero-length `_crypt` data frame and
+  failed at the assembly step with "Can't recycle `..1` (size 0) to
+  match `..2`" (more visible at CSV streaming scale).
+
+## Improvements
+
+* New private helper `.parse_mask_vars()` centralises the
+  `str_split(",") %>% unlist() %>% str_trim()` idiom that the three
+  engines duplicated. It also normalises `NA` / `""` / whitespace-only
+  / list-internal blanks (`"a,,b"`) to `character(0)` / clean items,
+  fixing a latent edge case in `vars_to_remove` as well.
+* `.transform_stream_chunk()` and `.process_mask_row_in_memory()` now
+  short-circuit encryption + correspondence-table construction when
+  `vars_to_encrypt` is empty, while still applying `vars_to_remove`.
+
+## Breaking-ish change
+
+* `crypt_data()` is now **fail-fast** on an empty `vars_to_encrypt`:
+  it raises an explicit error pointing the user to `dplyr` / `rio` for
+  plain column dropping or format conversion. Previously it errored
+  too, but later and with a misleading message ("All indicated
+  `vars_to_encrypt` must be effectively a variable name"). The
+  asymmetry with `crypt_r()` is intentional: `crypt_r()` is driven by
+  a hand-filled spreadsheet describing a heterogeneous batch, where a
+  "copy / purge only" row is a reasonable use case; `crypt_data()` is
+  a direct call on a loaded object, where calling it with nothing to
+  encrypt is a misuse and silently succeeding would hide a mistake.
+* Side effect: `crypt_data()` now trims `vars_to_encrypt` **before**
+  the membership check, so a typo like `" mpg "` (with surrounding
+  whitespace) is now silently accepted instead of producing the "All
+  indicated `vars_to_encrypt`…" error. The historical trim happening
+  later in the function already absorbed those whitespace cases on
+  successful runs, so this aligns the membership check with the rest
+  of the pipeline.
+
+## Tests
+
+* Two new baseline cases lock the new `crypt_r()` empty-vars
+  behaviour: `empty_vars_remove_csv` (purge-only CSV) and
+  `empty_vars_copy_rds` (verbatim copy of an RDS). Their
+  `intermediate/` directories are empty by contract, asserted by
+  `expect_setequal()` in `test-baseline.R`.
+* New `test-parse_mask_vars.R` covers the helper's edge cases (12
+  assertions).
+* `test-crypt_data.R` adds three `expect_error()` for the fail-fast
+  on `character(0)`, `""`, `c(NA_character_, "  ")`.
+
 # cryptRopen 0.1.0
 
 First public release milestone — closes the `refactor-v1` branch. No

@@ -1,6 +1,6 @@
 Package: cryptRopen
 Title: Industrialized Datasets Encryption (Open-Source Version)
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: 
     person("Daniel", "Rakotomalala", , "rakdanielh@gmail.com", role = c("aut", "cre"))
 Description: This package provides a framework to encrypt variables from

@@ -46,12 +46,31 @@ encrypt and where. Required columns:
 | `folder_path`     | Directory holding the input file.                                         |
 | `file`            | Input file name (with extension). `rio`-readable formats supported.       |
 | `encrypted_file`  | Output file name (with extension). Parquet or CSV recommended.            |
-| `vars_to_encrypt` | Comma-separated list of columns in the input file to hash.                |
+| `vars_to_encrypt` | Comma-separated list of columns in the input file to hash. May be empty — see *Copy-only rows* below. |
 | `vars_to_remove` | Comma-separated list of columns to drop from the output (may be empty).    |
 | `to_encrypt`      | `"X"` to include the row in the run, anything else to skip it.            |
 
 Duplicated `encrypted_file` values are automatically disambiguated with
 a `DUPL<n>_` prefix, so the output paths stay unique.
+
+### Copy-only rows
+
+A mask row whose `vars_to_encrypt` cell is **empty** (blank, `NA`, or
+whitespace-only) is legitimate. It means "process this file, encrypting
+nothing":
+
+* the input file is written to `output_path` re-encoded to the output
+  format implied by `encrypted_file` (e.g. csv → csv, parquet → parquet);
+* `vars_to_remove` is still applied, so an empty-vars row with a
+  non-empty `vars_to_remove` is a clean "purge these columns and copy"
+  instruction;
+* no `_crypt` columns are emitted, no `tc_*.parquet` is written to
+  `intermediate_path`, and the recap log records `success = TRUE` with
+  `tc_name = NA` for the row.
+
+`crypt_data()` does **not** support this: calling it without anything
+to encrypt is treated as misuse and raises an explicit error pointing
+to `dplyr` / `rio` for plain column dropping or format conversion.
 
 ## A complete example
 
