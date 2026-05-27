@@ -299,6 +299,26 @@ make_mask_large_parquet <- function(datasets_dir) {
   )
 }
 
+make_mask_empty_vars_remove <- function(datasets_dir) {
+  # Legitimate "purge only" row: no vars_to_encrypt, drop a column.
+  mask_row(
+    datasets_dir, "persons_simple.csv", "X",
+    "persons_simple_purged.csv",
+    vars_to_encrypt = NA,
+    vars_to_remove = "city"
+  )
+}
+
+make_mask_empty_vars_copy <- function(datasets_dir) {
+  # Legitimate "copy as-is" row: nothing to encrypt, nothing to remove.
+  mask_row(
+    datasets_dir, "products.rds", "X",
+    "products_copy.rds",
+    vars_to_encrypt = NA,
+    vars_to_remove = NA
+  )
+}
+
 
 write_all_masks <- function(masks_dir, datasets_dir) {
   dir.create(masks_dir, recursive = TRUE, showWarnings = FALSE)
@@ -313,7 +333,9 @@ write_all_masks <- function(masks_dir, datasets_dir) {
     mask_parquet_input  = make_mask_parquet_input,
     mask_rds_input      = make_mask_rds_input,
     mask_special_chars  = make_mask_special_chars,
-    mask_large_parquet  = make_mask_large_parquet
+    mask_large_parquet  = make_mask_large_parquet,
+    mask_empty_vars_remove = make_mask_empty_vars_remove,
+    mask_empty_vars_copy   = make_mask_empty_vars_copy
   )
   for (nm in names(builders)) {
     writexl::write_xlsx(
@@ -569,6 +591,20 @@ crypt_r_cases <- list(
     name = "large_parquet_multichunk",
     mask = "mask_large_parquet.xlsx", correspondence_table = TRUE,
     chunk_size = 15000L
+  ),
+
+  # Empty vars_to_encrypt — legitimate "copy / convert only" rows.
+  # correspondence_table = TRUE is intentional: proves that even when
+  # TCs are requested, an empty-vars row produces no tc_*.parquet (no
+  # mapping to build). The expect_setequal() file-set assertion in
+  # test-baseline.R enforces this automatically.
+  list(
+    name = "empty_vars_remove_csv",
+    mask = "mask_empty_vars_remove.xlsx", correspondence_table = TRUE
+  ),
+  list(
+    name = "empty_vars_copy_rds",
+    mask = "mask_empty_vars_copy.xlsx", correspondence_table = TRUE
   )
 )
 
