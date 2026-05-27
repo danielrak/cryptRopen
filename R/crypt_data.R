@@ -48,6 +48,28 @@ crypt_data <- function(loaded_dataset,
   # First checks:
   vars <- names(loaded_dataset)
 
+  # Fail-fast: an empty / NA / whitespace-only `vars_to_encrypt` is a
+  # misuse — crypt_data() exists to encrypt. To merely drop columns or
+  # convert a file, the user should use dplyr / rio directly. Note that
+  # `crypt_r()` accepts the empty case (see mask-driven "copy / convert
+  # only" rows handled by the engines).
+  # Normalisation (trim + drop NA/empty) is applied here so the
+  # membership check below runs on a clean vector and absorbs the
+  # historical `str_trim()` previously sitting just above the encrypt
+  # loop.
+  vars_to_encrypt <- stringr::str_trim(vars_to_encrypt)
+  vars_to_encrypt <- vars_to_encrypt[
+    !is.na(vars_to_encrypt) & nchar(vars_to_encrypt) > 0L
+  ]
+  if (length(vars_to_encrypt) == 0L) {
+    stop(
+      "`vars_to_encrypt` must contain at least one variable name. ",
+      "crypt_data() is for encryption; to merely drop columns or ",
+      "convert a file, use dplyr / rio directly.",
+      call. = FALSE
+    )
+  }
+
   if (!all(vars_to_encrypt %in% vars)) {
     stop("All indicated vars_to_encrypt must be effectively a variable name.")
   }
@@ -72,9 +94,8 @@ crypt_data <- function(loaded_dataset,
       })
     )
 
-  # Encrypt:
-  vars_to_encrypt <- stringr::str_trim(vars_to_encrypt)
-
+  # Encrypt: (vars_to_encrypt has already been trimmed and validated
+  # non-empty at the top of the function).
   encrypted_data <- purrr::map(
     vars_to_encrypt, \(x)
     crypt_vector(loaded_dataset[[x]],

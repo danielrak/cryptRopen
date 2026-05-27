@@ -323,3 +323,35 @@ test_that("character columns are trimmed and blank strings become NA", {
 
   cryptRopen:::.clear_correspondence_tables()
 })
+
+# ---- Fail-fast on empty vars_to_encrypt ---------------------------------
+
+test_that("crypt_data() rejects empty vars_to_encrypt", {
+  expect_error(
+    crypt_data(
+      loaded_dataset = mtcars[1:3, ],
+      vars_to_encrypt = character(0),
+      encryption_key = "k", algorithm = "md5",
+      correspondence_table = FALSE
+    ),
+    "at least one variable"
+  )
+  expect_error(
+    crypt_data(
+      loaded_dataset = mtcars[1:3, ],
+      vars_to_encrypt = "",
+      encryption_key = "k", algorithm = "md5",
+      correspondence_table = FALSE
+    ),
+    "at least one variable"
+  )
+  expect_error(
+    crypt_data(
+      loaded_dataset = mtcars[1:3, ],
+      vars_to_encrypt = c(NA_character_, "  "),
+      encryption_key = "k", algorithm = "md5",
+      correspondence_table = FALSE
+    ),
+    "at least one variable"
+  )
+})
