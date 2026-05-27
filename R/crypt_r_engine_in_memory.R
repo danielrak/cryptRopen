@@ -84,22 +84,33 @@
 
       # Encrypt each requested variable. Names follow the historical
       # `<var>_crypt` convention — they no longer leak to globalenv().
-      crypted_list <- purrr::map(vars_to_encrypt, \(v) {
-        crypt_vector(
-          vector = raw_df[[v]],
-          key = encryption_key,
-          algo = algorithm
-        )
-      })
-      names(crypted_list) <- paste0(vars_to_encrypt, "_crypt")
+      # When `vars_to_encrypt` is empty (a legitimate "copy / convert
+      # only" mask row), skip encryption entirely: no `_crypt` columns,
+      # no correspondence table, no drop of the original columns.
+      crypted_df <- NULL
+      tc_name_local <- NA_character_
+      tc_df_local <- NULL
+      if (length(vars_to_encrypt) > 0L) {
+        crypted_list <- purrr::map(vars_to_encrypt, \(v) {
+          crypt_vector(
+            vector = raw_df[[v]],
+            key = encryption_key,
+            algo = algorithm
+          )
+        })
+        names(crypted_list) <- paste0(vars_to_encrypt, "_crypt")
 
-      # Assemble: `<var>_crypt` columns first (in `vars_to_encrypt` order),
-      # then original columns (in input order). Matches historical ordering.
-      crypted_df <- do.call(dplyr::bind_cols, crypted_list) %>%
-        stats::setNames(names(crypted_list))
+        # Assemble: `<var>_crypt` columns first (in `vars_to_encrypt` order),
+        # then original columns (in input order). Matches historical ordering.
+        crypted_df <- do.call(dplyr::bind_cols, crypted_list) %>%
+          stats::setNames(names(crypted_list))
+      }
 
-      full_df <- dplyr::bind_cols(crypted_df, raw_df) %>%
-        dplyr::as_tibble()
+      full_df <- if (is.null(crypted_df)) {
+        dplyr::as_tibble(raw_df)
+      } else {
+        dplyr::bind_cols(crypted_df, raw_df) %>% dplyr::as_tibble()
+      }
 
       # Correspondence table — stored in the package-private env AND on disk.
       # `rio::export()` is deliberately kept (not `arrow::write_parquet()`)
@@ -107,7 +118,9 @@
       # In a mirai daemon the `.cryptRopen_env` populated here is not
       # visible to the parent process; `cryptR_collect()` re-injects
       # `tc_df` (ships back in the return list) into the parent's env.
-      if (correspondence_table) {
+      # Skipped entirely when no variables were encrypted — an empty
+      # mask row produces no `tc_*.parquet`.
+      if (correspondence_table && !is.null(crypted_df)) {
         tc_name_local <- paste0("tc_", encrypted_stem)
         tc_df_local <- dplyr::select(full_df, dplyr::all_of(vars_to_encrypt)) %>%
           dplyr::bind_cols(crypted_df) %>%
@@ -131,8 +144,10 @@
         tc_df <- tc_df_local
       }
 
-      # Drop the original unencrypted columns, then user-specified removes.
-      full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_encrypt))
+      # Drop the original unencrypted columns (if any), then user-specified removes.
+      if (length(vars_to_encrypt) > 0L) {
+        full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_encrypt))
+      }
       if (length(vars_to_remove) > 0L) {
         full_df <- dplyr::select(full_df, -dplyr::all_of(vars_to_remove))
       }
