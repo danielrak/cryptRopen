@@ -37,15 +37,8 @@
   encrypted_stem <- stringr::str_remove(encrypted_file, "\\..*$")
   output_file_path <- file.path(output_path, encrypted_file)
 
-  vars_to_encrypt <- mask_row[["vars_to_encrypt"]] %>%
-    stringr::str_split(",") %>%
-    unlist() %>%
-    stringr::str_trim()
-
-  vars_to_remove <- mask_row[["vars_to_remove"]] %>%
-    stringr::str_split(",") %>%
-    unlist() %>%
-    stringr::str_trim()
+  vars_to_encrypt <- .parse_mask_vars(mask_row[["vars_to_encrypt"]])
+  vars_to_remove  <- .parse_mask_vars(mask_row[["vars_to_remove"]])
 
   tc_accum <- NULL
   first_chunk <- TRUE
