@@ -2,8 +2,9 @@
 
 ## cryptRopen 0.2.0
 
-This is the first public CRAN release. The 0.1.x line was published on
-GitHub only.
+This release closes the 0.1.x cycle and consolidates the package into an
+API-stable, CRAN-ready state. Submission to CRAN is planned once the
+package has been validated on production workloads.
 
 ### API stability
 

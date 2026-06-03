@@ -18,14 +18,7 @@ reversible encryption scheme for confidentiality-bearing data.
 
 ## Installation
 
-From CRAN:
-
-``` r
-
-install.packages("cryptRopen")
-```
-
-Development version from GitHub:
+Install the development version from GitHub:
 
 ``` r
 

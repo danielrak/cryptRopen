@@ -92,7 +92,7 @@ summary(job)
 #>   workers      : 1
 #>   elapsed      : 1.11 s
 #>   rows total   : 10
-#>   output_path  : /tmp/Rtmp7huNLr/cryptR_summary_example/output
+#>   output_path  : /tmp/RtmpoVdRJG/cryptR_summary_example/output
 #>   log_written  : TRUE
 
 unlink(work_dir, recursive = TRUE)

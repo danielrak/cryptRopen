@@ -248,9 +248,9 @@ run.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/cryptR_wait.html">cryptR_wait</a></span><span class="op">(</span><span class="va">job</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/cryptR_status.html">cryptR_status</a></span><span class="op">(</span><span class="va">job</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                      encrypted_file state error_message          start_time</span></span>
-<span><span class="co">#&gt; persons_crypt.csv persons_crypt.csv  done          &lt;NA&gt; 2026-06-03 21:22:17</span></span>
+<span><span class="co">#&gt; persons_crypt.csv persons_crypt.csv  done          &lt;NA&gt; 2026-06-03 21:35:09</span></span>
 <span><span class="co">#&gt;                              end_time duration_sec n_rows_processed</span></span>
-<span><span class="co">#&gt; persons_crypt.csv 2026-06-03 21:22:18     0.728658               10</span></span></code></pre></div>
+<span><span class="co">#&gt; persons_crypt.csv 2026-06-03 21:35:10    0.6796775               10</span></span></code></pre></div>
 <p>Columns: <code>encrypted_file</code>, <code>state</code>
 (<code>running</code> / <code>done</code> / <code>failed</code>),
 <code>error_message</code>, plus <code>start_time</code>,
@@ -270,9 +270,9 @@ resolves.</p>
 <span><span class="co">#&gt;     done       : 1</span></span>
 <span><span class="co">#&gt;     failed     : 0</span></span>
 <span><span class="co">#&gt;   workers      : 1</span></span>
-<span><span class="co">#&gt;   elapsed      : 1.20 s</span></span>
+<span><span class="co">#&gt;   elapsed      : 1.17 s</span></span>
 <span><span class="co">#&gt;   rows total   : 10</span></span>
-<span><span class="co">#&gt;   output_path  : /tmp/RtmpjfDzwk/cryptR_vignette_1d9c6290101f/output</span></span>
+<span><span class="co">#&gt;   output_path  : /tmp/RtmpgtYHsc/cryptR_vignette_1d76262e6b6c/output</span></span>
 <span><span class="co">#&gt;   log_written  : FALSE</span></span></code></pre></div>
 <p>Returns a compact object with task counts by state, elapsed seconds,
 active workers, total rows processed, output path, and the full status
@@ -287,7 +287,7 @@ data frame under <code>$status</code>.</p>
 <span><span class="co">#&gt;      encrypted_file</span></span>
 <span><span class="co">#&gt; 1 persons_crypt.csv</span></span>
 <span><span class="co">#&gt;                                                        output_file_path exists</span></span>
-<span><span class="co">#&gt; 1 /tmp/RtmpjfDzwk/cryptR_vignette_1d9c6290101f/output/persons_crypt.csv   TRUE</span></span>
+<span><span class="co">#&gt; 1 /tmp/RtmpgtYHsc/cryptR_vignette_1d76262e6b6c/output/persons_crypt.csv   TRUE</span></span>
 <span><span class="co">#&gt;   size_bytes                                                           sha256</span></span>
 <span><span class="co">#&gt; 1        614 b486135ce0e87616e4b447ce9bc8185acdc8c286dc310c8de5a98026701037e9</span></span>
 <span><span class="co">#&gt;   success error_message</span></span>
@@ -328,7 +328,7 @@ session’s environment, writes the recap log, and tears down any daemons
 timestamp:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="va">output_dir</span>, pattern <span class="op">=</span> <span class="st">"^log_crypt_r_.*\\.xlsx$"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "log_crypt_r_20260603_212218.xlsx"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "log_crypt_r_20260603_213510.xlsx"</span></span></code></pre></div>
 <p>An auto-watcher (based on <code><a href="https://later.r-lib.org/reference/later.html" class="external-link">later::later()</a></code>) writes the
 same log as soon as the last mirai task resolves, so a manual
 <code><a href="../reference/cryptR_collect.html">cryptR_collect()</a></code> call is not strictly required for the log

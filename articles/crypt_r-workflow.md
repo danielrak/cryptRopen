@@ -139,9 +139,9 @@ run.
 cryptR_wait(job)
 cryptR_status(job)
 #>                      encrypted_file state error_message          start_time
-#> persons_crypt.csv persons_crypt.csv  done          <NA> 2026-06-03 21:22:17
+#> persons_crypt.csv persons_crypt.csv  done          <NA> 2026-06-03 21:35:09
 #>                              end_time duration_sec n_rows_processed
-#> persons_crypt.csv 2026-06-03 21:22:18     0.728658               10
+#> persons_crypt.csv 2026-06-03 21:35:10    0.6796775               10
 ```
 
 Columns: `encrypted_file`, `state` (`running` / `done` / `failed`),
@@ -159,9 +159,9 @@ summary(job)
 #>     done       : 1
 #>     failed     : 0
 #>   workers      : 1
-#>   elapsed      : 1.20 s
+#>   elapsed      : 1.17 s
 #>   rows total   : 10
-#>   output_path  : /tmp/RtmpjfDzwk/cryptR_vignette_1d9c6290101f/output
+#>   output_path  : /tmp/RtmpgtYHsc/cryptR_vignette_1d76262e6b6c/output
 #>   log_written  : FALSE
 ```
 
@@ -177,7 +177,7 @@ cryptR_results(job)
 #>      encrypted_file
 #> 1 persons_crypt.csv
 #>                                                        output_file_path exists
-#> 1 /tmp/RtmpjfDzwk/cryptR_vignette_1d9c6290101f/output/persons_crypt.csv   TRUE
+#> 1 /tmp/RtmpgtYHsc/cryptR_vignette_1d76262e6b6c/output/persons_crypt.csv   TRUE
 #>   size_bytes                                                           sha256
 #> 1        614 b486135ce0e87616e4b447ce9bc8185acdc8c286dc310c8de5a98026701037e9
 #>   success error_message
@@ -230,7 +230,7 @@ The recap log is an xlsx file whose name embeds the run timestamp:
 ``` r
 
 list.files(output_dir, pattern = "^log_crypt_r_.*\\.xlsx$")
-#> [1] "log_crypt_r_20260603_212218.xlsx"
+#> [1] "log_crypt_r_20260603_213510.xlsx"
 ```
 
 An auto-watcher (based on

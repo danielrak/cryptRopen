@@ -183,7 +183,7 @@ job <- crypt_r(
 job <- cryptR_collect(job)
 
 list.files(out_dir)
-#> [1] "inspect_persons_crypt.csv.xlsx"   "log_crypt_r_20260603_212212.xlsx"
+#> [1] "inspect_persons_crypt.csv.xlsx"   "log_crypt_r_20260603_213505.xlsx"
 #> [3] "persons_crypt.csv"               
 unlink(work_dir, recursive = TRUE)
 # }

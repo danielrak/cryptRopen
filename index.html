@@ -57,6 +57,9 @@
 <div class="page-header"><h1 id="cryptropen">cryptRopen<a class="anchor" aria-label="anchor" href="#cryptropen"></a>
 </h1></div>
 <!-- badges: start -->
+<!-- CRAN-MARKER: uncomment when the package is published on CRAN
+[![CRAN status](https://www.r-pkg.org/badges/version/cryptRopen)](https://CRAN.R-project.org/package=cryptRopen)
+-->
 
 <p>cryptRopen pseudonymizes variables in one or many datasets, driven by a single Excel mask that lists, per input file, which columns to hash and which to drop. The transformation is a <strong>salted hash</strong> (MD5 by default; any algorithm supported by <code><a href="https://eddelbuettel.github.io/digest/man/digest.html" class="external-link">digest::digest()</a></code> works), which means:</p>
 <ul>
@@ -67,11 +70,14 @@
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>From CRAN:</p>
+<!-- CRAN-MARKER: uncomment when the package is published on CRAN
+From CRAN:
+&#10;``` r
+install.packages("cryptRopen")
+```
+&#10;-->
+<p>Install the development version from GitHub:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"cryptRopen"</span><span class="op">)</span></span></code></pre></div>
-<p>Development version from GitHub:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"danielrak/cryptRopen"</span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -80,7 +86,7 @@
 <a class="anchor" aria-label="anchor" href="#in-session-use-crypt_data"></a>
 </h2>
 <p>Pseudonymize one data frame already in memory. The correspondence table is kept in a package-private environment and retrieved with <code><a href="reference/get_correspondence_tables.html">get_correspondence_tables()</a></code>:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://danielrak.github.io/cryptRopen/">cryptRopen</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">pseudonymized</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/crypt_data.html">crypt_data</a></span><span class="op">(</span></span>
@@ -112,7 +118,7 @@
 <a class="anchor" aria-label="anchor" href="#batch--file-driven-use-crypt_r"></a>
 </h2>
 <p><code><a href="reference/crypt_r.html">crypt_r()</a></code> reads an Excel mask describing N input files, dispatches one <code><a href="https://mirai.r-lib.org/reference/mirai.html" class="external-link">mirai::mirai()</a></code> task per row (parallel, non-blocking), writes the pseudonymized files and a recap xlsx log to disk, and returns a <code>cryptR_job</code> handle. Inspect it with <code><a href="reference/cryptR_status.html">cryptR_status()</a></code> / <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> / <code><a href="reference/cryptR_results.html">cryptR_results()</a></code> and finalize with <code><a href="reference/cryptR_collect.html">cryptR_collect()</a></code>.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/crypt_r.html">crypt_r</a></span><span class="op">(</span></span>
 <span>  mask_folder_path  <span class="op">=</span> <span class="st">"path/to/mask"</span>,</span>
 <span>  mask_file         <span class="op">=</span> <span class="st">"mask.xlsx"</span>,</span>
@@ -178,7 +184,6 @@
 <div class="dev-status">
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
-<li><a href="https://CRAN.R-project.org/package=cryptRopen" class="external-link"><img src="https://www.r-pkg.org/badges/version/cryptRopen" alt="CRAN status"></a></li>
 <li><a href="https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
 <li><a href="https://app.codecov.io/gh/danielrak/cryptRopen" class="external-link"><img src="https://codecov.io/gh/danielrak/cryptRopen/graph/badge.svg" alt="Codecov test coverage"></a></li>
 </ul>

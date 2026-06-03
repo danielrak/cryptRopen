@@ -105,9 +105,9 @@ job <- cryptR_collect(job)
 
 cryptR_status(job)
 #>                      encrypted_file state error_message          start_time
-#> persons_crypt.csv persons_crypt.csv  done          <NA> 2026-06-03 21:22:05
+#> persons_crypt.csv persons_crypt.csv  done          <NA> 2026-06-03 21:34:58
 #>                              end_time duration_sec n_rows_processed
-#> persons_crypt.csv 2026-06-03 21:22:06    0.7252164               10
+#> persons_crypt.csv 2026-06-03 21:34:58    0.6751442               10
 unlink(work_dir, recursive = TRUE)
 # }
 ```
