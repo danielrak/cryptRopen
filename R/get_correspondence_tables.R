@@ -1,23 +1,21 @@
-#' Retrieve correspondence tables produced by the last calls of
-#' `crypt_data()` or `crypt_r()`.
+#' Retrieve Correspondence Tables from the Current Session
 #'
-#' Correspondence tables are pairs of (original, encrypted) values built
-#' during encryption. They are stored in a package-private environment
-#' across successive calls within the same R session (they accumulate
-#' until the end of the session).
+#' Correspondence tables are the `(original, hashed)` mappings built
+#' during a call to [crypt_data()] or [crypt_r()]. They are stored in a
+#' package-private environment that accumulates across successive calls
+#' within the same R session and is cleared when the session ends.
 #'
-#' @param names Optional character vector — names of the tables to
-#'   return. When `NULL` (default), every table currently stored is
-#'   returned. When a vector is passed, the result is a subset
-#'   preserving the requested order; names absent from the store are
-#'   returned as missing entries (the output is still named so the
-#'   caller can detect the miss via `is.null(result[[name]])`).
-#'
+#' @param names Optional character vector of table names to return.
+#'   When `NULL` (default), every table currently stored is returned.
+#'   When a vector is passed, the result preserves the requested order;
+#'   names absent from the store appear as `NULL` entries so the caller
+#'   can detect misses via `is.null(result[[name]])`.
 #' @return A named list of data frames / tibbles. Names follow the
-#'   convention `tc_crypt_<label>` for `crypt_data()` and
-#'   `tc_<encrypted_file_sans_ext>` for `crypt_r()`. Empty list if no
-#'   correspondence table has been produced yet in the session.
-#'
+#'   convention `tc_crypt_<label>` for [crypt_data()] and
+#'   `tc_<encrypted_file_without_extension>` for [crypt_r()]. An empty
+#'   list when no correspondence table has been produced yet in the
+#'   session.
+#' @seealso [crypt_data()], [crypt_r()].
 #' @export
 #'
 #' @examples

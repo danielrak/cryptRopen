@@ -2,24 +2,42 @@
 % Please edit documentation in R/crypt_vector.R
 \name{crypt_vector}
 \alias{crypt_vector}
-\title{Encrypt a vector}
+\title{Hash a Vector with a Salted Pre-Image}
 \usage{
 crypt_vector(vector, key, algo)
 }
 \arguments{
-\item{vector}{Vector to process}
+\item{vector}{Atomic vector of values to hash. Non-character inputs
+are coerced to character before normalization.}
 
-\item{key}{Character 1L. Encryption key}
+\item{key}{Character scalar. The salt prepended to each value before
+hashing. Choose a value with enough entropy that rainbow-table
+attacks are impractical.}
 
-\item{algo}{Character 1L. Algorithm.
-See algo argument from digest::digest()}
+\item{algo}{Character scalar. Any algorithm accepted by the \code{algo}
+argument of \code{\link[digest:digest]{digest::digest()}} (\code{"md5"}, \code{"sha1"}, \code{"sha256"}, …).}
 }
 \value{
-Character. Encrypted vector
+Character vector of upper-case hexadecimal hashes, same
+length as \code{vector}. \code{NA} at every position where the input was
+\code{NA} or empty.
 }
 \description{
-Encrypt a vector
+Returns a hash of the same length as the input vector. Each element
+is first coerced to character, upper-cased, trimmed, and stripped of
+internal whitespace, then concatenated with \code{key} and hashed with
+\code{\link[digest:digest]{digest::digest()}}. The transformation is one-way and deterministic:
+the same \verb{(value, key)} pair always produces the same hash, and the
+original value cannot be recovered from the hash alone.
+}
+\details{
+\code{NA} values and empty strings are preserved as \code{NA} in the output —
+they are not hashed.
 }
 \examples{
-crypt_vector(vector = c("1234", "5678", "9101112", NA, ""), key = "123456", algo = "md5")
+crypt_vector(
+  vector = c("1234", "5678", "9101112", NA, ""),
+  key = "123456",
+  algo = "md5"
+)
 }

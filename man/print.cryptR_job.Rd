@@ -2,7 +2,7 @@
 % Please edit documentation in R/cryptR_job.R
 \name{print.cryptR_job}
 \alias{print.cryptR_job}
-\title{Compact print method for \code{cryptR_job}.}
+\title{Compact Print Method for a \code{cryptR_job}}
 \usage{
 \method{print}{cryptR_job}(x, ...)
 }
@@ -15,5 +15,5 @@
 \code{invisible(x)}.
 }
 \description{
-Compact print method for \code{cryptR_job}.
+Compact Print Method for a \code{cryptR_job}
 }

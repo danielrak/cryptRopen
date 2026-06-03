@@ -60,10 +60,40 @@
 #' @seealso [cryptR_status()], [summary.cryptR_job()].
 #' @export
 #' @examples
-#' \dontrun{
-#' job <- crypt_r(...)
-#' cryptR_wait(job)
+#' \donttest{
+#' # Build a tiny job (see ?crypt_r for a more detailed walkthrough)
+#' work_dir <- file.path(tempdir(), "cryptR_results_example")
+#' mask_dir <- file.path(work_dir, "mask")
+#' out_dir  <- file.path(work_dir, "output")
+#' int_dir  <- file.path(work_dir, "intermediate")
+#' for (d in c(mask_dir, out_dir, int_dir)) {
+#'   dir.create(d, recursive = TRUE, showWarnings = FALSE)
+#' }
+#'
+#' input_file <- system.file("extdata", "persons.csv", package = "cryptRopen")
+#' mask <- data.frame(
+#'   folder_path     = dirname(input_file),
+#'   file            = basename(input_file),
+#'   encrypted_file  = "persons_crypt.csv",
+#'   vars_to_encrypt = "email",
+#'   vars_to_remove  = NA,
+#'   to_encrypt      = "X",
+#'   stringsAsFactors = FALSE
+#' )
+#' writexl::write_xlsx(mask, file.path(mask_dir, "mask.xlsx"))
+#'
+#' job <- crypt_r(
+#'   mask_folder_path  = mask_dir,
+#'   mask_file         = "mask.xlsx",
+#'   output_path       = out_dir,
+#'   intermediate_path = int_dir,
+#'   encryption_key    = "demo-key",
+#'   n_workers         = 1L
+#' )
+#' job <- cryptR_collect(job)
 #' cryptR_results(job)
+#'
+#' unlink(work_dir, recursive = TRUE)
 #' }
 cryptR_results <- function(job) {
   if (!inherits(job, "cryptR_job")) {
