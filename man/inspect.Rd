@@ -34,5 +34,7 @@ this mirrors the historical behavior built on
 \code{tibble(class = class(x), ...)}.
 }
 \examples{
+# One row per column of CO2, with the distinct / NA / empty
+# counts and the first ten unique modalities.
 inspect(CO2)
 }

@@ -6,8 +6,39 @@
 \alias{cryptRopen-package}
 \title{cryptRopen: Industrialized Pseudonymization of Variables Across Datasets}
 \description{
-Deterministic pseudonymization of variables in heterogeneous datasets, driven by a single Excel mask describing which columns to hash in each input file. Values are normalized (upper-case, trim, internal whitespace removal) and hashed with a user-provided salt via the 'digest' package; the default algorithm is MD5, any algorithm supported by 'digest' is accepted. The transformation is one-way and deterministic, so derived datasets can be shared without exposing the originals while joins on the pseudonymized columns remain possible. The high-level crypt_r() workflow processes the mask rows in parallel via the 'mirai' framework and returns a non-blocking job handle with status, wait and collect companions; an 'arrow'-backed streaming engine handles parquet and CSV inputs whose size exceeds available RAM. Suitable for GDPR-style pseudonymization, not for confidentiality-bearing encryption.
+Deterministic, salted-hash pseudonymization of one or many datasets,
+driven by a single Excel mask that lists, per input file, which
+columns to hash and which to drop.
 }
+\section{Where to start}{
+
+Three entry points cover the typical needs:
+
+\itemize{
+\item \code{\link[=crypt_vector]{crypt_vector()}} — hash one vector.
+\item \code{\link[=crypt_data]{crypt_data()}} — pseudonymize one data frame already in
+memory; the in-session workflow.
+\item \code{\link[=crypt_r]{crypt_r()}} — pseudonymize N files described by an Excel
+mask, in parallel, non-blocking; the industrialized workflow.
+Inspect / wait / finalize the returned job with
+\code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=cryptR_wait]{cryptR_wait()}}, \code{\link[=cryptR_collect]{cryptR_collect()}},
+\code{\link[=cryptR_results]{cryptR_results()}}, and \code{summary()}.
+}
+
+Use \code{\link[=get_correspondence_tables]{get_correspondence_tables()}} to retrieve the
+\verb{(original, hashed)} mapping stored after \code{\link[=crypt_data]{crypt_data()}} /
+\code{\link[=crypt_r]{crypt_r()}} runs.
+}
+
+\section{Learn more}{
+
+\itemize{
+\item \code{vignette("cryptRopen")} — getting started.
+\item \code{vignette("crypt_r-workflow")} — industrialized walkthrough.
+\item \code{NEWS.md} — change history.
+}
+}
+
 \seealso{
 Useful links:
 \itemize{

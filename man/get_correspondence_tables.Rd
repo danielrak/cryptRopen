@@ -27,14 +27,19 @@ package-private environment that accumulates across successive calls
 within the same R session and is cleared when the session ends.
 }
 \examples{
+# Run crypt_data() once to populate the store, then retrieve.
 crypt_data(
-  loaded_dataset = mtcars[1:5, ],
-  vars_to_encrypt = "mpg",
-  encryption_key = "1234567",
-  correspondence_table = TRUE,
+  loaded_dataset             = mtcars[1:5, ],
+  vars_to_encrypt            = "mpg",
+  encryption_key             = "1234567",
+  correspondence_table       = TRUE,
   correspondence_table_label = "demo"
 )
+
+# Full store as a named list.
 get_correspondence_tables()
+
+# Subset by name, preserving the requested order.
 get_correspondence_tables(names = "tc_crypt_demo")
 }
 \seealso{

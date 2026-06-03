@@ -23,6 +23,8 @@
 #' @export
 #'
 #' @examples
+#' # One row per column of CO2, with the distinct / NA / empty
+#' # counts and the first ten unique modalities.
 #' inspect(CO2)
 inspect <- function(data_frame, nrow = FALSE) {
   rows <- base::nrow(data_frame)

@@ -19,14 +19,19 @@
 #' @export
 #'
 #' @examples
+#' # Run crypt_data() once to populate the store, then retrieve.
 #' crypt_data(
-#'   loaded_dataset = mtcars[1:5, ],
-#'   vars_to_encrypt = "mpg",
-#'   encryption_key = "1234567",
-#'   correspondence_table = TRUE,
+#'   loaded_dataset             = mtcars[1:5, ],
+#'   vars_to_encrypt            = "mpg",
+#'   encryption_key             = "1234567",
+#'   correspondence_table       = TRUE,
 #'   correspondence_table_label = "demo"
 #' )
+#'
+#' # Full store as a named list.
 #' get_correspondence_tables()
+#'
+#' # Subset by name, preserving the requested order.
 #' get_correspondence_tables(names = "tc_crypt_demo")
 get_correspondence_tables <- function(names = NULL) {
   if (is.null(names)) {

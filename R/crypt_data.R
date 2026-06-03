@@ -45,12 +45,14 @@
 #' @export
 #'
 #' @examples
+#' # Replace `mpg` with `mpg_crypt`, drop `cyl`, no correspondence
+#' # table side effect on this run.
 #' crypt_data(
-#'   loaded_dataset = mtcars[1:5, ],
-#'   vars_to_encrypt = "mpg",
-#'   vars_to_remove = "cyl",
-#'   encryption_key = "1234567",
-#'   algorithm = "md5",
+#'   loaded_dataset       = mtcars[1:5, ],
+#'   vars_to_encrypt      = "mpg",
+#'   vars_to_remove       = "cyl",
+#'   encryption_key       = "1234567",
+#'   algorithm            = "md5",
 #'   correspondence_table = FALSE
 #' )
 crypt_data <- function(loaded_dataset,

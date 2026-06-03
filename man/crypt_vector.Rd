@@ -35,9 +35,17 @@ original value cannot be recovered from the hash alone.
 they are not hashed.
 }
 \examples{
+# Three IDs, a missing value, an empty string. The non-empty values
+# come back as upper-case MD5 hashes; `NA` and "" stay `NA`.
 crypt_vector(
   vector = c("1234", "5678", "9101112", NA, ""),
   key = "123456",
   algo = "md5"
+)
+
+# Determinism: same value + same key + same algo => same hash.
+identical(
+  crypt_vector("Alice",  key = "k", algo = "md5"),
+  crypt_vector("alice ", key = "k", algo = "md5")
 )
 }

@@ -39,15 +39,65 @@ transformation is a **salted hash**, not reversible encryption:
   user-provided salt (`key`) and hashed with `digest::digest()`.
 * The default algorithm is `"md5"`. Any algorithm supported by
   `digest::digest()` (`"sha1"`, `"sha256"`, `"sha512"`, …) is accepted
-  via the `algorithm` parameter. MD5 collisions are theoretically
-  possible but have negligible impact at typical dataset scales; pick a
-  stronger algorithm if your threat model calls for it.
+  via the `algorithm` parameter — see *Algorithm choice* below.
 * Holding the output does **not** let anyone recover the input. Only
   the correspondence table (or a rainbow-table-style attack on a weak
   key) does.
 
 Consequence: cryptRopen is suitable for pseudonymization under
 regulations such as GDPR, not for confidentiality-bearing encryption.
+
+## When *not* to use cryptRopen
+
+Pseudonymization is one tool among several. Reach for a different
+approach when:
+
+* **You need to recover the original value later.** A salted hash is
+  one-way. If your workflow must un-pseudonymize at some point, use
+  symmetric encryption (e.g. the `safer` or `sodium` packages) and
+  manage the key separately.
+* **You need formal anonymization, not pseudonymization.** Under
+  regulations such as GDPR, pseudonymized data is still personal
+  data — the correspondence table is the de facto re-identification
+  key. For irreversible anonymization, consider differential privacy,
+  k-anonymity, or aggregation.
+* **You want to hide value distributions.** A deterministic hash
+  preserves the frequency profile of the original column. An
+  attacker who knows the rough distribution of the input (e.g. that
+  certain customer IDs occur very often) can still spot the most
+  frequent hashes. Add random padding or switch to format-preserving
+  encryption if that matters for your threat model.
+* **You need integrity guarantees on the data, not just on its
+  identifiers.** Hashes here are computed *per cell*, not over a
+  whole row or file. They do not detect tampering at the dataset
+  level — pair them with a separate signature scheme if you need
+  that.
+
+## Algorithm choice
+
+The package delegates the actual hashing to `digest::digest()`, so
+every algorithm of that function is available via the `algorithm`
+parameter. The trade-offs you should know:
+
+* **`"md5"` (default)** — fast and short (32 hex chars). Cryptographic
+  collisions exist as theoretical constructions but are negligible at
+  practical dataset scales for *pseudonymization*. Recommended unless
+  you have a specific reason to step up.
+* **`"sha1"`** — 40 hex chars, deprecated in formal cryptography but
+  still acceptable for non-adversarial pseudonymization. Rarely a
+  better choice than MD5 or SHA-256.
+* **`"sha256"`** — 64 hex chars, the modern conservative default if
+  you want to be on the safer side. Slower than MD5 but the
+  difference is typically below 1 % of total runtime on a real
+  pseudonymization job dominated by I/O.
+* **`"sha512"`** — 128 hex chars, only useful when downstream
+  systems happen to expect a 512-bit hash. The output is twice as
+  long for no practical security gain in this context.
+
+Whatever you pick, lock it down in your run and keep the *same*
+`encryption_key` across all runs that need to join: changing either
+breaks the deterministic property and your tables stop joining on
+the pseudonymized columns.
 
 ## Installation
 

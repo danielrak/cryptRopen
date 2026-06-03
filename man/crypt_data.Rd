@@ -66,12 +66,14 @@ of files described by an Excel mask, use \code{\link[=crypt_r]{crypt_r()}} with 
 in-memory object, use \code{\link[dplyr:select]{dplyr::select()}} / \code{\link[rio:export]{rio::export()}} directly.
 }
 \examples{
+# Replace `mpg` with `mpg_crypt`, drop `cyl`, no correspondence
+# table side effect on this run.
 crypt_data(
-  loaded_dataset = mtcars[1:5, ],
-  vars_to_encrypt = "mpg",
-  vars_to_remove = "cyl",
-  encryption_key = "1234567",
-  algorithm = "md5",
+  loaded_dataset       = mtcars[1:5, ],
+  vars_to_encrypt      = "mpg",
+  vars_to_remove       = "cyl",
+  encryption_key       = "1234567",
+  algorithm            = "md5",
   correspondence_table = FALSE
 )
 }

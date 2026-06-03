@@ -207,15 +207,18 @@ reliable synchronisation point.
 
 ### Engine routing
 
-| `engine`       | Input / output combination        | Effective engine                     |
-| -------------- | --------------------------------- | ------------------------------------ |
-| `"in_memory"`  | any                               | `.process_mask_row_in_memory()`      |
-| `"auto"` / `"streaming"` | parquet-in + parquet-out | `.process_mask_row_streaming()`      |
-| `"auto"` / `"streaming"` | csv-in + csv-out         | `.process_mask_row_csv_streaming()`  |
-| `"auto"` / `"streaming"` | mixed, rds, xlsx, …      | fallback to `in_memory`              |
+| `engine`                 | Input / output combination | Effective behavior              |
+| ------------------------ | -------------------------- | ------------------------------- |
+| `"in_memory"`            | any                        | Full read into RAM (historical) |
+| `"auto"` / `"streaming"` | parquet-in + parquet-out   | Streaming via `arrow`           |
+| `"auto"` / `"streaming"` | csv-in + csv-out           | Streaming via `arrow`           |
+| `"auto"` / `"streaming"` | mixed, rds, xlsx, …        | Falls back to in-memory         |
 
-The streaming engines read with an `arrow` Scanner by chunks and write
-incrementally, keeping memory usage bounded regardless of input size.
+In streaming mode the input is read by chunks with an `arrow` Scanner
+and written incrementally, keeping memory usage bounded regardless of
+input size. The `chunk_size` argument controls the row count per
+chunk; the default (`1e6`) is a reasonable trade-off between memory
+footprint and per-chunk overhead.
 
 ### Daemons ownership
 
