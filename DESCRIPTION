@@ -40,7 +40,6 @@ Imports:
     utils,
     writexl
 Suggests:
-    devtools,
     jsonlite,
     knitr,
     readxl,

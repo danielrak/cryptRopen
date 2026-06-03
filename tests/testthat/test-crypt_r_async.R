@@ -59,6 +59,12 @@
 )
 
 skip_if_async_unavailable <- function() {
+  # The async suite spawns one or more mirai daemons per test, which
+  # adds noticeable wall-clock time and risks flakiness in the CRAN
+  # check environment. Skip on CRAN to stay well under the per-package
+  # timing budget; developers running the full test suite locally
+  # still exercise this path.
+  testthat::skip_on_cran()
   if (!isTRUE(.cryptR_async_ok)) {
     testthat::skip(
       "cryptRopen is not resolvable inside mirai daemons (likely devtools::test())"
