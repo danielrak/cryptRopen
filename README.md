@@ -5,8 +5,10 @@
 
 <!-- badges: start -->
 
-[![CRAN
-status](https://www.r-pkg.org/badges/version/cryptRopen)](https://CRAN.R-project.org/package=cryptRopen)
+<!-- CRAN-MARKER: uncomment when the package is published on CRAN
+[![CRAN status](https://www.r-pkg.org/badges/version/cryptRopen)](https://CRAN.R-project.org/package=cryptRopen)
+-->
+
 [![R-CMD-check](https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml)
 [![Codecov test
 coverage](https://codecov.io/gh/danielrak/cryptRopen/graph/badge.svg)](https://app.codecov.io/gh/danielrak/cryptRopen)
@@ -28,13 +30,14 @@ reversible encryption scheme for confidentiality-bearing data.
 
 ## Installation
 
+<!-- CRAN-MARKER: uncomment when the package is published on CRAN
 From CRAN:
-
-``` r
+&#10;``` r
 install.packages("cryptRopen")
 ```
+&#10;-->
 
-Development version from GitHub:
+Install the development version from GitHub:
 
 ``` r
 # install.packages("pak")
