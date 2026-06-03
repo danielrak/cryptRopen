@@ -4,9 +4,18 @@
 \name{cryptRopen-package}
 \alias{cryptRopen}
 \alias{cryptRopen-package}
-\title{cryptRopen: Industrialized Datasets Encryption (Open-Source Version)}
+\title{cryptRopen: Industrialized Pseudonymization of Variables Across Datasets}
 \description{
-This package provides a framework to encrypt variables from datasets. Variables to encrypt and datasets can be in any number.
+Deterministic pseudonymization of variables in heterogeneous datasets, driven by a single Excel mask describing which columns to hash in each input file. Values are normalized (upper-case, trim, internal whitespace removal) and hashed with a user-provided salt via the 'digest' package; the default algorithm is MD5, any algorithm supported by 'digest' is accepted. The transformation is one-way and deterministic, so derived datasets can be shared without exposing the originals while joins on the pseudonymized columns remain possible. The high-level crypt_r() workflow processes the mask rows in parallel via the 'mirai' framework and returns a non-blocking job handle with status, wait and collect companions; an 'arrow'-backed streaming engine handles parquet and CSV inputs whose size exceeds available RAM. Suitable for GDPR-style pseudonymization, not for confidentiality-bearing encryption.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://danielrak.github.io/cryptRopen/}
+  \item \url{https://github.com/danielrak/cryptRopen}
+  \item Report bugs at \url{https://github.com/danielrak/cryptRopen/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Daniel Rakotomalala \email{rakdanielh@gmail.com}

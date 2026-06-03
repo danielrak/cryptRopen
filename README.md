@@ -10,13 +10,13 @@ coverage](https://codecov.io/gh/danielrak/cryptRopen/graph/badge.svg)](https://a
 [![R-CMD-check](https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-`cryptRopen` provides deterministic pseudonymisation of data frame
-variables, driven by an Excel mask for industrialised runs. The
+`cryptRopen` provides deterministic pseudonymization of data frame
+variables, driven by an Excel mask for industrialized runs. The
 underlying transformation is a **salted hash** (MD5 by default; any
 algorithm supported by `digest::digest()` works): same input paired with
 same key always yields the same output, joins across tables on the
-pseudonymised columns stay possible, and the hash itself is not
-reversible. Suitable for GDPR-style pseudonymisation, not for
+pseudonymized columns stay possible, and the hash itself is not
+reversible. Suitable for GDPR-style pseudonymization, not for
 confidentiality-bearing encryption.
 
 ## Installation
@@ -30,7 +30,7 @@ pak::pak("danielrak/cryptRopen")
 
 ## In-session use: `crypt_data()`
 
-Pseudonymise one data frame and keep the correspondence table in a
+Pseudonymize one data frame and keep the correspondence table in a
 package-private environment, retrievable via
 `get_correspondence_tables()`:
 
@@ -62,13 +62,13 @@ get_correspondence_tables()$tc_crypt_demo
 #> Datsun 710    22.8 7E7E52C52B1C3686F553D1E4AC6A8207
 ```
 
-## Industrialised use: `crypt_r()`
+## Industrialized use: `crypt_r()`
 
 `crypt_r()` reads an Excel mask describing N input files, dispatches one
 `mirai::mirai()` task per row (parallel, non-blocking), writes the
 encrypted files and a recap xlsx log to disk, and returns a `cryptR_job`
 handle you can inspect with `cryptR_status()` / `summary()` /
-`cryptR_results()` and finalise with `cryptR_collect()`.
+`cryptR_results()` and finalize with `cryptR_collect()`.
 
 ``` r
 job <- crypt_r(
@@ -93,7 +93,7 @@ bounded regardless of input size.
 - `vignette("cryptRopen")` — getting started with `crypt_vector()` and
   `crypt_data()`.
 - `vignette("crypt_r-workflow")` — complete walkthrough of the
-  industrialised `crypt_r()` workflow (Excel mask, async inspection,
+  industrialized `crypt_r()` workflow (Excel mask, async inspection,
   streaming engines, daemons ownership, recap log).
 - `NEWS.md` — full change history.
 

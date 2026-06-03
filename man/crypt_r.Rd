@@ -43,7 +43,7 @@ to the streaming engines (arrow Scanner by chunks, progressive
 write); mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
 csv→parquet) silently fall back to \code{"in_memory"} to preserve
 non-regression. \code{"in_memory"} always reads the full input into
-RAM (historical behaviour).}
+RAM (historical behavior).}
 
 \item{chunk_size}{Integer. Number of rows per chunk when the
 effective engine is streaming. Ignored by \code{"in_memory"} (and by
@@ -61,7 +61,7 @@ daemons are reused — the user retains control and
 \value{
 A \code{\link[=cryptR_status]{cryptR_job}} object carrying one \code{mirai}
 task per filtered mask row. Inspect with \code{\link[=cryptR_status]{cryptR_status()}}; block
-with \code{\link[=cryptR_wait]{cryptR_wait()}}; finalise (write the recap log and, when
+with \code{\link[=cryptR_wait]{cryptR_wait()}}; finalize (write the recap log and, when
 applicable, tear down the daemons) with \code{\link[=cryptR_collect]{cryptR_collect()}}.
 }
 \description{
@@ -72,7 +72,7 @@ be in any number, following user's needs.
 \details{
 \code{crypt_r()} is \strong{non-blocking}: it builds a \code{cryptR_job} (one
 \code{mirai} task per filtered mask row) and returns immediately. The
-caller inspects / waits / finalises the job through the companion
+caller inspects / waits / finalizes the job through the companion
 API (see \emph{Value} and \emph{See Also}). A per-row failure does not
 interrupt the other rows — the failure is captured on the
 corresponding task and surfaces via \code{\link[=cryptR_status]{cryptR_status()}}.

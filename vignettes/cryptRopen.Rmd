@@ -16,13 +16,13 @@ knitr::opts_chunk$set(
 
 ## What cryptRopen is for
 
-`cryptRopen` pseudonymises variables inside data frames so that sensitive
+`cryptRopen` pseudonymizes variables inside data frames so that sensitive
 values (identifiers, emails, names) can be shared or stored in a
-derivative form without exposing the originals. The pseudonymisation is
+derivative form without exposing the originals. The pseudonymization is
 **deterministic**: the same input value paired with the same key always
 produces the same output, so joins across tables remain possible on the
-pseudonymised columns. A side table — the *correspondence table* —
-keeps the mapping between original and pseudonymised values for the
+pseudonymized columns. A side table — the *correspondence table* —
+keeps the mapping between original and pseudonymized values for the
 party that holds the key.
 
 Typical use cases: preparing an extract for an analytics team that
@@ -30,12 +30,12 @@ should not see customer identifiers; sharing a dataset with an external
 partner; feeding a downstream pipeline while keeping the original
 identifiers under control.
 
-## Pseudonymisation, not encryption
+## Pseudonymization, not encryption
 
 The `crypt` in the package name is historical. The underlying
 transformation is a **salted hash**, not reversible encryption:
 
-* A normalised version of each input value is concatenated with a
+* A normalized version of each input value is concatenated with a
   user-provided salt (`key`) and hashed with `digest::digest()`.
 * The default algorithm is `"md5"`. Any algorithm supported by
   `digest::digest()` (`"sha1"`, `"sha256"`, `"sha512"`, …) is accepted
@@ -46,7 +46,7 @@ transformation is a **salted hash**, not reversible encryption:
   the correspondence table (or a rainbow-table-style attack on a weak
   key) does.
 
-Consequence: cryptRopen is suitable for pseudonymisation under
+Consequence: cryptRopen is suitable for pseudonymization under
 regulations such as GDPR, not for confidentiality-bearing encryption.
 
 ## Installation
@@ -144,7 +144,7 @@ crypt_data(
 ## When you need to batch multiple files
 
 `crypt_data()` is the right tool when you hold one data frame in memory
-and want an encrypted version of it. For an industrialised workflow —
+and want an encrypted version of it. For an industrialized workflow —
 several input files specified in an Excel mask, outputs written to
 disk, parallel execution, a recap log — see `vignette("crypt_r-workflow")`.
 

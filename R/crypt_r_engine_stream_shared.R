@@ -11,7 +11,7 @@
 #'   3. Column assembly: `<var>_crypt` columns first in `vars_to_encrypt`
 #'      order, then non-encrypted input columns in input order.
 #'   4. Optional `vars_to_remove` drop (intersect-based — missing
-#'      columns are silently ignored, matching in_memory behaviour).
+#'      columns are silently ignored, matching in_memory behavior).
 #'
 #' The returned `tc_chunk` is already `distinct()`. The caller merges
 #' chunks across iterations with an outer `bind_rows %>% distinct`.
@@ -85,7 +85,7 @@
   list(out_chunk = out_chunk, tc_chunk = tc_chunk)
 }
 
-#' Finalise the accumulated correspondence table: store in the package
+#' Finalize the accumulated correspondence table: store in the package
 #' private env + export to parquet on disk.
 #'
 #' Shared by the two streaming engines whose post-loop finalisation

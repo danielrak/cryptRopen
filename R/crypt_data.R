@@ -62,7 +62,7 @@ crypt_data <- function(loaded_dataset,
   # convert a file, the user should use dplyr / rio directly. Note that
   # `crypt_r()` accepts the empty case (see mask-driven "copy / convert
   # only" rows handled by the engines).
-  # Normalisation (trim + drop NA/empty) is applied here so the
+  # Normalization (trim + drop NA/empty) is applied here so the
   # membership check below runs on a clean vector and absorbs the
   # historical `str_trim()` previously sitting just above the encrypt
   # loop.

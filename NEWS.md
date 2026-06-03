@@ -15,9 +15,9 @@
 
 ## Improvements
 
-* New private helper `.parse_mask_vars()` centralises the
+* New private helper `.parse_mask_vars()` centralizes the
   `str_split(",") %>% unlist() %>% str_trim()` idiom that the three
-  engines duplicated. It also normalises `NA` / `""` / whitespace-only
+  engines duplicated. It also normalizes `NA` / `""` / whitespace-only
   / list-internal blanks (`"a,,b"`) to `character(0)` / clean items,
   fixing a latent edge case in `vars_to_remove` as well.
 * `.transform_stream_chunk()` and `.process_mask_row_in_memory()` now
@@ -47,7 +47,7 @@
 ## Tests
 
 * Two new baseline cases lock the new `crypt_r()` empty-vars
-  behaviour: `empty_vars_remove_csv` (purge-only CSV) and
+  behavior: `empty_vars_remove_csv` (purge-only CSV) and
   `empty_vars_copy_rds` (verbatim copy of an RDS). Their
   `intermediate/` directories are empty by contract, asserted by
   `expect_setequal()` in `test-baseline.R`.
@@ -86,7 +86,7 @@ stay at 0/0/0 throughout.
   `tf` → `transformed`, `ds` → `arrow_dataset`, `x0` → `col`,
   redundant `g` alias dropped.
 * **Audit D.2** — `styler::style_pkg()`: de-aligned `=` in multi-line
-  calls, normalised whitespace.
+  calls, normalized whitespace.
 * **Audit E** — roxygen bug fixes, `@family async_job`, missing
   `@return`, typos, inline phase references migrated to this file.
 

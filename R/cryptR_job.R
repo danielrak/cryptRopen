@@ -3,7 +3,7 @@
 # `crypt_r()` dispatches one `mirai::mirai()` task per filtered mask row
 # and wraps the handles in a `cryptR_job`. The four companion functions
 # (`cryptR_status()`, `cryptR_wait()`, `cryptR_collect()`,
-# `summary.cryptR_job()`) let the caller inspect / block / finalise
+# `summary.cryptR_job()`) let the caller inspect / block / finalize
 # without touching the raw mirai handles. `cryptR_collect()` (a) extracts
 # typed per-row results, (b) re-injects the correspondence tables into
 # the parent's `.cryptRopen_env` so that `get_correspondence_tables()`

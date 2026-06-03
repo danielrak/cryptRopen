@@ -40,7 +40,7 @@
 # manually. The package still works; only the auto-log feature is off.
 
 
-#' Schedule a non-blocking watcher that finalises a `cryptR_job` when
+#' Schedule a non-blocking watcher that finalizes a `cryptR_job` when
 #' its last task resolves.
 #'
 #' Called by `crypt_r()` right after `.new_cryptR_job()` so that the

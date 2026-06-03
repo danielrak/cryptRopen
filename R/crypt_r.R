@@ -6,7 +6,7 @@
 #'
 #' `crypt_r()` is **non-blocking**: it builds a `cryptR_job` (one
 #' `mirai` task per filtered mask row) and returns immediately. The
-#' caller inspects / waits / finalises the job through the companion
+#' caller inspects / waits / finalizes the job through the companion
 #' API (see *Value* and *See Also*). A per-row failure does not
 #' interrupt the other rows — the failure is captured on the
 #' corresponding task and surfaces via [cryptR_status()].
@@ -38,7 +38,7 @@
 #'   write); mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
 #'   csv→parquet) silently fall back to `"in_memory"` to preserve
 #'   non-regression. `"in_memory"` always reads the full input into
-#'   RAM (historical behaviour).
+#'   RAM (historical behavior).
 #' @param chunk_size Integer. Number of rows per chunk when the
 #'   effective engine is streaming. Ignored by `"in_memory"` (and by
 #'   `"auto"` / `"streaming"` when falling back to in_memory). Default
@@ -52,7 +52,7 @@
 #'   [cryptR_collect()] will not tear them down.
 #' @return A [`cryptR_job`][cryptR_status] object carrying one `mirai`
 #'   task per filtered mask row. Inspect with [cryptR_status()]; block
-#'   with [cryptR_wait()]; finalise (write the recap log and, when
+#'   with [cryptR_wait()]; finalize (write the recap log and, when
 #'   applicable, tear down the daemons) with [cryptR_collect()].
 #' @family async_job
 #' @seealso [cryptR_status()], [cryptR_wait()], [cryptR_collect()],
@@ -189,7 +189,7 @@ crypt_r <- function(mask_folder_path, mask_file,
   # own and flag the job so cryptR_collect() tears them down at the end.
   # `.n_workers_active()` returns NA if mirai::status() errors outright;
   # in that case we fall back to "no daemons active" (0L) and spawn our
-  # own, matching the previous open-coded tryCatch behaviour.
+  # own, matching the previous open-coded tryCatch behavior.
   n_existing <- .n_workers_active()
   if (is.na(n_existing)) n_existing <- 0L
 
@@ -218,7 +218,7 @@ crypt_r <- function(mask_folder_path, mask_file,
 
     # Resolve the internal dispatcher inside the daemon via
     # `getFromNamespace()` rather than `cryptRopen:::.process_mask_row`
-    # at the call site. Same runtime behaviour, but `:::` in a published
+    # at the call site. Same runtime behavior, but `:::` in a published
     # function body triggers an R CMD check NOTE
     # ("::: calls to the package's namespace in its code"); the
     # `getFromNamespace()` form is the documented escape hatch. The

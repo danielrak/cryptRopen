@@ -103,7 +103,7 @@
     }
   )
 
-  # --- Correspondence table (shared finaliser) --------------------------
+  # --- Correspondence table (shared finalizer) --------------------------
   tryCatch(
     {
       .finalize_stream_tc(

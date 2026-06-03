@@ -91,7 +91,7 @@ cryptR_results <- function(job) {
   }
 
   # Full payload extraction reuses the tolerant helper that the log
-  # writer and the watcher already rely on — consistent behaviour
+  # writer and the watcher already rely on — consistent behavior
   # across the three code paths.
   results <- mapply(
     .extract_row_result,
