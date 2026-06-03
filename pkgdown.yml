@@ -4,4 +4,7 @@ pkgdown_sha: ~
 articles:
   crypt_r-workflow: crypt_r-workflow.html
   cryptRopen: cryptRopen.html
-last_built: 2026-06-03T19:06Z
+last_built: 2026-06-03T21:22Z
+urls:
+  reference: https://danielrak.github.io/cryptRopen/reference
+  article: https://danielrak.github.io/cryptRopen/articles
