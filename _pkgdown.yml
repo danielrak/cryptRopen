@@ -1,0 +1,40 @@
+url: https://danielrak.github.io/cryptRopen/
+
+template:
+  bootstrap: 5
+
+reference:
+- title: Encrypt at the vector level
+  contents:
+  - crypt_vector
+
+- title: Encrypt in-session
+  contents:
+  - crypt_data
+  - get_correspondence_tables
+
+- title: Encrypt across many files
+  desc: |
+    The mask-driven workflow. `crypt_r()` dispatches one task per mask
+    row in parallel and returns immediately; the companions inspect /
+    wait / finalize the job.
+  contents:
+  - crypt_r
+  - cryptR_status
+  - cryptR_wait
+  - cryptR_collect
+  - cryptR_results
+  - summary.cryptR_job
+  - print.cryptR_job
+  - print.summary.cryptR_job
+
+- title: Helpers
+  contents:
+  - inspect
+
+articles:
+- title: Get started
+  navbar: ~
+  contents:
+  - cryptRopen
+  - crypt_r-workflow

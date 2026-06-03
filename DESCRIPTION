@@ -1,11 +1,28 @@
 Package: cryptRopen
-Title: Industrialized Datasets Encryption (Open-Source Version)
-Version: 0.1.1
-Authors@R: 
+Title: Industrialized Pseudonymization of Variables Across Datasets
+Version: 0.2.0
+Authors@R:
     person("Daniel", "Rakotomalala", , "rakdanielh@gmail.com", role = c("aut", "cre"))
-Description: This package provides a framework to encrypt variables from
-    datasets. Variables to encrypt and datasets can be in any number.
+Description: Deterministic pseudonymization of variables in heterogeneous
+    datasets, driven by a single Excel mask describing which columns to
+    hash in each input file. Values are normalized (upper-case, trim,
+    internal whitespace removal) and hashed with a user-provided salt via
+    the 'digest' package; the default algorithm is MD5, any algorithm
+    supported by 'digest' is accepted. The transformation is one-way and
+    deterministic, so derived datasets can be shared without exposing the
+    originals while joins on the pseudonymized columns remain possible.
+    The high-level crypt_r() workflow processes the mask rows in parallel
+    via the 'mirai' framework and returns a non-blocking job handle with
+    status, wait and collect companions; an 'arrow'-backed streaming
+    engine handles parquet and CSV inputs whose size exceeds available
+    RAM. Suitable for GDPR-style pseudonymization, not for
+    confidentiality-bearing encryption.
 License: MIT + file LICENSE
+URL: https://danielrak.github.io/cryptRopen/,
+    https://github.com/danielrak/cryptRopen
+BugReports: https://github.com/danielrak/cryptRopen/issues
+Depends:
+    R (>= 4.1.0)
 Imports:
     arrow,
     digest,
@@ -28,11 +45,13 @@ Suggests:
     knitr,
     readxl,
     rmarkdown,
-    testthat,
+    testthat (>= 3.0.0),
     tools,
     withr
-VignetteBuilder: 
+VignetteBuilder:
     knitr
+Config/testthat/edition: 3
 Encoding: UTF-8
+Language: en-US
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3

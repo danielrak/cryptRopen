@@ -1,21 +1,30 @@
-#' Inspect a data frame
+#' Profile a Data Frame
 #'
-#' Given a data frame as an input, this function outputs a broad view
-#' of this data frame contents:
-#' dimensions, list of variables and
-#' systematic corresponding information (type,
-#' frequence and proportion of unique values, missing and 0-length values;
-#' and up to the 10 first unique values).
-#' @param data_frame The data.frame to explore.
-#' Need to exist in the Global Environment.
-#' @param nrow Logical. If TRUE, the number of observations of
-#' the dataset is printed on stdout in addition to the returned tibble.
+#' Returns a one-row-per-column profile of a data frame: class, number
+#' and proportion of distinct values, number and proportion of missing
+#' values, number and proportion of empty strings, length range of the
+#' character representation, and the first ten unique modalities.
+#'
+#' Columns whose `class()` has length > 1 (e.g. ordered factors with
+#' `class = c("ordered", "factor")`) produce one row per class entry —
+#' this mirrors the historical behavior built on
+#' `tibble(class = class(x), ...)`.
+#'
+#' @param data_frame A data frame.
+#' @param nrow Logical scalar. If `TRUE`, the number of rows of
+#'   `data_frame` is emitted on stderr via [message()] in addition to
+#'   the returned tibble. Defaults to `FALSE`. Note that this parameter
+#'   shadows the base function [base::nrow()] inside the function body;
+#'   callers passing a positional argument should keep `data_frame`
+#'   first.
 #' @return A tibble with one row per column of `data_frame` (or several
-#'   rows when `class(column)` has length > 1, e.g. ordered factors),
-#'   holding systematic inspection metrics.
+#'   when `class(column)` has length > 1), holding the per-column
+#'   inspection metrics described above.
 #' @export
 #'
 #' @examples
+#' # One row per column of CO2, with the distinct / NA / empty
+#' # counts and the first ten unique modalities.
 #' inspect(CO2)
 inspect <- function(data_frame, nrow = FALSE) {
   rows <- base::nrow(data_frame)
@@ -39,7 +48,7 @@ inspect <- function(data_frame, nrow = FALSE) {
   )
 
   if (nrow) {
-    print(base::nrow(data_frame))
+    message("Number of observations: ", base::nrow(data_frame))
   }
   df
 }

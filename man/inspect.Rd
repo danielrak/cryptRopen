@@ -2,30 +2,39 @@
 % Please edit documentation in R/inspect.R
 \name{inspect}
 \alias{inspect}
-\title{Inspect a data frame}
+\title{Profile a Data Frame}
 \usage{
 inspect(data_frame, nrow = FALSE)
 }
 \arguments{
-\item{data_frame}{The data.frame to explore.
-Need to exist in the Global Environment.}
+\item{data_frame}{A data frame.}
 
-\item{nrow}{Logical. If TRUE, the number of observations of
-the dataset is printed on stdout in addition to the returned tibble.}
+\item{nrow}{Logical scalar. If \code{TRUE}, the number of rows of
+\code{data_frame} is emitted on stderr via \code{\link[=message]{message()}} in addition to
+the returned tibble. Defaults to \code{FALSE}. Note that this parameter
+shadows the base function \code{\link[base:nrow]{base::nrow()}} inside the function body;
+callers passing a positional argument should keep \code{data_frame}
+first.}
 }
 \value{
 A tibble with one row per column of \code{data_frame} (or several
-rows when \code{class(column)} has length > 1, e.g. ordered factors),
-holding systematic inspection metrics.
+when \code{class(column)} has length > 1), holding the per-column
+inspection metrics described above.
 }
 \description{
-Given a data frame as an input, this function outputs a broad view
-of this data frame contents:
-dimensions, list of variables and
-systematic corresponding information (type,
-frequence and proportion of unique values, missing and 0-length values;
-and up to the 10 first unique values).
+Returns a one-row-per-column profile of a data frame: class, number
+and proportion of distinct values, number and proportion of missing
+values, number and proportion of empty strings, length range of the
+character representation, and the first ten unique modalities.
+}
+\details{
+Columns whose \code{class()} has length > 1 (e.g. ordered factors with
+\code{class = c("ordered", "factor")}) produce one row per class entry —
+this mirrors the historical behavior built on
+\code{tibble(class = class(x), ...)}.
 }
 \examples{
+# One row per column of CO2, with the distinct / NA / empty
+# counts and the first ten unique modalities.
 inspect(CO2)
 }

@@ -2,39 +2,46 @@
 % Please edit documentation in R/get_correspondence_tables.R
 \name{get_correspondence_tables}
 \alias{get_correspondence_tables}
-\title{Retrieve correspondence tables produced by the last calls of
-\code{crypt_data()} or \code{crypt_r()}.}
+\title{Retrieve Correspondence Tables from the Current Session}
 \usage{
 get_correspondence_tables(names = NULL)
 }
 \arguments{
-\item{names}{Optional character vector — names of the tables to
-return. When \code{NULL} (default), every table currently stored is
-returned. When a vector is passed, the result is a subset
-preserving the requested order; names absent from the store are
-returned as missing entries (the output is still named so the
-caller can detect the miss via \code{is.null(result[[name]])}).}
+\item{names}{Optional character vector of table names to return.
+When \code{NULL} (default), every table currently stored is returned.
+When a vector is passed, the result preserves the requested order;
+names absent from the store appear as \code{NULL} entries so the caller
+can detect misses via \code{is.null(result[[name]])}.}
 }
 \value{
 A named list of data frames / tibbles. Names follow the
-convention \verb{tc_crypt_<label>} for \code{crypt_data()} and
-\verb{tc_<encrypted_file_sans_ext>} for \code{crypt_r()}. Empty list if no
-correspondence table has been produced yet in the session.
+convention \verb{tc_crypt_<label>} for \code{\link[=crypt_data]{crypt_data()}} and
+\verb{tc_<encrypted_file_without_extension>} for \code{\link[=crypt_r]{crypt_r()}}. An empty
+list when no correspondence table has been produced yet in the
+session.
 }
 \description{
-Correspondence tables are pairs of (original, encrypted) values built
-during encryption. They are stored in a package-private environment
-across successive calls within the same R session (they accumulate
-until the end of the session).
+Correspondence tables are the \verb{(original, hashed)} mappings built
+during a call to \code{\link[=crypt_data]{crypt_data()}} or \code{\link[=crypt_r]{crypt_r()}}. They are stored in a
+package-private environment that accumulates across successive calls
+within the same R session and is cleared when the session ends.
 }
 \examples{
+# Run crypt_data() once to populate the store, then retrieve.
 crypt_data(
-  loaded_dataset = mtcars[1:5, ],
-  vars_to_encrypt = "mpg",
-  encryption_key = "1234567",
-  correspondence_table = TRUE,
+  loaded_dataset             = mtcars[1:5, ],
+  vars_to_encrypt            = "mpg",
+  encryption_key             = "1234567",
+  correspondence_table       = TRUE,
   correspondence_table_label = "demo"
 )
+
+# Full store as a named list.
 get_correspondence_tables()
+
+# Subset by name, preserving the requested order.
 get_correspondence_tables(names = "tc_crypt_demo")
+}
+\seealso{
+\code{\link[=crypt_data]{crypt_data()}}, \code{\link[=crypt_r]{crypt_r()}}.
 }

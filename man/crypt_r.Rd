@@ -2,7 +2,7 @@
 % Please edit documentation in R/crypt_r.R
 \name{crypt_r}
 \alias{crypt_r}
-\title{Industrialized dataset variables encryption.}
+\title{Pseudonymize Variables Across Multiple Files via an Excel Mask}
 \usage{
 crypt_r(
   mask_folder_path,
@@ -18,77 +18,126 @@ crypt_r(
 )
 }
 \arguments{
-\item{mask_folder_path}{Folder path of the excel mask.}
+\item{mask_folder_path}{Character scalar. Directory containing the
+Excel mask file.}
 
-\item{mask_file}{File name (with extension) of the excel mask.}
+\item{mask_file}{Character scalar. Name of the Excel mask file
+(with extension).}
 
-\item{output_path}{Folder path where the encrypted datasets
-will be created.}
+\item{output_path}{Character scalar. Existing directory where the
+pseudonymized output files will be written. Validated up-front.}
 
-\item{intermediate_path}{Folder path where intermediate files
-(correspondence tables for e.g) will be created.}
+\item{intermediate_path}{Character scalar. Existing directory where
+the correspondence-table parquets (\code{tc_*.parquet}) and the recap
+xlsx log will be written. Validated up-front.}
 
-\item{encryption_key}{Character vector.}
+\item{encryption_key}{Character scalar. The salt prepended to each
+value before hashing. See \code{\link[=crypt_vector]{crypt_vector()}} for the underlying
+transformation.}
 
-\item{algorithm}{Algorithm to use.
-From digest::digest()'s algo argument.}
+\item{algorithm}{Character scalar. Any algorithm accepted by the
+\code{algo} argument of \code{\link[digest:digest]{digest::digest()}}. Defaults to \code{"md5"}.}
 
-\item{correspondence_table}{Logical vector. If TRUE, the correspondence tables will computed
-and stored in the indicated intermediate_path.}
+\item{correspondence_table}{Logical scalar. If \code{TRUE} (default), a
+per-input correspondence table \verb{tc_<stem>.parquet} is written under
+\code{intermediate_path} and also stored in the package-private
+environment (retrievable via \code{\link[=get_correspondence_tables]{get_correspondence_tables()}} after
+\code{\link[=cryptR_collect]{cryptR_collect()}} re-injects them post-run).}
 
 \item{engine}{One of \code{"auto"}, \code{"in_memory"}, \code{"streaming"}.
 Selects the per-row processing engine. \code{"auto"} (default) and
 \code{"streaming"} both route parquet-in/parquet-out and csv-in/csv-out
-to the streaming engines (arrow Scanner by chunks, progressive
-write); mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
-csv→parquet) silently fall back to \code{"in_memory"} to preserve
-non-regression. \code{"in_memory"} always reads the full input into
-RAM (historical behaviour).}
+to the streaming engines (an \code{'arrow'} Scanner by chunks, with
+progressive write); mixed or non-streamable endpoints (rds, xlsx,
+parquet→csv, csv→parquet) silently fall back to \code{"in_memory"}.
+\code{"in_memory"} always reads the full input into RAM.}
 
-\item{chunk_size}{Integer. Number of rows per chunk when the
-effective engine is streaming. Ignored by \code{"in_memory"} (and by
-\code{"auto"} / \code{"streaming"} when falling back to in_memory). Default
-\code{1e6}.}
+\item{chunk_size}{Integer scalar. Number of rows per chunk when the
+effective engine is streaming. Ignored by \code{"in_memory"}. Defaults
+to \code{1e6}.}
 
-\item{n_workers}{Integer or \code{NULL}. Number of \code{mirai} daemons to
-spawn for the dispatch. When \code{NULL} (default), \code{crypt_r()} picks
-\code{min(parallel::detectCores() - 1, n_rows, 8L)} (floored at 1).
-If daemons are already running on the default profile when
+\item{n_workers}{Integer scalar or \code{NULL}. Number of \code{mirai} daemons
+to spawn for the dispatch. When \code{NULL} (default), \code{crypt_r()}
+picks \code{min(parallel::detectCores() - 1, n_rows, 8L)} (floored
+at 1). If daemons are already running on the default profile when
 \code{crypt_r()} is called, \code{n_workers} is ignored and the existing
 daemons are reused — the user retains control and
 \code{\link[=cryptR_collect]{cryptR_collect()}} will not tear them down.}
 }
 \value{
-A \code{\link[=cryptR_status]{cryptR_job}} object carrying one \code{mirai}
-task per filtered mask row. Inspect with \code{\link[=cryptR_status]{cryptR_status()}}; block
-with \code{\link[=cryptR_wait]{cryptR_wait()}}; finalise (write the recap log and, when
-applicable, tear down the daemons) with \code{\link[=cryptR_collect]{cryptR_collect()}}.
+A \code{cryptR_job} object carrying one \code{mirai} task per filtered
+mask row. Inspect with \code{\link[=cryptR_status]{cryptR_status()}} / \code{\link[=summary]{summary()}} /
+\code{\link[=cryptR_results]{cryptR_results()}}; block with \code{\link[=cryptR_wait]{cryptR_wait()}}; finalize with
+\code{\link[=cryptR_collect]{cryptR_collect()}}.
 }
 \description{
-This function consolidates a set of procedures made to encrypt
-variables from datasets. Variables to encrypt and input datasets can
-be in any number, following user's needs.
+The high-level entry point for the batch / industrialized workflow.
+Reads a single Excel mask that describes, for each input file, which
+columns to hash and which to drop; dispatches one \code{mirai} task per
+filtered mask row (parallel, non-blocking); and returns immediately
+a \code{cryptR_job} handle. The job is inspected with \code{\link[=cryptR_status]{cryptR_status()}} /
+\code{\link[=summary]{summary()}} / \code{\link[=cryptR_results]{cryptR_results()}}, blocked on with \code{\link[=cryptR_wait]{cryptR_wait()}},
+and finalized with \code{\link[=cryptR_collect]{cryptR_collect()}} (which writes a recap xlsx log
+and tears down daemons when applicable).
 }
 \details{
-\code{crypt_r()} is \strong{non-blocking}: it builds a \code{cryptR_job} (one
-\code{mirai} task per filtered mask row) and returns immediately. The
-caller inspects / waits / finalises the job through the companion
-API (see \emph{Value} and \emph{See Also}). A per-row failure does not
-interrupt the other rows — the failure is captured on the
-corresponding task and surfaces via \code{\link[=cryptR_status]{cryptR_status()}}.
+A per-row failure does not interrupt the other rows — the failure is
+captured on the corresponding task and surfaces via \code{\link[=cryptR_status]{cryptR_status()}}.
 
 \strong{Empty \code{vars_to_encrypt} cell.} A mask row whose \code{vars_to_encrypt}
 cell is blank (empty, \code{NA}, or whitespace-only) is legitimate and
-means "copy / convert this file, applying \code{vars_to_remove} if any,
-encrypting nothing." The output file is written under \code{output_path}
-(re-encoded to the requested output format), no \verb{_crypt} columns are
+means "process this file, applying \code{vars_to_remove} if any, hashing
+nothing." The output file is written under \code{output_path} re-encoded
+to the format implied by \code{encrypted_file}; no \verb{_crypt} columns are
 emitted, and \strong{no \code{tc_*.parquet}} is produced. The recap log
 records \code{success = TRUE} and \code{tc_name = NA} for such rows.
-\code{crypt_data()} does \strong{not} support this — see its documentation.
+\code{\link[=crypt_data]{crypt_data()}} does \strong{not} support this case — see its
+documentation.
+}
+\examples{
+\donttest{
+# Minimal end-to-end run using the persons.csv fixture shipped
+# with the package. Everything is written to tempdir() and cleaned
+# up at the end.
+work_dir <- file.path(tempdir(), "crypt_r_example")
+mask_dir <- file.path(work_dir, "mask")
+out_dir  <- file.path(work_dir, "output")
+int_dir  <- file.path(work_dir, "intermediate")
+dir.create(mask_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(out_dir, showWarnings = FALSE)
+dir.create(int_dir, showWarnings = FALSE)
+
+input_file <- system.file("extdata", "persons.csv", package = "cryptRopen")
+mask <- data.frame(
+  folder_path     = dirname(input_file),
+  file            = basename(input_file),
+  encrypted_file  = "persons_crypt.csv",
+  vars_to_encrypt = "email",
+  vars_to_remove  = NA,
+  to_encrypt      = "X",
+  stringsAsFactors = FALSE
+)
+writexl::write_xlsx(mask, file.path(mask_dir, "mask.xlsx"))
+
+# n_workers = 1L keeps the example friendly to CRAN check policies
+# on parallelism in examples.
+job <- crypt_r(
+  mask_folder_path  = mask_dir,
+  mask_file         = "mask.xlsx",
+  output_path       = out_dir,
+  intermediate_path = int_dir,
+  encryption_key    = "demo-key",
+  n_workers         = 1L
+)
+job <- cryptR_collect(job)
+
+list.files(out_dir)
+unlink(work_dir, recursive = TRUE)
+}
 }
 \seealso{
 \code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=cryptR_wait]{cryptR_wait()}}, \code{\link[=cryptR_collect]{cryptR_collect()}},
-\code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+\code{\link[=cryptR_results]{cryptR_results()}}, \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
 
 Other async_job: 
 \code{\link{cryptR_collect}()},

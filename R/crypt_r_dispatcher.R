@@ -104,7 +104,7 @@
     # Fallback: `engine = "in_memory"`, or streaming requested on a
     # non-streamable input (rds, xlsx, etc.) or mixed endpoints
     # (parquet→csv, csv→parquet). Historical engine preserves
-    # non-regression behaviour in all these cases.
+    # non-regression behavior in all these cases.
     .process_mask_row_in_memory(
       mask_row             = mask_row,
       input_path           = input_path,

@@ -5,21 +5,34 @@
 
 <!-- badges: start -->
 
+[![CRAN
+status](https://www.r-pkg.org/badges/version/cryptRopen)](https://CRAN.R-project.org/package=cryptRopen)
+[![R-CMD-check](https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml)
 [![Codecov test
 coverage](https://codecov.io/gh/danielrak/cryptRopen/graph/badge.svg)](https://app.codecov.io/gh/danielrak/cryptRopen)
-[![R-CMD-check](https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/danielrak/cryptRopen/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-`cryptRopen` provides deterministic pseudonymisation of data frame
-variables, driven by an Excel mask for industrialised runs. The
-underlying transformation is a **salted hash** (MD5 by default; any
-algorithm supported by `digest::digest()` works): same input paired with
-same key always yields the same output, joins across tables on the
-pseudonymised columns stay possible, and the hash itself is not
-reversible. Suitable for GDPR-style pseudonymisation, not for
-confidentiality-bearing encryption.
+cryptRopen pseudonymizes variables in one or many datasets, driven by a
+single Excel mask that lists, per input file, which columns to hash and
+which to drop. The transformation is a **salted hash** (MD5 by default;
+any algorithm supported by `digest::digest()` works), which means:
+
+- The same input value paired with the same key always yields the same
+  hash. Joins across tables on the pseudonymized columns stay possible.
+- The hash is one-way: holding the output does not let anyone recover
+  the input. Only the correspondence table (kept by the party that owns
+  the key) does.
+
+Suitable for GDPR-style pseudonymization. **Not** suitable as a
+reversible encryption scheme for confidentiality-bearing data.
 
 ## Installation
+
+From CRAN:
+
+``` r
+install.packages("cryptRopen")
+```
 
 Development version from GitHub:
 
@@ -30,22 +43,22 @@ pak::pak("danielrak/cryptRopen")
 
 ## In-session use: `crypt_data()`
 
-Pseudonymise one data frame and keep the correspondence table in a
-package-private environment, retrievable via
+Pseudonymize one data frame already in memory. The correspondence table
+is kept in a package-private environment and retrieved with
 `get_correspondence_tables()`:
 
 ``` r
 library(cryptRopen)
 
-encrypted <- crypt_data(
-  loaded_dataset            = head(mtcars, 3),
-  vars_to_encrypt           = "mpg",
-  vars_to_remove            = "cyl",
-  encryption_key            = "demo-key",
-  correspondence_table      = TRUE,
+pseudonymized <- crypt_data(
+  loaded_dataset             = head(mtcars, 3),
+  vars_to_encrypt            = "mpg",
+  vars_to_remove             = "cyl",
+  encryption_key             = "demo-key",
+  correspondence_table       = TRUE,
   correspondence_table_label = "demo"
 )
-encrypted
+pseudonymized
 #>                                      mpg_crypt disp  hp drat    wt  qsec vs am
 #> Mazda RX4     C33FDD39F6EAADF6C5E135AD5083E3D6  160 110 3.90 2.620 16.46  0  1
 #> Mazda RX4 Wag C33FDD39F6EAADF6C5E135AD5083E3D6  160 110 3.90 2.875 17.02  0  1
@@ -62,13 +75,13 @@ get_correspondence_tables()$tc_crypt_demo
 #> Datsun 710    22.8 7E7E52C52B1C3686F553D1E4AC6A8207
 ```
 
-## Industrialised use: `crypt_r()`
+## Batch / file-driven use: `crypt_r()`
 
 `crypt_r()` reads an Excel mask describing N input files, dispatches one
 `mirai::mirai()` task per row (parallel, non-blocking), writes the
-encrypted files and a recap xlsx log to disk, and returns a `cryptR_job`
-handle you can inspect with `cryptR_status()` / `summary()` /
-`cryptR_results()` and finalise with `cryptR_collect()`.
+pseudonymized files and a recap xlsx log to disk, and returns a
+`cryptR_job` handle. Inspect it with `cryptR_status()` / `summary()` /
+`cryptR_results()` and finalize with `cryptR_collect()`.
 
 ``` r
 job <- crypt_r(
@@ -84,18 +97,21 @@ cryptR_status(job)
 job <- cryptR_collect(job)
 ```
 
-Large parquet / CSV inputs are automatically routed to a streaming
-engine (`arrow::open_dataset()` + chunked write) so memory usage stays
-bounded regardless of input size.
+Each row of the mask declares its own `vars_to_encrypt`, so different
+input files can have entirely different column names — the mask is the
+contract, not a single schema. Large parquet / CSV inputs are
+automatically routed to a streaming engine (`arrow::open_dataset()` +
+chunked write) so memory usage stays bounded regardless of input size.
 
 ## Learn more
 
-- `vignette("cryptRopen")` — getting started with `crypt_vector()` and
-  `crypt_data()`.
-- `vignette("crypt_r-workflow")` — complete walkthrough of the
-  industrialised `crypt_r()` workflow (Excel mask, async inspection,
-  streaming engines, daemons ownership, recap log).
-- `NEWS.md` — full change history.
+- `vignette("cryptRopen")` — getting started: the in-session workflow
+  with `crypt_vector()` / `crypt_data()`, the difference between
+  pseudonymization and encryption, and how to pick an algorithm.
+- `vignette("crypt_r-workflow")` — full walkthrough of the mask-driven
+  `crypt_r()` workflow: Excel mask layout, async inspection, streaming,
+  daemons ownership, recap log.
+- `NEWS.md` — change history.
 
 ## License
 

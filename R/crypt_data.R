@@ -1,50 +1,58 @@
-#' Encrypt variables within a data frame
+#' Pseudonymize Variables in a Data Frame
 #'
-#' This function corresponds to the
-#' in-session version of the encryption process.
-#' For the considered loaded dataset, variables to encrypt can be
-#' in any number, following users's needs.
+#' In-session version of the pseudonymization workflow: takes a data
+#' frame, hashes the requested columns with a user-provided salt, and
+#' returns the transformed data frame. The hash is deterministic and
+#' one-way (see [crypt_vector()] for the details of the transformation).
 #'
-#' Side-effect note: when `correspondence_table = TRUE`, the resulting
-#' table is stored in a package-private environment (no more pollution
-#' of `globalenv()`). Retrieve it with [get_correspondence_tables()].
+#' When `correspondence_table = TRUE`, the (original, hashed) pairs are
+#' stored in a package-private environment under the name
+#' `tc_crypt_<correspondence_table_label>` and retrieved via
+#' [get_correspondence_tables()]. No file is written; this side effect
+#' replaces an older behavior that polluted `globalenv()`.
 #'
 #' `crypt_data()` is **fail-fast** on an empty `vars_to_encrypt`: it
 #' raises an explicit error rather than silently returning the input
-#' unchanged. For a "drop columns / convert format" workflow on a
-#' batch of files described by an Excel mask, use [crypt_r()] with a
-#' blank `vars_to_encrypt` cell — that path is legitimate. On a single
+#' unchanged. For a "drop columns / convert format" workflow on a batch
+#' of files described by an Excel mask, use [crypt_r()] with a blank
+#' `vars_to_encrypt` cell — that path is legitimate. On a single
 #' in-memory object, use [dplyr::select()] / [rio::export()] directly.
 #'
-#' @param loaded_dataset The dataset for which user wants
-#' to encrypt at least one variable.
-#' It must be an expression and not a character vector.
-#' @param vars_to_encrypt Character vector of variables to encrypt.
-#' Must resolve to at least one non-empty entry after trimming and
-#' dropping `NA` / blank values; an empty vector raises an error.
-#' @param vars_to_remove Character vector of variables to remove.
-#' @param encryption_key Character vector.
-#' @param algorithm Algorithm to use.
-#' From digest::digest()'s algo argument.
-#' @param correspondence_table Logical 1L. TRUE if user wants a correspondence table
-#' between initial and encrypted values.
-#' @param correspondence_table_label Character 1L. Label of the correspondence table.
-#' @return A data frame identical to `loaded_dataset` with the
-#'   `vars_to_encrypt` columns replaced by their hashed counterparts
-#'   (suffix `_crypt`) and `vars_to_remove` columns dropped. Side
-#'   effect: when `correspondence_table = TRUE`, a table
-#'   `tc_crypt_<correspondence_table_label>` is stored in the package-
-#'   private environment — see [get_correspondence_tables()].
-#' @seealso [crypt_r()], [digest::digest()], [get_correspondence_tables()].
+#' @param loaded_dataset A data frame.
+#' @param vars_to_encrypt Character vector of column names to hash.
+#'   Must resolve to at least one non-empty entry after trimming and
+#'   dropping `NA` / blank values; an empty vector raises an error.
+#' @param vars_to_remove Character vector of column names to drop from
+#'   the output. `NULL` (default) keeps all non-hashed columns.
+#' @param encryption_key Character scalar. The salt prepended to each
+#'   value before hashing. See [crypt_vector()].
+#' @param algorithm Character scalar. Any algorithm accepted by the
+#'   `algo` argument of [digest::digest()]. Defaults to `"md5"`.
+#' @param correspondence_table Logical scalar. If `TRUE` (default),
+#'   stores the correspondence table in the package-private environment
+#'   under the name `tc_crypt_<correspondence_table_label>`. Set to
+#'   `FALSE` to skip the side effect entirely.
+#' @param correspondence_table_label Character scalar. Required when
+#'   `correspondence_table = TRUE`. Used to build the storage name so
+#'   successive calls in the same session do not overwrite each other.
+#' @return A data frame with the same row order as `loaded_dataset`,
+#'   the `vars_to_encrypt` columns replaced by their hashed
+#'   counterparts (suffix `_crypt`), and the `vars_to_remove` columns
+#'   dropped.
+#' @seealso [crypt_r()] for the batch / file-driven counterpart,
+#'   [get_correspondence_tables()] to retrieve the stored mapping,
+#'   [crypt_vector()] for the underlying vector transformation.
 #' @export
 #'
 #' @examples
+#' # Replace `mpg` with `mpg_crypt`, drop `cyl`, no correspondence
+#' # table side effect on this run.
 #' crypt_data(
-#'   loaded_dataset = mtcars[1:5, ],
-#'   vars_to_encrypt = "mpg",
-#'   vars_to_remove = "cyl",
-#'   encryption_key = "1234567",
-#'   algorithm = "md5",
+#'   loaded_dataset       = mtcars[1:5, ],
+#'   vars_to_encrypt      = "mpg",
+#'   vars_to_remove       = "cyl",
+#'   encryption_key       = "1234567",
+#'   algorithm            = "md5",
 #'   correspondence_table = FALSE
 #' )
 crypt_data <- function(loaded_dataset,
@@ -62,7 +70,7 @@ crypt_data <- function(loaded_dataset,
   # convert a file, the user should use dplyr / rio directly. Note that
   # `crypt_r()` accepts the empty case (see mask-driven "copy / convert
   # only" rows handled by the engines).
-  # Normalisation (trim + drop NA/empty) is applied here so the
+  # Normalization (trim + drop NA/empty) is applied here so the
   # membership check below runs on a clean vector and absorbs the
   # historical `str_trim()` previously sitting just above the encrypt
   # loop.
@@ -80,17 +88,29 @@ crypt_data <- function(loaded_dataset,
   }
 
   if (!all(vars_to_encrypt %in% vars)) {
-    stop("All indicated vars_to_encrypt must be effectively a variable name.")
+    stop(
+      "All names in `vars_to_encrypt` must match a column of ",
+      "`loaded_dataset`.",
+      call. = FALSE
+    )
   }
 
   if (!is.null(vars_to_remove) &&
     !all(vars_to_remove %in% vars)) {
-    stop("All indicated vars_to_remove must be effectively a variable name.")
+    stop(
+      "All names in `vars_to_remove` must match a column of ",
+      "`loaded_dataset`.",
+      call. = FALSE
+    )
   }
 
   if (correspondence_table &&
     is.null(correspondence_table_label)) {
-    stop("If the correspondence_table arg is TRUE, correspondence_table_label must be indicated.")
+    stop(
+      "`correspondence_table_label` must be provided when ",
+      "`correspondence_table = TRUE`.",
+      call. = FALSE
+    )
   }
 
   # Clean: trim character columns, turn blank strings into NAs.

@@ -12,7 +12,7 @@
 #'
 #' Handles **parquet-in / parquet-out only** (dispatcher precondition).
 #'
-#' Behavioural guarantees (vs. the in-memory engine on matching input):
+#' Behavioral guarantees (vs. the in-memory engine on matching input):
 #'   - Output rows identical (same values, same types, same order).
 #'   - Output column order identical: `<var>_crypt` first in
 #'     `vars_to_encrypt` order, then remaining input columns in input
@@ -126,7 +126,7 @@
     }
   )
 
-  # --- Correspondence table (shared finaliser) --------------------------
+  # --- Correspondence table (shared finalizer) --------------------------
   tryCatch(
     {
       .finalize_stream_tc(

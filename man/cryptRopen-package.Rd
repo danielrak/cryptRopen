@@ -4,9 +4,49 @@
 \name{cryptRopen-package}
 \alias{cryptRopen}
 \alias{cryptRopen-package}
-\title{cryptRopen: Industrialized Datasets Encryption (Open-Source Version)}
+\title{cryptRopen: Industrialized Pseudonymization of Variables Across Datasets}
 \description{
-This package provides a framework to encrypt variables from datasets. Variables to encrypt and datasets can be in any number.
+Deterministic, salted-hash pseudonymization of one or many datasets,
+driven by a single Excel mask that lists, per input file, which
+columns to hash and which to drop.
+}
+\section{Where to start}{
+
+Three entry points cover the typical needs:
+
+\itemize{
+\item \code{\link[=crypt_vector]{crypt_vector()}} — hash one vector.
+\item \code{\link[=crypt_data]{crypt_data()}} — pseudonymize one data frame already in
+memory; the in-session workflow.
+\item \code{\link[=crypt_r]{crypt_r()}} — pseudonymize N files described by an Excel
+mask, in parallel, non-blocking; the industrialized workflow.
+Inspect / wait / finalize the returned job with
+\code{\link[=cryptR_status]{cryptR_status()}}, \code{\link[=cryptR_wait]{cryptR_wait()}}, \code{\link[=cryptR_collect]{cryptR_collect()}},
+\code{\link[=cryptR_results]{cryptR_results()}}, and \code{summary()}.
+}
+
+Use \code{\link[=get_correspondence_tables]{get_correspondence_tables()}} to retrieve the
+\verb{(original, hashed)} mapping stored after \code{\link[=crypt_data]{crypt_data()}} /
+\code{\link[=crypt_r]{crypt_r()}} runs.
+}
+
+\section{Learn more}{
+
+\itemize{
+\item \code{vignette("cryptRopen")} — getting started.
+\item \code{vignette("crypt_r-workflow")} — industrialized walkthrough.
+\item \code{NEWS.md} — change history.
+}
+}
+
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://danielrak.github.io/cryptRopen/}
+  \item \url{https://github.com/danielrak/cryptRopen}
+  \item Report bugs at \url{https://github.com/danielrak/cryptRopen/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Daniel Rakotomalala \email{rakdanielh@gmail.com}

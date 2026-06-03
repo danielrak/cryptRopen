@@ -2,7 +2,7 @@
 % Please edit documentation in R/crypt_data.R
 \name{crypt_data}
 \alias{crypt_data}
-\title{Encrypt variables within a data frame}
+\title{Pseudonymize Variables in a Data Frame}
 \usage{
 crypt_data(
   loaded_dataset,
@@ -15,62 +15,70 @@ crypt_data(
 )
 }
 \arguments{
-\item{loaded_dataset}{The dataset for which user wants
-to encrypt at least one variable.
-It must be an expression and not a character vector.}
+\item{loaded_dataset}{A data frame.}
 
-\item{vars_to_encrypt}{Character vector of variables to encrypt.
+\item{vars_to_encrypt}{Character vector of column names to hash.
 Must resolve to at least one non-empty entry after trimming and
 dropping \code{NA} / blank values; an empty vector raises an error.}
 
-\item{vars_to_remove}{Character vector of variables to remove.}
+\item{vars_to_remove}{Character vector of column names to drop from
+the output. \code{NULL} (default) keeps all non-hashed columns.}
 
-\item{encryption_key}{Character vector.}
+\item{encryption_key}{Character scalar. The salt prepended to each
+value before hashing. See \code{\link[=crypt_vector]{crypt_vector()}}.}
 
-\item{algorithm}{Algorithm to use.
-From digest::digest()'s algo argument.}
+\item{algorithm}{Character scalar. Any algorithm accepted by the
+\code{algo} argument of \code{\link[digest:digest]{digest::digest()}}. Defaults to \code{"md5"}.}
 
-\item{correspondence_table}{Logical 1L. TRUE if user wants a correspondence table
-between initial and encrypted values.}
+\item{correspondence_table}{Logical scalar. If \code{TRUE} (default),
+stores the correspondence table in the package-private environment
+under the name \verb{tc_crypt_<correspondence_table_label>}. Set to
+\code{FALSE} to skip the side effect entirely.}
 
-\item{correspondence_table_label}{Character 1L. Label of the correspondence table.}
+\item{correspondence_table_label}{Character scalar. Required when
+\code{correspondence_table = TRUE}. Used to build the storage name so
+successive calls in the same session do not overwrite each other.}
 }
 \value{
-A data frame identical to \code{loaded_dataset} with the
-\code{vars_to_encrypt} columns replaced by their hashed counterparts
-(suffix \verb{_crypt}) and \code{vars_to_remove} columns dropped. Side
-effect: when \code{correspondence_table = TRUE}, a table
-\verb{tc_crypt_<correspondence_table_label>} is stored in the package-
-private environment — see \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+A data frame with the same row order as \code{loaded_dataset},
+the \code{vars_to_encrypt} columns replaced by their hashed
+counterparts (suffix \verb{_crypt}), and the \code{vars_to_remove} columns
+dropped.
 }
 \description{
-This function corresponds to the
-in-session version of the encryption process.
-For the considered loaded dataset, variables to encrypt can be
-in any number, following users's needs.
+In-session version of the pseudonymization workflow: takes a data
+frame, hashes the requested columns with a user-provided salt, and
+returns the transformed data frame. The hash is deterministic and
+one-way (see \code{\link[=crypt_vector]{crypt_vector()}} for the details of the transformation).
 }
 \details{
-Side-effect note: when \code{correspondence_table = TRUE}, the resulting
-table is stored in a package-private environment (no more pollution
-of \code{globalenv()}). Retrieve it with \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+When \code{correspondence_table = TRUE}, the (original, hashed) pairs are
+stored in a package-private environment under the name
+\verb{tc_crypt_<correspondence_table_label>} and retrieved via
+\code{\link[=get_correspondence_tables]{get_correspondence_tables()}}. No file is written; this side effect
+replaces an older behavior that polluted \code{globalenv()}.
 
 \code{crypt_data()} is \strong{fail-fast} on an empty \code{vars_to_encrypt}: it
 raises an explicit error rather than silently returning the input
-unchanged. For a "drop columns / convert format" workflow on a
-batch of files described by an Excel mask, use \code{\link[=crypt_r]{crypt_r()}} with a
-blank \code{vars_to_encrypt} cell — that path is legitimate. On a single
+unchanged. For a "drop columns / convert format" workflow on a batch
+of files described by an Excel mask, use \code{\link[=crypt_r]{crypt_r()}} with a blank
+\code{vars_to_encrypt} cell — that path is legitimate. On a single
 in-memory object, use \code{\link[dplyr:select]{dplyr::select()}} / \code{\link[rio:export]{rio::export()}} directly.
 }
 \examples{
+# Replace `mpg` with `mpg_crypt`, drop `cyl`, no correspondence
+# table side effect on this run.
 crypt_data(
-  loaded_dataset = mtcars[1:5, ],
-  vars_to_encrypt = "mpg",
-  vars_to_remove = "cyl",
-  encryption_key = "1234567",
-  algorithm = "md5",
+  loaded_dataset       = mtcars[1:5, ],
+  vars_to_encrypt      = "mpg",
+  vars_to_remove       = "cyl",
+  encryption_key       = "1234567",
+  algorithm            = "md5",
   correspondence_table = FALSE
 )
 }
 \seealso{
-\code{\link[=crypt_r]{crypt_r()}}, \code{\link[digest:digest]{digest::digest()}}, \code{\link[=get_correspondence_tables]{get_correspondence_tables()}}.
+\code{\link[=crypt_r]{crypt_r()}} for the batch / file-driven counterpart,
+\code{\link[=get_correspondence_tables]{get_correspondence_tables()}} to retrieve the stored mapping,
+\code{\link[=crypt_vector]{crypt_vector()}} for the underlying vector transformation.
 }

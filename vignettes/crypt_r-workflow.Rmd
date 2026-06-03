@@ -14,13 +14,13 @@ knitr::opts_chunk$set(
 )
 ```
 
-`crypt_r()` is the industrialised counterpart of `crypt_data()`. It is
-designed for production pipelines that must pseudonymise several input
+`crypt_r()` is the industrialized counterpart of `crypt_data()`. It is
+designed for production pipelines that must pseudonymize several input
 files at once, write their encrypted versions to disk, and produce a
 recap log — all in parallel, without blocking the main R session.
 
 This vignette walks through a complete happy-path example and then
-summarises the main options.
+summarizes the main options.
 
 ```{r setup}
 library(cryptRopen)
@@ -30,8 +30,8 @@ library(cryptRopen)
 
 | Need                                                                 | Use              |
 | -------------------------------------------------------------------- | ---------------- |
-| Pseudonymise one data frame already in memory                        | `crypt_data()`   |
-| Pseudonymise N files on disk, described by an Excel mask             | `crypt_r()`      |
+| Pseudonymize one data frame already in memory                        | `crypt_data()`   |
+| Pseudonymize N files on disk, described by an Excel mask             | `crypt_r()`      |
 | Parallel execution across rows of the mask                           | `crypt_r()`      |
 | Streaming read/write for files too large for RAM (parquet, CSV)      | `crypt_r()`      |
 | Auto-written xlsx recap log (success, duration, sha256 per row)      | `crypt_r()`      |
@@ -207,15 +207,18 @@ reliable synchronisation point.
 
 ### Engine routing
 
-| `engine`       | Input / output combination        | Effective engine                     |
-| -------------- | --------------------------------- | ------------------------------------ |
-| `"in_memory"`  | any                               | `.process_mask_row_in_memory()`      |
-| `"auto"` / `"streaming"` | parquet-in + parquet-out | `.process_mask_row_streaming()`      |
-| `"auto"` / `"streaming"` | csv-in + csv-out         | `.process_mask_row_csv_streaming()`  |
-| `"auto"` / `"streaming"` | mixed, rds, xlsx, …      | fallback to `in_memory`              |
+| `engine`                 | Input / output combination | Effective behavior              |
+| ------------------------ | -------------------------- | ------------------------------- |
+| `"in_memory"`            | any                        | Full read into RAM (historical) |
+| `"auto"` / `"streaming"` | parquet-in + parquet-out   | Streaming via `arrow`           |
+| `"auto"` / `"streaming"` | csv-in + csv-out           | Streaming via `arrow`           |
+| `"auto"` / `"streaming"` | mixed, rds, xlsx, …        | Falls back to in-memory         |
 
-The streaming engines read with an `arrow` Scanner by chunks and write
-incrementally, keeping memory usage bounded regardless of input size.
+In streaming mode the input is read by chunks with an `arrow` Scanner
+and written incrementally, keeping memory usage bounded regardless of
+input size. The `chunk_size` argument controls the row count per
+chunk; the default (`1e6`) is a reasonable trade-off between memory
+footprint and per-chunk overhead.
 
 ### Daemons ownership
 
