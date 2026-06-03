@@ -1,3 +1,53 @@
+# cryptRopen 0.2.0
+
+This is the first public CRAN release. The 0.1.x line was published
+on GitHub only.
+
+## API stability
+
+The public surface (`crypt_vector()`, `crypt_data()`, `crypt_r()` and
+its async companions, `get_correspondence_tables()`, `inspect()`) is
+committed across the 0.x series: existing arguments will not be
+removed or renamed; new arguments may be added with defaults.
+
+## Documentation overhaul (for CRAN clarity)
+
+* Title and Description rewritten to describe the package honestly:
+  pseudonymization via salted hash, not reversible encryption.
+* `?cryptRopen` is now a real index — entry points, async
+  companions, and pointers to the two vignettes.
+* The Getting Started vignette gained a "When *not* to use
+  cryptRopen" section and an "Algorithm choice" section.
+* All `@param` descriptions are standardised; two factually wrong
+  notes were corrected (`inspect()` does not require the data frame
+  to live in `globalenv()`; `crypt_data()` accepts a data frame
+  value, not an expression).
+* Examples on the async companions migrated from `\dontrun{}` to
+  runnable `\donttest{}` blocks anchored on the shipped
+  `persons.csv` fixture.
+* US English spelling propagated throughout (pseudonymize, normalize,
+  finalize, behavior, ...).
+
+## Code modernization
+
+* `dplyr::filter_all(any_vars(...))` replaced by
+  `dplyr::filter(if_any(...))` in the mask import step (the
+  superseded family was generating soft deprecation warnings on
+  `dplyr` >= 1.1).
+* `inspect()`'s optional row-count side effect now flows through
+  `message()` instead of `print()`.
+* `crypt_data()` argument-validation error messages reformulated for
+  clarity, with `call. = FALSE`.
+
+## Packaging
+
+* `DESCRIPTION` gained `URL`, `BugReports`, `Depends: R (>= 4.1.0)`,
+  `Language: en-US`, `Config/testthat/edition: 3`.
+* `devtools` removed from `Suggests` (was unused at runtime).
+* The async test suite (`tests/testthat/test-crypt_r_async.R`) now
+  skips on CRAN via `skip_on_cran()`. Full coverage is exercised in
+  CI on every push.
+
 # cryptRopen 0.1.1
 
 ## Bug fixes
