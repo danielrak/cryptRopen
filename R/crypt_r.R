@@ -1,63 +1,112 @@
-#' Industrialized dataset variables encryption.
+#' Pseudonymize Variables Across Multiple Files via an Excel Mask
 #'
-#' This function consolidates a set of procedures made to encrypt
-#' variables from datasets. Variables to encrypt and input datasets can
-#' be in any number, following user's needs.
+#' The high-level entry point for the batch / industrialized workflow.
+#' Reads a single Excel mask that describes, for each input file, which
+#' columns to hash and which to drop; dispatches one `mirai` task per
+#' filtered mask row (parallel, non-blocking); and returns immediately
+#' a `cryptR_job` handle. The job is inspected with [cryptR_status()] /
+#' [summary()] / [cryptR_results()], blocked on with [cryptR_wait()],
+#' and finalized with [cryptR_collect()] (which writes a recap xlsx log
+#' and tears down daemons when applicable).
 #'
-#' `crypt_r()` is **non-blocking**: it builds a `cryptR_job` (one
-#' `mirai` task per filtered mask row) and returns immediately. The
-#' caller inspects / waits / finalizes the job through the companion
-#' API (see *Value* and *See Also*). A per-row failure does not
-#' interrupt the other rows — the failure is captured on the
-#' corresponding task and surfaces via [cryptR_status()].
+#' A per-row failure does not interrupt the other rows — the failure is
+#' captured on the corresponding task and surfaces via [cryptR_status()].
 #'
 #' **Empty `vars_to_encrypt` cell.** A mask row whose `vars_to_encrypt`
 #' cell is blank (empty, `NA`, or whitespace-only) is legitimate and
-#' means "copy / convert this file, applying `vars_to_remove` if any,
-#' encrypting nothing." The output file is written under `output_path`
-#' (re-encoded to the requested output format), no `_crypt` columns are
+#' means "process this file, applying `vars_to_remove` if any, hashing
+#' nothing." The output file is written under `output_path` re-encoded
+#' to the format implied by `encrypted_file`; no `_crypt` columns are
 #' emitted, and **no `tc_*.parquet`** is produced. The recap log
 #' records `success = TRUE` and `tc_name = NA` for such rows.
-#' `crypt_data()` does **not** support this — see its documentation.
+#' [crypt_data()] does **not** support this case — see its
+#' documentation.
 #'
-#' @param mask_folder_path Folder path of the excel mask.
-#' @param mask_file File name (with extension) of the excel mask.
-#' @param output_path Folder path where the encrypted datasets
-#' will be created.
-#' @param intermediate_path Folder path where intermediate files
-#' (correspondence tables for e.g) will be created.
-#' @param encryption_key Character vector.
-#' @param algorithm Algorithm to use.
-#' From digest::digest()'s algo argument.
-#' @param correspondence_table Logical vector. If TRUE, the correspondence tables will computed
-#' and stored in the indicated intermediate_path.
+#' @param mask_folder_path Character scalar. Directory containing the
+#'   Excel mask file.
+#' @param mask_file Character scalar. Name of the Excel mask file
+#'   (with extension).
+#' @param output_path Character scalar. Existing directory where the
+#'   pseudonymized output files will be written. Validated up-front.
+#' @param intermediate_path Character scalar. Existing directory where
+#'   the correspondence-table parquets (`tc_*.parquet`) and the recap
+#'   xlsx log will be written. Validated up-front.
+#' @param encryption_key Character scalar. The salt prepended to each
+#'   value before hashing. See [crypt_vector()] for the underlying
+#'   transformation.
+#' @param algorithm Character scalar. Any algorithm accepted by the
+#'   `algo` argument of [digest::digest()]. Defaults to `"md5"`.
+#' @param correspondence_table Logical scalar. If `TRUE` (default), a
+#'   per-input correspondence table `tc_<stem>.parquet` is written under
+#'   `intermediate_path` and also stored in the package-private
+#'   environment (retrievable via [get_correspondence_tables()] after
+#'   [cryptR_collect()] re-injects them post-run).
 #' @param engine One of `"auto"`, `"in_memory"`, `"streaming"`.
 #'   Selects the per-row processing engine. `"auto"` (default) and
 #'   `"streaming"` both route parquet-in/parquet-out and csv-in/csv-out
-#'   to the streaming engines (arrow Scanner by chunks, progressive
-#'   write); mixed or non-streamable endpoints (rds, xlsx, parquet→csv,
-#'   csv→parquet) silently fall back to `"in_memory"` to preserve
-#'   non-regression. `"in_memory"` always reads the full input into
-#'   RAM (historical behavior).
-#' @param chunk_size Integer. Number of rows per chunk when the
-#'   effective engine is streaming. Ignored by `"in_memory"` (and by
-#'   `"auto"` / `"streaming"` when falling back to in_memory). Default
-#'   `1e6`.
-#' @param n_workers Integer or `NULL`. Number of `mirai` daemons to
-#'   spawn for the dispatch. When `NULL` (default), `crypt_r()` picks
-#'   `min(parallel::detectCores() - 1, n_rows, 8L)` (floored at 1).
-#'   If daemons are already running on the default profile when
+#'   to the streaming engines (an `'arrow'` Scanner by chunks, with
+#'   progressive write); mixed or non-streamable endpoints (rds, xlsx,
+#'   parquet→csv, csv→parquet) silently fall back to `"in_memory"`.
+#'   `"in_memory"` always reads the full input into RAM.
+#' @param chunk_size Integer scalar. Number of rows per chunk when the
+#'   effective engine is streaming. Ignored by `"in_memory"`. Defaults
+#'   to `1e6`.
+#' @param n_workers Integer scalar or `NULL`. Number of `mirai` daemons
+#'   to spawn for the dispatch. When `NULL` (default), `crypt_r()`
+#'   picks `min(parallel::detectCores() - 1, n_rows, 8L)` (floored
+#'   at 1). If daemons are already running on the default profile when
 #'   `crypt_r()` is called, `n_workers` is ignored and the existing
 #'   daemons are reused — the user retains control and
 #'   [cryptR_collect()] will not tear them down.
-#' @return A [`cryptR_job`][cryptR_status] object carrying one `mirai`
-#'   task per filtered mask row. Inspect with [cryptR_status()]; block
-#'   with [cryptR_wait()]; finalize (write the recap log and, when
-#'   applicable, tear down the daemons) with [cryptR_collect()].
+#' @return A `cryptR_job` object carrying one `mirai` task per filtered
+#'   mask row. Inspect with [cryptR_status()] / [summary()] /
+#'   [cryptR_results()]; block with [cryptR_wait()]; finalize with
+#'   [cryptR_collect()].
 #' @family async_job
 #' @seealso [cryptR_status()], [cryptR_wait()], [cryptR_collect()],
-#'   [get_correspondence_tables()].
+#'   [cryptR_results()], [get_correspondence_tables()].
 #' @export
+#'
+#' @examples
+#' \donttest{
+#' # Minimal end-to-end run using the persons.csv fixture shipped
+#' # with the package. Everything is written to tempdir() and cleaned
+#' # up at the end.
+#' work_dir <- file.path(tempdir(), "crypt_r_example")
+#' mask_dir <- file.path(work_dir, "mask")
+#' out_dir  <- file.path(work_dir, "output")
+#' int_dir  <- file.path(work_dir, "intermediate")
+#' dir.create(mask_dir, recursive = TRUE, showWarnings = FALSE)
+#' dir.create(out_dir, showWarnings = FALSE)
+#' dir.create(int_dir, showWarnings = FALSE)
+#'
+#' input_file <- system.file("extdata", "persons.csv", package = "cryptRopen")
+#' mask <- data.frame(
+#'   folder_path     = dirname(input_file),
+#'   file            = basename(input_file),
+#'   encrypted_file  = "persons_crypt.csv",
+#'   vars_to_encrypt = "email",
+#'   vars_to_remove  = NA,
+#'   to_encrypt      = "X",
+#'   stringsAsFactors = FALSE
+#' )
+#' writexl::write_xlsx(mask, file.path(mask_dir, "mask.xlsx"))
+#'
+#' # n_workers = 1L keeps the example friendly to CRAN check policies
+#' # on parallelism in examples.
+#' job <- crypt_r(
+#'   mask_folder_path  = mask_dir,
+#'   mask_file         = "mask.xlsx",
+#'   output_path       = out_dir,
+#'   intermediate_path = int_dir,
+#'   encryption_key    = "demo-key",
+#'   n_workers         = 1L
+#' )
+#' job <- cryptR_collect(job)
+#'
+#' list.files(out_dir)
+#' unlink(work_dir, recursive = TRUE)
+#' }
 crypt_r <- function(mask_folder_path, mask_file,
                     output_path, intermediate_path,
                     encryption_key, algorithm = "md5",
@@ -128,11 +177,12 @@ crypt_r <- function(mask_folder_path, mask_file,
   # The Excel mask:
   mask <-
     rio::import(file.path(mask_folder_path, mask_file)) %>%
-    # Without eventual blank lines in the mask (for visualization ease):
-    dplyr::filter_all(dplyr::any_vars(!is.na(.))) %>%
-    # Inserting a row_number (useful for technical reasons):
+    # Drop fully blank rows (a convenience for hand-edited masks where
+    # users sometimes leave empty lines for visual grouping).
+    dplyr::filter(dplyr::if_any(dplyr::everything(), ~ !is.na(.))) %>%
+    # Insert a row number for downstream technical references.
     dplyr::mutate(row_number = dplyr::row_number()) %>%
-    # Keep only lines on datasets the user want to encrypt:
+    # Keep only rows the user actually wants processed.
     dplyr::filter(to_encrypt == "X")
 
   # Check eventual duplicated file names, if there is, add indication

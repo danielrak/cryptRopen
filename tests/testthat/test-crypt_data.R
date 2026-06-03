@@ -57,7 +57,7 @@ test_that("Errors are consistent", {
       algorithm = "md5",
       correspondence_table = FALSE
     ),
-    regexp = "All indicated vars_to_encrypt must be effectively a variable name."
+    regexp = "All names in `vars_to_encrypt` must match a column"
   )
 
   expect_error(
@@ -69,7 +69,7 @@ test_that("Errors are consistent", {
       algorithm = "md5",
       correspondence_table = FALSE
     ),
-    regexp = "All indicated vars_to_remove must be effectively a variable name."
+    regexp = "All names in `vars_to_remove` must match a column"
   )
 
   expect_error(
@@ -79,7 +79,7 @@ test_that("Errors are consistent", {
       encryption_key = "1234567",
       correspondence_table = TRUE
     ),
-    regexp = "correspondence_table_label must be indicated"
+    regexp = "correspondence_table_label.+must be provided"
   )
 })
 

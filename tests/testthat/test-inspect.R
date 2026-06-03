@@ -190,15 +190,15 @@ test_that("logical columns are handled", {
 
 # ---- nrow = TRUE side-effect --------------------------------------------
 
-test_that("nrow = TRUE prints the row count but returns the same tibble", {
+test_that("nrow = TRUE emits the row count but returns the same tibble", {
   df <- data.frame(a = 1:7)
   out_default <- inspect(df)
-  out_printed <- NULL
-  printed <- capture.output({
-    out_printed <- inspect(df, nrow = TRUE)
+  out_emitted <- NULL
+  emitted <- capture_messages({
+    out_emitted <- inspect(df, nrow = TRUE)
   })
-  expect_equal(out_printed, out_default)
-  expect_true(any(grepl("7", printed)))
+  expect_equal(out_emitted, out_default)
+  expect_true(any(grepl("7", emitted)))
 })
 
 # ---- .inspect_column() helper in isolation ------------------------------
