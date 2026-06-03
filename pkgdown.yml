@@ -1,0 +1,7 @@
+pandoc: 3.8.3
+pkgdown: 2.2.0
+pkgdown_sha: ~
+articles:
+  crypt_r-workflow: crypt_r-workflow.html
+  cryptRopen: cryptRopen.html
+last_built: 2026-06-03T19:06Z
